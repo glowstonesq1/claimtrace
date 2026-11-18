@@ -1,0 +1,30 @@
+# ClaimTrace local deployment. The port is published on 127.0.0.1 only (not your network).
+# To expose it to others you MUST set CLAIMTRACE_API_TOKEN and change the port binding deliberately.
+services:
+  claimtrace:
+    build: .
+    image: claimtrace:0.1.0
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - claimtrace-data:/data
+    environment:
+      CLAIMTRACE_RETENTION_DAYS: ${CLAIMTRACE_RETENTION_DAYS:-}
+      CLAIMTRACE_API_TOKEN: ${CLAIMTRACE_API_TOKEN:-}
+      CLAIMTRACE_ALLOW_URL_INGESTION: ${CLAIMTRACE_ALLOW_URL_INGESTION:-false}
+      # Optional language model (off by default). For Ollama on the host:
+      #   CLAIMTRACE_LLM_PROVIDER=ollama CLAIMTRACE_LLM_BASE_URL=http://host.docker.internal:11434/v1 CLAIMTRACE_LLM_MODEL=llama3.1
+      CLAIMTRACE_LLM_PROVIDER: ${CLAIMTRACE_LLM_PROVIDER:-rules}
+      CLAIMTRACE_LLM_BASE_URL: ${CLAIMTRACE_LLM_BASE_URL:-}
+      CLAIMTRACE_LLM_MODEL: ${CLAIMTRACE_LLM_MODEL:-}
+      CLAIMTRACE_LLM_API_KEY: ${CLAIMTRACE_LLM_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+
+volumes:
+  claimtrace-data:

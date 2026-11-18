@@ -72,7 +72,8 @@ class Store:
             row = self.conn.execute("SELECT MAX(version) FROM schema_version").fetchone()
             current = row[0] or 0
             files = sorted(
-                f for f in resources.files("claimtrace.core").joinpath("migrations").iterdir() if f.name.endswith(".sql")
+                (f for f in resources.files("claimtrace.core").joinpath("migrations").iterdir() if f.name.endswith(".sql")),
+                key=lambda f: f.name,
             )
             for f in files:
                 version = int(f.name.split("_", 1)[0])
