@@ -33,8 +33,11 @@ function spread(nodes: GNode[], want: Map<string, number>) {
   for (const n of nodes) { n.y = Math.max(want.get(n.id) ?? TOP, last + MIN_GAP); last = n.y; }
 }
 
-export function RelationshipGraph({ graph, docId, items, passages, onShow }: {
+export function RelationshipGraph({ graph, docId, items, passages, onShow, onSelect }: {
   graph: GraphData; docId: string; items: Commitment[]; passages: Passage[]; onShow: (s: Span) => void;
+  /** Called whenever the selected node changes (click, arrow keys, detail-pane links, Escape), with that
+   *  node's source span or null, so the source pane never keeps highlighting a previous node's passage. */
+  onSelect?: (s: Span | null) => void;
 }) {
   const [docs, setDocs] = useState<Doc[]>([]);
   useEffect(() => { api.documents().then(setDocs).catch(() => undefined); }, []);
@@ -120,6 +123,16 @@ export function RelationshipGraph({ graph, docId, items, passages, onShow }: {
   });
   const lit = new Set<string>();
   if (active) { lit.add(active); for (const l of links(active)) { lit.add(l.edge.id); lit.add(l.other.id); } }
+
+  // Keep the source highlight in step with the selection. Skips the first render so opening the tab does
+  // not clear a highlight the user made elsewhere before selecting anything here.
+  const selected = active ? byId.get(active) ?? null : null;
+  const selectedSpan = selected?.span ?? null;
+  const mounted = useRef(false);
+  useEffect(() => {
+    if (!mounted.current) { mounted.current = true; return; }
+    onSelect?.(selectedSpan);
+  }, [active, selectedSpan]);
 
   const focusNode = (id: string) => { setFocusable(id); setActive(id); setHint(""); refs.current.get(id)?.focus(); };
   const open = (n: GNode) => { if (n.span) onShow(n.span); };
