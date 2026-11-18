@@ -2,6 +2,11 @@
 
 Status: v0.1 draft for design review · Written 2026-11-18 · Owner: maintainers
 
+> **Revised by the design review.** Decisions D1–D24 in [design-review.md](design-review.md) supersede this
+> draft where they differ (notably: split commitment status, evidence-sufficiency wording, 4-screen UI,
+> async analysis runs, append-only reviews, per-document model egress gate). The shipped behaviour is
+> documented in the architecture, data-model, commitment-model and question-answering docs.
+
 > ClaimTrace is a document-review aid. It is **not legal advice**, does not decide
 > what is true, and never acts on documents on the user's behalf.
 
