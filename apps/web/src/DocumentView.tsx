@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { Badge, EvidenceQuote, ReviewControls } from "./components";
+import { RelationshipGraph } from "./Graph";
+import { Skeleton } from "./motion";
 import { CONFIDENCE, DOC_TYPE_LABEL, EFFECT, REVIEW, TYPE, VERDICT } from "./labels";
 import type { Claim, Commitment, Doc, GraphData, Passage, Span, VerificationRun } from "./types";
 
@@ -17,6 +19,7 @@ export function DocumentView({ id }: { id: string }) {
   const [checks, setChecks] = useState<VerificationRun[]>([]);
   const [tab, setTab] = useState<Tab>("commitments");
   const [highlight, setHighlight] = useState<Span | null>(null);
+  const [pulse, setPulse] = useState(0);  // bumps on every jump so the passage pulses again
   const [error, setError] = useState("");
   const [f, setF] = useState({ party: "", type: "", show: "current", review: "" });
   const sourceRef = useRef<HTMLDivElement>(null);
@@ -35,12 +38,13 @@ export function DocumentView({ id }: { id: string }) {
     if (p) {
       setHighlight({ document_id: id, passage_id: p.id, char_start: p.char_start, char_end: p.char_end, quote: p.text,
         page: p.page, section: p.section_number, document_title: null, document_version: null });
+      setPulse((n) => n + 1);
       requestAnimationFrame(() => document.getElementById(`p-${p.id}`)?.scrollIntoView({ block: "center" }));
     }
   }, [passages, id]);
 
   const show = (s: Span) => {
-    setHighlight(s);
+    setHighlight(s); setPulse((n) => n + 1);
     if (s.document_id !== id) { window.location.hash = `#/doc/${s.document_id}?p=${s.passage_id}`; return; }
     requestAnimationFrame(() => document.getElementById(`p-${s.passage_id}`)?.scrollIntoView({ block: "center" }));
   };
@@ -54,7 +58,8 @@ export function DocumentView({ id }: { id: string }) {
     (a.deadline?.date ?? "9999").localeCompare(b.deadline?.date ?? "9999"));
 
   if (error) return <div className="errbox" role="alert">{error}</div>;
-  if (!doc) return <p role="status">Loading…</p>;
+  if (!doc) return <><Skeleton label="Loading…" lines={["w-60 tall"]} card={false} />
+    <div className="split spaced"><Skeleton label="" /><Skeleton label="" lines={["w-80", "w-95", "w-95", "w-60"]} /></div></>;
   const isEvidence = ["audit_report", "evidence", "report"].includes(doc.doc_type);
   const tabs: [Tab, string][] = [["commitments", `Commitments (${items.length})`], ["deadlines", `Deadlines (${deadlines.length})`],
     ...(isEvidence || claims.length ? [["claims", `Statements (${claims.length})`] as [Tab, string]] : []),
@@ -62,29 +67,30 @@ export function DocumentView({ id }: { id: string }) {
 
   return (
     <>
-      <p className="small"><a href="#/">← All documents</a></p>
+      <p className="small"><a href="#/">Back to all documents</a></p>
       <h1>{doc.title}</h1>
-      <p className="muted">{DOC_TYPE_LABEL[doc.doc_type]} · version {doc.version_label} · {passages.length} passages
-        {doc.page_count ? ` · ${doc.page_count} pages` : ""} · SHA-256 <code title={doc.checksum_sha256}>{doc.checksum_sha256.slice(0, 12)}…</code></p>
+      <ul className="meta small" aria-label="About this document">
+        <li>{DOC_TYPE_LABEL[doc.doc_type]}</li><li>Version {doc.version_label}</li><li>{passages.length} passages</li>
+        {doc.page_count ? <li>{doc.page_count} pages</li> : null}
+        <li>SHA-256 <code title={doc.checksum_sha256}>{doc.checksum_sha256.slice(0, 12)}…</code></li></ul>
       {doc.warnings.map((w) => <div key={w} className="warnbox" role="note"><strong>Warning: </strong>{w.replace(/^\w+: /, "")}</div>)}
       {flagged > 0 && <p><Badge tone="warn" icon="eye">{flagged} item{flagged === 1 ? "" : "s"} need your review</Badge>{" "}
-        <button onClick={() => { setTab("commitments"); setF({ ...f, review: "flagged", show: "all" }); }}>Show them</button></p>}
-      <div className="row" style={{ alignItems: "center" }}>
-        <div className="small" style={{ flex: "2 1 300px" }}>
-          Export: <a href={`/documents/${id}/report?format=html`} target="_blank" rel="noopener">printable report</a> ·{" "}
-          <a href={`/documents/${id}/report?format=md`}>Markdown</a> · <a href={`/documents/${id}/report?format=json`}>JSON</a> ·{" "}
-          <a href={`/documents/${id}/deadlines.csv`}>deadlines (Excel/CSV)</a>
-        </div>
+        <button type="button" onClick={() => { setTab("commitments"); setF({ ...f, review: "flagged", show: "all" }); }}>Show them</button></p>}
+      <div className="meta small" role="group" aria-label="Export">
+        <span>Export:</span>
+        <a href={`/documents/${id}/report?format=html`} target="_blank" rel="noopener">printable report</a>
+        <a href={`/documents/${id}/report?format=md`}>Markdown</a><a href={`/documents/${id}/report?format=json`}>JSON</a>
+        <a href={`/documents/${id}/deadlines.csv`}>deadlines (Excel/CSV)</a>
       </div>
 
       <div className="tabs" role="tablist" aria-label="Document views">
         {tabs.map(([k, label]) => (
-          <button key={k} role="tab" aria-selected={tab === k} aria-controls={`panel-${k}`} id={`tab-${k}`}
+          <button type="button" key={k} role="tab" aria-selected={tab === k} aria-controls={`panel-${k}`} id={`tab-${k}`}
             onClick={() => setTab(k)}>{label}</button>))}
       </div>
 
       <div className="split">
-        <section id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
+        <section key={tab} className="fade-in" id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`}>
           {tab === "commitments" && (
             <>
               <div className="filters">
@@ -111,7 +117,7 @@ export function DocumentView({ id }: { id: string }) {
             </>
           )}
           {tab === "deadlines" && (
-            <table>
+            <div className="table-wrap"><table>
               <caption className="sr">Deadlines sorted by date</caption>
               <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th><th scope="col">Status</th></tr></thead>
               <tbody>{deadlines.map((c) => (
@@ -119,10 +125,10 @@ export function DocumentView({ id }: { id: string }) {
                   <td>{c.deadline?.date ?? <span className="muted">{c.deadline?.raw}</span>}
                     {c.deadline?.date === null && c.deadline?.kind !== "absolute" && <div className="small muted">Not on a calendar: {c.deadline?.kind}</div>}</td>
                   <td>{c.obliging_party ?? <em>no party named</em>}</td>
-                  <td><button className="btn" style={{ textAlign: "left" }} onClick={() => show(c.provenance.span)}>§{c.section_number} {c.action.slice(0, 120)}</button></td>
+                  <td><button type="button" className="btn left" onClick={() => show(c.provenance.span)}>§{c.section_number} {c.action.slice(0, 120)}</button></td>
                   <td><Badge tone={c.document_effect === "in_force" ? "ok" : "muted"}>{EFFECT[c.document_effect]}</Badge></td>
                 </tr>))}</tbody>
-            </table>
+            </table></div>
           )}
           {tab === "claims" && claims.map((c) => (
             <div className="card" key={c.id}><Badge tone="info">{c.claim_type.replace("_", " ")}</Badge>
@@ -137,14 +143,18 @@ export function DocumentView({ id }: { id: string }) {
               <dl>{extra.definitions.map((d) => <div key={d.term}><dt><strong>{d.term}</strong></dt><dd>{d.definition_text}</dd></div>)}</dl>
             </>
           )}
-          {tab === "relationships" && graph && <Relationships graph={graph} />}
+          {tab === "relationships" && graph && (<>
+            <RelationshipGraph graph={graph} docId={id} items={items} passages={passages} onShow={show} />
+            <Relationships graph={graph} items={items} />
+          </>)}
           {tab === "checks" && (
             <>
               {!checks.length && <p>No checks yet. <a href="#/verify">Compare this document with another</a>.</p>}
               {checks.map((r) => (
                 <div className="card" key={r.id}>
                   <h3>{r.mode === "amendment" ? "Compared with an amendment" : r.mode === "evidence" ? "Checked against evidence" : "Compared with another document"}</h3>
-                  <p className="small">{Object.entries(r.summary).filter(([, n]) => n).map(([k, n]) => `${VERDICT[k]?.label ?? k}: ${n}`).join(" · ")}</p>
+                  <p className="badges">{Object.entries(r.summary).filter(([, n]) => n).map(([k, n]) =>
+                    <Badge key={k} tone={VERDICT[k]?.tone ?? "muted"} icon={VERDICT[k]?.icon}>{VERDICT[k]?.label ?? k}: {n}</Badge>)}</p>
                   <a href={`#/verify?run=${r.id}`}>Open findings</a>
                 </div>))}
             </>
@@ -152,13 +162,13 @@ export function DocumentView({ id }: { id: string }) {
         </section>
 
         <aside className="card source" aria-label="Document text" ref={sourceRef} tabIndex={0}>
-          <h2 style={{ marginTop: 0 }}>Document text</h2>
+          <h2 className="flush">Document text</h2>
           {passages.map((p) => {
-            const hit = highlight && highlight.passage_id === p.id;
+            const hit = !!highlight && highlight.passage_id === p.id;
             const a = hit ? highlight!.char_start - p.char_start : 0;
             const b = hit ? highlight!.char_end - p.char_start : 0;
             return (
-              <p key={p.id} id={`p-${p.id}`}>
+              <p key={hit ? `${p.id}-${pulse}` : p.id} id={`p-${p.id}`} className={hit ? "hit pulse" : undefined}>
                 {p.page ? <span className="sec">p.{p.page} </span> : null}
                 {hit && a >= 0 && b <= p.text.length
                   ? <>{p.text.slice(0, a)}<mark>{p.text.slice(a, b)}</mark>{p.text.slice(b)}</>
@@ -175,22 +185,22 @@ function CommitmentCard({ c, onShow }: { c: Commitment; onShow: (s: Span) => voi
   const replaced = c.document_effect !== "in_force";
   return (
     <article className="card" aria-labelledby={`c-${c.id}`}>
-      <h3 id={`c-${c.id}`}>§{c.section_number ?? "?"} · {TYPE[c.type]} · {c.obliging_party ?? "no party named"}</h3>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+      <h3 id={`c-${c.id}`}>§{c.section_number ?? "?"} {TYPE[c.type]} <span className="muted">({c.obliging_party ?? "no party named"})</span></h3>
+      <div className="badges">
         <Badge tone={replaced ? "muted" : "ok"}>{EFFECT[c.document_effect]}</Badge>
         {c.amends_section && <Badge tone="info">From amendment</Badge>}
         {c.needs_review && <Badge tone="warn" icon="eye">Needs your review</Badge>}
         <span className="small muted">{CONFIDENCE[c.confidence]}</span>
       </div>
       <EvidenceQuote span={c.provenance.span} onShow={onShow} superseded={replaced} />
-      <dl className="small" style={{ display: "grid", gridTemplateColumns: "max-content 1fr", gap: "2px 12px" }}>
+      <dl className="small facts">
         <dt>For whom</dt><dd>{c.beneficiary_party ?? "—"}</dd>
         <dt>By when</dt><dd>{c.deadline ? (c.deadline.date ?? c.deadline.raw) : "—"}</dd>
         {c.conditions.length > 0 && <><dt>Only if</dt><dd>{c.conditions.join("; ")}</dd></>}
         {c.exceptions.length > 0 && <><dt>Unless / except</dt><dd>{c.exceptions.join("; ")}</dd></>}
         {c.performer_party && <><dt>Done by</dt><dd>{c.performer_party}</dd></>}
       </dl>
-      {[...c.review_reasons, ...c.caveats].map((r) => <p key={r} className="small" style={{ color: "var(--warn)" }}>Note: {r}</p>)}
+      {[...c.review_reasons, ...c.caveats].map((r) => <p key={r} className="small note">Note: {r}</p>)}
       <details><summary className="small">How this was found</summary>
         <p className="small muted">Method: {c.provenance.extraction_method}{c.provenance.model ? ` (${c.provenance.model})` : ""}.
           The quote was checked against the stored text.</p></details>
@@ -205,20 +215,26 @@ const EDGE_LABEL: Record<string, string> = { made_by: "is owed by", owed_to: "is
   duplicates: "duplicates" };
 
 /** Accessible relationship view (design-review D17): a readable table instead of a force-directed graph. */
-function Relationships({ graph }: { graph: GraphData }) {
-  const label = (id: string) => graph.nodes.find((n) => n.id === id)?.label ?? id;
+function Relationships({ graph, items }: { graph: GraphData; items: Commitment[] }) {
+  const label = (id: string) => {
+    const c = items.find((x) => x.id === id);
+    const n = graph.nodes.find((x) => x.id === id);
+    if (n?.type === "external" && c) return `§${c.section_number ?? "?"} ${TYPE[c.type] ?? c.type} (amendment)`;
+    return n?.label ?? id;
+  };
   const groups = graph.edges.reduce<Record<string, typeof graph.edges>>((acc, e) => {
     (acc[e.type] ||= []).push(e); return acc; }, {});
   return (
     <>
+      <h2>The same links as a list</h2>
       <p className="muted small">How items in this document connect. {graph.nodes.length} items, {graph.edges.length} links.
         The full graph with provenance is available from the API at /documents/&lt;id&gt;/graph.</p>
       {Object.entries(groups).map(([type, es]) => (
         <section key={type}>
-          <h2>{EDGE_LABEL[type] ?? type} ({es.length})</h2>
-          <table><thead><tr><th scope="col">Item</th><th scope="col">Relationship</th><th scope="col">Item</th></tr></thead>
+          <h3>{EDGE_LABEL[type] ?? type} ({es.length})</h3>
+          <div className="table-wrap"><table><thead><tr><th scope="col">Item</th><th scope="col">Relationship</th><th scope="col">Item</th></tr></thead>
             <tbody>{es.map((e) => <tr key={e.id}><td>{label(e.src_id)}</td><td>{EDGE_LABEL[e.type] ?? e.type}</td><td>{label(e.dst_id)}</td></tr>)}</tbody>
-          </table>
+          </table></div>
         </section>))}
     </>
   );

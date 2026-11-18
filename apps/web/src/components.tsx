@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "./api";
 import { REVIEW, where } from "./labels";
+import { toast } from "./motion";
 import type { Span } from "./types";
 
 const ICONS: Record<string, string> = {
@@ -26,18 +27,20 @@ export function EvidenceQuote({ span, role = "supports", note, onShow, verified 
   span: Span; role?: string; note?: string | null; onShow?: (s: Span) => void; verified?: boolean; superseded?: boolean;
 }) {
   return (
-    <figure style={{ margin: "8px 0" }}>
+    <figure className="evidence">
       <blockquote className={`quote ${role === "conflicts" ? "conflicts" : role === "context" ? "context" : ""} ${superseded ? "superseded" : ""}`}>
         “{span.quote}”
       </blockquote>
       <figcaption className="loc">
-        {role === "conflicts" && <strong>Conflicting source: </strong>}
-        {role === "context" && <strong>Context: </strong>}
-        {role === "checked_not_supporting" && <strong>Checked, does not answer: </strong>}
-        {where(span)}
-        {note && <> · {note}</>}
-        {!verified && <> · <strong>Quote could not be located in the stored text</strong></>}
-        {onShow && <> · <button className="btn small" style={{ minHeight: 32, padding: "2px 8px" }} onClick={() => onShow(span)}>Show in document</button></>}
+        <span>
+          {role === "conflicts" && <strong>Conflicting source: </strong>}
+          {role === "context" && <strong>Context: </strong>}
+          {role === "checked_not_supporting" && <strong>Checked, does not answer: </strong>}
+          {where(span)}
+        </span>
+        {note && <span>{note}</span>}
+        {!verified && <span><strong>Quote could not be located in the stored text</strong></span>}
+        {onShow && <button type="button" className="btn small" onClick={() => onShow(span)}>Show in document</button>}
       </figcaption>
     </figure>
   );
@@ -65,25 +68,26 @@ export function ReviewControls({ kind, id, status, lifecycle }: { kind: "answers
       const map: Record<string, string> = { accept: "accepted", reject: "rejected", request_evidence: "needs_evidence", resolve: "resolved" };
       if (map[decision]) setCurrent(map[decision]);
       setMsg(decision === "note" ? "Note saved." : "Saved."); setNote("");
+      toast(decision === "note" ? "Note saved to the review trail" : `Review saved: ${REVIEW[map[decision]] ?? "updated"}`);
     } catch (e) { setMsg((e as Error).message); }
   };
   return (
     <div>
       <div className="small muted">Your review: <strong>{REVIEW[current] ?? current}</strong></div>
       <div className="review" role="group" aria-label="Review this item">
-        <button onClick={() => send("accept")}>Looks right</button>
-        <button onClick={() => send("reject")}>Wrong</button>
-        <button onClick={() => send("request_evidence")}>Need evidence</button>
+        <button type="button" onClick={() => send("accept")}>Looks right</button>
+        <button type="button" onClick={() => send("reject")}>Wrong</button>
+        <button type="button" onClick={() => send("request_evidence")}>Need evidence</button>
         {lifecycle
-          ? <button onClick={() => send("resolve", { lifecycle: "fulfilled" })}>Mark done</button>
-          : <button onClick={() => send("resolve")}>Mark handled</button>}
+          ? <button type="button" onClick={() => send("resolve", { lifecycle: "fulfilled" })}>Mark done</button>
+          : <button type="button" onClick={() => send("resolve")}>Mark handled</button>}
       </div>
-      <div className="row" style={{ marginTop: 8 }}>
+      <div className="row" style={{ marginTop: "var(--space-xs)" }}>
         <div className="field" style={{ flex: "3 1 260px", marginBottom: 0 }}>
           <label htmlFor={`note-${id}`} className="small">Add a note</label>
           <input id={`note-${id}`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={4000} />
         </div>
-        <button style={{ flex: "0 0 auto" }} disabled={!note} onClick={() => send("note")}>Save note</button>
+        <button type="button" disabled={!note} onClick={() => send("note")}>Save note</button>
       </div>
       <div role="status" aria-live="polite" className="small">{msg}</div>
     </div>

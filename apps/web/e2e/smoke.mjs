@@ -48,6 +48,20 @@ check(await page.locator("aside mark").isVisible(), "quote highlighted in docume
 await axe(page, "Document");
 if (shots) await page.screenshot({ path: `${shots}/2-document.png`, fullPage: false });
 
+// Relationship graph: one tab stop, arrow keys follow links, Enter shows the source text.
+await page.getByRole("tab", { name: "Relationships" }).click();
+const firstNode = page.locator(".graph [data-node]").first();
+await firstNode.waitFor();
+check((await page.locator('.graph [data-node][tabindex="0"]').count()) === 1, "graph has a single tab stop");
+await firstNode.focus();
+await page.keyboard.press("ArrowRight");
+const focused = await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? "");
+check(/^§/.test(focused), "ArrowRight moves from a party to a connected commitment");
+await page.keyboard.press("Enter");
+check(await page.locator("aside mark").isVisible(), "Enter on a graph node highlights its source text");
+check((await page.locator("table").count()) > 0, "relationship list fallback still shown");
+await axe(page, "Document relationships");
+
 await page.getByRole("link", { name: "Ask" }).click();
 await page.getByLabel("Your question").fill("What is the liability cap?");
 await page.getByRole("button", { name: "Ask", exact: true }).click();
