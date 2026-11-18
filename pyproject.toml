@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "claimtrace"
+version = "0.1.0"
+description = "Privacy-first document intelligence: map commitments, ask grounded questions, verify against exact source text."
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn>=0.29",
+  "pydantic>=2.6",
+  "python-multipart>=0.0.9",
+  "pypdf>=5.1",
+  "python-docx>=1.1",
+  "defusedxml>=0.7",
+  "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.10", "reportlab>=4"]
+
+[project.scripts]
+claimtrace = "claimtrace.cli.main:main"
+
+# One distribution; the brief's monorepo directories map onto subpackages.
+[tool.setuptools]
+package-dir = { "claimtrace" = "packages", "claimtrace.api" = "apps/api" }
+packages = [
+  "claimtrace", "claimtrace.core", "claimtrace.ingestion", "claimtrace.extraction",
+  "claimtrace.retrieval", "claimtrace.verification", "claimtrace.evaluation",
+  "claimtrace.integrations", "claimtrace.cli", "claimtrace.api",
+]
+
+[tool.setuptools.package-data]
+"claimtrace.api" = ["static/**/*"]
+"claimtrace.core" = ["migrations/*.sql"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101", "S603", "S608"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S"]
+
+[tool.mypy]
+python_version = "3.11"
+ignore_missing_imports = true
+packages = ["claimtrace.core"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
