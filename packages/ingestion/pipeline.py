@@ -32,7 +32,7 @@ class IngestOptions:
     tags: list[str] | None = None
     allow_external_llm: bool = False
     sandbox: bool = True
-    ocr: OcrFunc | None = None  # in-process parsing only; the sandbox uses the installed engine (ocr.default_ocr)
+    ocr: OcrFunc | None = None  # None: the installed engine (ocr.default_ocr); in the sandbox it must be importable
 
 
 def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
@@ -134,7 +134,7 @@ def ingest_bytes(store: Store, filename: str, data: bytes, opts: IngestOptions |
     if existing:
         return existing
     if opts.sandbox:
-        raw = parse_sandboxed(kind, data)
+        raw = parse_sandboxed(kind, data, opts.ocr)
     else:
         from .parsers import parse
 

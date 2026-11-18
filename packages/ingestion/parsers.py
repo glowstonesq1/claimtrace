@@ -43,6 +43,10 @@ class RawDoc:
     amends: str | None = None
     page_count: int | None = None
     warnings: list[str] = field(default_factory=list)
+    # PDF only, between the text-layer pass and OCR (see finish_pdf): [page, text-layer chars] of pages
+    # without a usable text layer, and the text-layer character count of the whole file.
+    ocr_pending: list[list[int]] = field(default_factory=list)
+    text_chars: int = 0
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -484,8 +488,13 @@ def _hidden_reason(para: str, hidden: list[tuple[str, str]]) -> str | None:
 _PDF_DANGEROUS = (b"/JavaScript", b"/JS ", b"/JS(", b"/Launch", b"/EmbeddedFile", b"/RichMedia", b"/XFA")
 
 
-def parse_pdf(data: bytes, ocr: OcrFunc | None = None) -> RawDoc:
-    """`ocr` reads pages without a text layer; None means the installed engine, if any (see ocr.py)."""
+def parse_pdf(data: bytes, ocr: OcrFunc | None = None, *, run_ocr: bool = True) -> RawDoc:
+    """`ocr` reads pages without a text layer; None means the installed engine, if any (see ocr.py).
+
+    With `run_ocr=False` only the text layer is read and the pages that need OCR are left in
+    `RawDoc.ocr_pending`; the caller runs OCR (the sandbox does, in a separate limited process) and
+    completes the document with `finish_pdf`.
+    """
     from pypdf import PdfReader
     from pypdf.errors import PdfReadError
 
@@ -508,45 +517,72 @@ def parse_pdf(data: bytes, ocr: OcrFunc | None = None) -> RawDoc:
     if n > MAX_PDF_PAGES:
         raise IngestError("too_many_pages", f"PDF has {n} pages; the limit is {MAX_PDF_PAGES}.")
     blocks: list[Block] = []
-    warnings: list[str] = []
     pages = [_pdf_page_text(page) for page in reader.pages]
     thin = [i for i, (txt, _) in enumerate(pages, start=1) if len(txt.strip()) < 40]
-    engine = ocr if ocr is not None else default_ocr()
-    read: dict[int, tuple[str, float]] = {}
-    if thin and engine is not None:
-        try:
-            read = engine(data, thin)
-        except Exception:  # noqa: BLE001 - an OCR failure must not lose the text layer
-            warnings.append("OCR failed on this file; pages without a text layer were not read.")
-    chars = 0
-    used: dict[int, float] = {}
     for i, (txt, hidden) in enumerate(pages, start=1):
-        o_text, o_conf = read.get(i, ("", 0.0))
-        if i in thin and len(o_text.strip()) > len(txt.strip()):
-            used[i] = o_conf
-            chars += len(o_text.strip())
-            for para in _pdf_paragraphs(o_text):
-                blocks.append(Block(text=para, page=i, heading=_looks_like_heading(para), ocr_confidence=o_conf))
-            continue
-        chars += len(txt.strip())
         for para in _pdf_paragraphs(txt):
             blocks.append(Block(text=para, page=i, heading=_looks_like_heading(para), hidden=_hidden_reason(para, hidden)))
-    if used:
-        detail = ", ".join(f"page {p} {c:.0f}/100" + (" (low)" if c < OCR_LOW_CONFIDENCE else "") for p, c in used.items())
-        warnings.append(f"OCR: {len(used)} page(s) without a text layer were read by OCR (mean word confidence: {detail}). "
-                        "OCR can misread words and numbers; check quotes against the original.")
-    if chars < 40 * max(n, 1):
-        warnings.append(
-            "SCANNED: This PDF has little or no text layer (it may be a scanned image). "
-            "ClaimTrace v0.1 cannot read images, so results will be incomplete or empty."
-        )
     meta = reader.metadata
-    return RawDoc(
+    raw = RawDoc(
         blocks=blocks,
         title=(meta.title if meta else None) or None,
         author=(meta.author if meta else None) or None,
         page_count=n,
-        warnings=warnings,
+        ocr_pending=[[i, len(pages[i - 1][0].strip())] for i in thin],
+        text_chars=sum(len(txt.strip()) for txt, _ in pages),
+    )
+    if not run_ocr:
+        return raw
+    engine = ocr if ocr is not None else default_ocr()
+    read: dict[int, tuple[str, float]] = {}
+    notes: list[str] = []
+    if thin and engine is not None:
+        try:
+            read = engine(data, thin)
+        except Exception:  # noqa: BLE001 - an OCR failure must not lose the text layer
+            notes.append(OCR_FAILED)
+    return finish_pdf(raw, read, notes)
+
+
+OCR_FAILED = "OCR failed on this file; pages without a text layer were not read."
+
+
+def finish_pdf(raw: RawDoc, read: dict[int, tuple[str, float]], notes: list[str] | None = None) -> RawDoc:
+    """Merge OCR results into a text-layer-only PDF parse and add the OCR/SCANNED warnings.
+
+    A page's OCR text replaces its text layer only when it is longer. `notes` are OCR problems (failure,
+    time limit) reported before the summary warnings. Pages missing from `read` keep their text layer.
+    """
+    pending = {page: chars for page, chars in raw.ocr_pending}
+    warnings = list(raw.warnings) + list(notes or [])
+    chars = raw.text_chars
+    used: dict[int, float] = {}
+    ocr_blocks: dict[int, list[Block]] = {}
+    for page, (o_text, o_conf) in sorted(read.items()):
+        if page in pending and len(o_text.strip()) > pending[page]:
+            used[page] = o_conf
+            chars += len(o_text.strip()) - pending[page]
+            ocr_blocks[page] = [
+                Block(text=para, page=page, heading=_looks_like_heading(para), ocr_confidence=o_conf)
+                for para in _pdf_paragraphs(o_text)
+            ]
+    by_page: dict[int, list[Block]] = {}
+    for b in raw.blocks:
+        by_page.setdefault(b.page or 0, []).append(b)
+    by_page.update(ocr_blocks)
+    blocks = [b for page in sorted(by_page) for b in by_page[page]]
+    if used:
+        detail = ", ".join(f"page {p} {c:.0f}/100" + (" (low)" if c < OCR_LOW_CONFIDENCE else "") for p, c in used.items())
+        warnings.append(f"OCR: {len(used)} page(s) without a text layer were read by OCR (mean word confidence: {detail}). "
+                        "OCR can misread words and numbers; check quotes against the original.")
+    if chars < 40 * max(raw.page_count or 0, 1):
+        warnings.append(
+            "SCANNED: This PDF has little or no text layer (it may be a scanned image). "
+            "ClaimTrace v0.1 cannot read images, so results will be incomplete or empty."
+        )
+    return RawDoc(
+        blocks=blocks, title=raw.title, author=raw.author, version=raw.version, doc_type=raw.doc_type,
+        amends=raw.amends, page_count=raw.page_count, warnings=warnings,
     )
 
 
@@ -584,6 +620,8 @@ def _pdf_paragraphs(txt: str) -> list[str]:
 def parse(kind: str, data: bytes, ocr: OcrFunc | None = None) -> RawDoc:
     if kind == "pdf":
         return parse_pdf(data, ocr)
+    if kind == "pdf-text":  # text layer only; OCR is a separate sandboxed step (sandbox.parse_sandboxed)
+        return parse_pdf(data, run_ocr=False)
     if kind == "docx":
         return parse_docx(data)
     return parse_text(data, markdown=(kind == "md"))
