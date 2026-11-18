@@ -11,6 +11,6 @@ apps/web/dist/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-evals/runs/*/
-!evals/runs/baseline/
+evals/runs/*
+!evals/runs/published/
 *.egg-info/
