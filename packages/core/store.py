@@ -36,6 +36,7 @@ from .models import (
 )
 
 T = TypeVar("T", bound=BaseModel)
+StoredObject = Commitment | Claim | Party | Definition | AmendmentInstruction
 
 _KIND = {
     Commitment: "commitment",
@@ -143,7 +144,7 @@ class Store:
         return Passage.model_validate_json(rows[0][0])
 
     # ---- extracted objects ---------------------------------------------
-    def replace_extraction(self, doc_id: str, objects: list[BaseModel], edges: list[Edge]) -> None:
+    def replace_extraction(self, doc_id: str, objects: list[StoredObject], edges: list[Edge]) -> None:
         """Atomically swap a document's extracted objects and its edges."""
         with self.tx() as c:
             c.execute("DELETE FROM objects WHERE document_id=?", (doc_id,))
@@ -179,7 +180,7 @@ class Store:
             raise NotFound(f"{_KIND[model]} {obj_id}")
         return model.model_validate_json(rows[0][0])
 
-    def add_objects(self, objs: list[BaseModel]) -> None:
+    def add_objects(self, objs: list[StoredObject]) -> None:
         with self.tx() as c:
             for o in objs:
                 c.execute(
@@ -198,7 +199,7 @@ class Store:
             # substr, not LIKE: "_" is a LIKE wildcard and would match unrelated ids
             c.execute("DELETE FROM objects WHERE substr(id, 1, ?) = ?", (len(prefix), prefix))
 
-    def update_object(self, obj: BaseModel) -> None:
+    def update_object(self, obj: StoredObject) -> None:
         with self.tx() as c:
             c.execute("UPDATE objects SET json=? WHERE id=?", (obj.model_dump_json(), obj.id))  # type: ignore[attr-defined]
 
