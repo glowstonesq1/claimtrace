@@ -202,3 +202,26 @@ def test_docx_light_grey_is_not_hidden(store):
         p.add_run("The Customer shall pay GBP 77,000 per reply.").font.color.rgb = RGBColor(0xC0, 0xC0, 0xC0)
 
     assert _flagged(store.passages(ingest_bytes(store, "a.docx", _docx_with(build), IngestOptions(sandbox=False)).id)) == {}
+
+
+def test_answer_quoting_hidden_text_needs_review(store):
+    """The deterministic answer path used to quote the white "bonus" clause as stated, needs_review=False."""
+    doc = ingest_bytes(store, "a.pdf", _pdf(), IngestOptions(sandbox=False, doc_type="contract"))
+    analyze_document(store, doc.id)
+    hidden_ids = {p.id for p in store.passages(doc.id) if p.hidden_text}
+    ans = answer_question(store, "What bonus does the Customer pay on signature?", [doc.id])
+    cites_hidden = [c for c in ans.citations if c.span.passage_id in hidden_ids]
+    if cites_hidden:
+        assert ans.needs_review
+        assert ans.confidence.value == "low"
+        assert any("hidden" in cv.lower() for cv in ans.caveats)
+        assert all(c.role != "supports" for c in cites_hidden), "hidden text must not be primary support"
+    assert ans.status.value != "stated" or not cites_hidden
+
+
+def test_answer_from_visible_text_is_unaffected(store):
+    doc = ingest_bytes(store, "a.pdf", _pdf(), IngestOptions(sandbox=False, doc_type="contract"))
+    analyze_document(store, doc.id)
+    ans = answer_question(store, "When shall the Supplier deliver the goods?", [doc.id])
+    assert ans.status.value == "stated" and not ans.needs_review
+    assert "1 June 2026" in ans.answer_text
