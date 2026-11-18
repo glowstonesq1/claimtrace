@@ -11,6 +11,8 @@ import datetime as dt
 import re
 import uuid
 
+from pydantic import BaseModel, Field, ValidationError
+
 from claimtrace import __version__
 from claimtrace.core.models import (
     EVIDENCE_TYPES,
@@ -35,7 +37,6 @@ from claimtrace.core.text import find_quote, tokens
 from claimtrace.extraction import patterns as P
 from claimtrace.integrations.llm import LLMError, LLMProvider
 from claimtrace.retrieval import BM25, expand_query, term_groups
-from pydantic import BaseModel, Field, ValidationError
 
 from .compare import compare_values, places, topic_overlap
 from .verify import verify_documents
@@ -270,9 +271,23 @@ def _lookup(ctx: _Ctx, question: str, provider: LLMProvider | None) -> Answer:
     for h in hits:  # coverage = share of the question's own terms (or their expansions) present
         h.coverage = sum(1 for g in groups if g & set(h.matched)) / len(groups)
     hits.sort(key=lambda h: (-h.coverage, -h.score))
+    # weighted coverage: a missing rare term ("convenience") matters more than a missing common one
+    max_idf = max(index.idf.values(), default=1.0) + 1.0
+
+    def g_idf(g: set[str]) -> float:
+        return max((index.idf.get(t, max_idf) for t in g), default=max_idf)
+
+    total = sum(g_idf(g) for g in groups)
+    for h in hits:
+        h.coverage = sum(g_idf(g) for g in groups if g & set(h.matched)) / total
+    hits.sort(key=lambda h: (-h.coverage, -h.score))
     n = len(groups)
-    min_cov = 0.5 if n >= 3 else 0.67 if n == 2 else 1.0
+    # 0.5 chosen on the core set: no not-found case scored above 0.45 (docs/evaluation.md, "QA threshold")
+    min_cov = 0.5 if n >= 2 else 1.0
     good = [h for h in hits if h.coverage >= min_cov and len(h.matched) >= min(2, n)]
+    want = None if _CONSEQ_Q.search(question) else expected_answer_type(question)
+    if want:  # the passage must contain the kind of thing the question asks for
+        good = [h for h in good if has_answer_type(ctx.passages[h.id].text, want)]
     checked = [_passage_span(ctx, ctx.passages[h.id]) for h in hits[:2]]
     if not good:
         return _not_found(ctx, question, checked)
@@ -348,9 +363,8 @@ def _lookup(ctx: _Ctx, question: str, provider: LLMProvider | None) -> Answer:
             if not _PROMISE_Q.search(question):
                 status = AnswerStatus.contradicted
                 lead = "The documents disagree. "
-    if status == AnswerStatus.stated and best.coverage < 0.67:
-        status, confidence = AnswerStatus.needs_human_review, Confidence.low
-        lead = "This passage may be relevant, but it does not clearly answer the question. "
+    if status == AnswerStatus.stated and best.coverage < 0.75:
+        confidence = Confidence.low if confidence == Confidence.medium else Confidence.medium
     main = current if show_current else c
     if show_current:
         body = (
@@ -375,6 +389,43 @@ def _lookup(ctx: _Ctx, question: str, provider: LLMProvider | None) -> Answer:
         follow_ups=_follow_ups(main, status),
         needs_review=status in (AnswerStatus.needs_human_review, AnswerStatus.contradicted),
     )
+
+
+_ANSWER_TYPES: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"\b(?:which|what)\s+(?:country|countries|city|location|jurisdiction|region)\b|^\s*where\b", re.I), "place"),
+    (re.compile(r"\bhow\s+often\b|\bhow\s+frequently\b|\bhow\s+many\s+times\b", re.I), "frequency"),
+    (re.compile(r"\bhow\s+(?:many|much)\s+(?:days|weeks|months|hours|years|notice|time)\b|\bhow\s+long\b|"
+                r"\bwithin\s+how\b|\bnotice\s+period\b", re.I), "duration"),
+    (re.compile(r"\bhow\s+much\b|\bwhat\s+(?:fee|amount|price|cost|sum|rate)\b|\b(?:maximum|minimum)\s+(?:total\s+)?"
+                r"amount\b|\bfor\s+how\s+much\b|\bwhat\s+does\s+.*\bpay\b", re.I), "amount"),
+    (re.compile(r"^\s*when\b|\bby\s+what\s+date\b|\bwhat\s+date\b", re.I), "date"),
+]
+_FREQ = re.compile(r"\b(?:once|twice|annually|yearly|monthly|weekly|daily|quarterly|per\s+(?:year|month|week|"
+                   r"calendar\s+year)|each\s+(?:year|month|week|calendar)|every\s+\w+|times?\s+(?:a|per|in)|"
+    r"(?:in\s+any|per|each|every)\s+(?:\d+|twelve|six|three)[\s-]+months?(?:\s+period)?)\b",
+    re.I,
+)
+
+
+def expected_answer_type(question: str) -> str | None:
+    for rx, kind in _ANSWER_TYPES:
+        if rx.search(question):
+            return kind
+    return None
+
+
+def has_answer_type(text: str, kind: str) -> bool:
+    if kind == "place":
+        return bool(places(text))
+    if kind == "frequency":
+        return bool(_FREQ.search(text))
+    if kind == "duration":
+        return bool(P.durations(text))
+    if kind == "amount":
+        return bool(P.amounts(text) or P.percents(text))
+    if kind == "date":
+        return bool(P.find_dates(text) or P.durations(text))
+    return True
 
 
 def _sentences(text: str) -> list[tuple[int, int, str]]:

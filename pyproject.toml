@@ -57,3 +57,7 @@ packages = ["claimtrace.core"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`:DeprecationWarning"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["claimtrace"]

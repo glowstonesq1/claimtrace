@@ -59,6 +59,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.cmd == "serve":
         import uvicorn
+
         from claimtrace.api.main import create_app
         from claimtrace.core.config import Settings
 

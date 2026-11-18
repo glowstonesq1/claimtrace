@@ -132,6 +132,23 @@ def compare_values(commitment: Commitment, other: str, evidence_mode: bool) -> C
             "The other document says this was not examined, so it neither supports nor contradicts the commitment.",
             ["scope"],
         )
+    # modality / polarity first in contract-vs-contract mode: 'shall' vs 'may' outranks matching numbers
+    if not evidence_mode:
+        om = next((m for m in P.MODAL_RE.finditer(other) if not re.match(r"may\s+\d", other[m.start():])), None)
+        if om:
+            omod = P.modality_of(om.group("modal"))
+            if omod != commitment.modality and {omod, commitment.modality} != {Modality.must, Modality.reasonable_efforts}:
+                return Comparison(
+                    Verdict.contradicted,
+                    f"Obligation strength differs: '{commitment.modality.value}' vs '{omod.value}'.",
+                    ["modality"],
+                )
+            if omod != commitment.modality:
+                return Comparison(
+                    Verdict.partially_supported,
+                    "One text is an absolute duty, the other only requires reasonable efforts.",
+                    ["modality"],
+                )
     # dates: deadline vs event date
     if commitment.deadline and commitment.deadline.date:
         other_dates = [d.date for d in P.find_dates(other) if d.date]
@@ -209,23 +226,6 @@ def compare_values(commitment: Commitment, other: str, evidence_mode: bool) -> C
             f"Location differs: commitment refers to {', '.join(sorted(cpl))}; other document says {', '.join(sorted(opl))}.",
             ["place"],
         )
-    # modality / polarity (contract vs contract)
-    if not evidence_mode:
-        om = P.MODAL_RE.search(other)
-        if om:
-            omod = P.modality_of(om.group("modal"))
-            if omod != commitment.modality and {omod, commitment.modality} != {Modality.must, Modality.reasonable_efforts}:
-                return Comparison(
-                    Verdict.contradicted,
-                    f"Obligation strength differs: '{commitment.modality.value}' vs '{omod.value}'.",
-                    ["modality"],
-                )
-            if omod != commitment.modality:
-                return Comparison(
-                    Verdict.partially_supported,
-                    "One text is an absolute duty, the other only requires reasonable efforts.",
-                    ["modality"],
-                )
     return None
 
 

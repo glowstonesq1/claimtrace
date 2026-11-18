@@ -259,7 +259,7 @@ SCORERS: dict[str, Callable[[System, dict], dict]] = {
 def bootstrap_ci(values: list[float], n: int = 1000, seed: int = 7) -> tuple[float, float]:
     if not values:
         return (float("nan"), float("nan"))
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311 - statistics, not security
     means = sorted(sum(rng.choice(values) for _ in values) / len(values) for _ in range(n))
     return (round(means[int(0.025 * n)], 3), round(means[int(0.975 * n) - 1], 3))
 
@@ -352,8 +352,8 @@ def summarise(results: dict[str, list[dict]]) -> dict:
 
 def _git_commit() -> str | None:
     try:
-        return subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True,
-                              check=True).stdout.strip()
+        cmd = ["git", "rev-parse", "HEAD"]
+        return subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=True).stdout.strip()  # noqa: S607
     except Exception:  # noqa: BLE001
         return None
 

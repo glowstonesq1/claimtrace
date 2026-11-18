@@ -135,7 +135,7 @@ _SUFFIXES = tuple(
             "ers",
             "er",
             "ed",
-            "es",
+            "sses",
             "ive",
             "ally",
             "al",
@@ -177,3 +177,17 @@ def tokens(text: str, keep_stopwords: bool = False) -> list[str]:
             continue
         out.append(stem(tl))
     return out
+
+
+INJECTION_RE = re.compile(
+    r"\b(?:ignore|disregard|forget|override)\s+(?:all\s+|any\s+|your\s+|the\s+|previous\s+|prior\s+|above\s+)*"
+    r"(?:instructions?|prompts?|rules?|guidelines?)\b|\bsystem\s+prompt\b|\byou\s+are\s+(?:now\s+)?(?:an?\s+|the\s+)?"
+    r"(?:ai|assistant|language\s+model|llm|chatbot)\b|\b(?:as\s+an\s+ai|new\s+instructions?|developer\s+mode)\b|"
+    r"\b(?:mark|report|classify|answer)\s+(?:all|every)\s+\w+\s+as\b",
+    re.I,
+)
+
+
+def looks_like_injection(text: str) -> bool:
+    """Heuristic for instruction-like text aimed at a model. Not a guarantee; see docs/security.md."""
+    return INJECTION_RE.search(text) is not None

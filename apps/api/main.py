@@ -17,6 +17,13 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Annotated, Literal
 
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from claimtrace import __version__
 from claimtrace.core.config import Settings
 from claimtrace.core.models import (
@@ -41,12 +48,6 @@ from claimtrace.ingestion.pipeline import MAX_UPLOAD_BYTES
 from claimtrace.integrations.llm import LLMProvider, provider_from_settings
 from claimtrace.verification import answer_question, verify_documents
 from claimtrace.verification.report import build_report, deadlines_csv, render_html, render_markdown
-from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, Response
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
-from starlette.middleware.base import BaseHTTPMiddleware
 
 log = logging.getLogger("claimtrace")
 STATIC_DIR = Path(__file__).parent / "static"

@@ -32,7 +32,7 @@ from claimtrace.core.models import (
     cap_confidence,
     derive_status,
 )
-from claimtrace.core.text import find_quote, sentences_with_offsets
+from claimtrace.core.text import find_quote, looks_like_injection, sentences_with_offsets
 
 from . import patterns as P
 from .amendments import parse_instructions
@@ -484,6 +484,9 @@ def _build_commitment(
         span_start += num.end()
     span = make_span(doc, p, span_start, span_end)
     assert find_quote(p.text, span.quote) is not None
+    if looks_like_injection(p.text):
+        confidence = Confidence.low
+        reasons.append("The passage contains instruction-like text aimed at AI tools; read it yourself.")
     c = Commitment(
         id=_id("cmt"),
         document_id=doc.id,

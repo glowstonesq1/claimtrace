@@ -12,6 +12,7 @@ from collections.abc import Callable
 from typing import Protocol
 
 import httpx
+
 from claimtrace.core.config import Settings
 
 

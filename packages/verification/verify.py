@@ -333,64 +333,69 @@ def _evidence(store: Store, run_id: str, base: Document, ev: Document) -> list[F
     return out
 
 
+def _sentence_items(store: Store, doc: Document, exclude_quotes: set[str]) -> list[tuple[str, Span]]:
+    """Every sentence of a document as a comparison candidate (schedules and policies often state terms
+    without modal verbs, so commitments alone miss them)."""
+    from claimtrace.core.text import sentences_with_offsets, squash
+
+    out = []
+    for p in store.passages(doc.id):
+        for a, _b, sent in sentences_with_offsets(p.text):
+            st = sent.strip()
+            if len(st) < 12 or squash(st) in exclude_quotes:
+                continue
+            lead = len(sent) - len(sent.lstrip())
+            start = a + lead
+            out.append((st, Span(document_id=doc.id, passage_id=p.id, char_start=p.char_start + start,
+                                 char_end=p.char_start + start + len(st), quote=p.text[start:start + len(st)],
+                                 page=p.page, section=p.section_number, document_title=doc.title,
+                                 document_version=doc.version_label)))
+    return out
+
+
 def _pairwise(store: Store, run_id: str, base: Document, other: Document, mode: str) -> list[Finding]:
+    from claimtrace.core.text import squash
+
     base_cs = effective_commitments(store, base.id)
     other_cs = effective_commitments(store, other.id)
     generic = _party_tokens(store, base.id, other.id)
+    items: list[tuple[str, Span, Commitment | None]] = [(o.text, o.provenance.span, o) for o in other_cs]
+    covered = {squash(o.text) for o in other_cs}
+    items += [(t, sp, None) for t, sp in _sentence_items(store, other, covered)
+              if not any(squash(t) in q or q in squash(t) for q in covered)]
     used: set[str] = set()
     out: list[Finding] = []
     for c in base_cs:
-        best: tuple[float, Commitment] | None = None
-        for o in other_cs:
-            ov, shared = topic_overlap(c.text, o.text, generic)
-            same_sec = mode == "version" and c.section_number and c.section_number == o.section_number
-            if (
-                (same_sec and ov >= 0.3)
-                or (ov >= 0.5 and len(shared) >= 2)
-                or (places(c.text) and places(o.text) and len(shared) >= 1 and ov >= 0.3)
-            ):
-                score = ov + (0.5 if same_sec else 0)
-                if best is None or score > best[0]:
-                    best = (score, o)
-        if best is None:
-            out.append(
-                _finding(
-                    run_id, Verdict.not_addressed, c, f"No corresponding commitment found in '{other.title}'.", Severity.low, mode
-                )
-            )
+        scored = []
+        for text, span, o in items:
+            ov, shared = topic_overlap(c.text, text, generic)
+            same_sec = mode == "version" and o is not None and c.section_number and c.section_number == o.section_number
+            common = (set(tokens(c.text)) & set(tokens(text))) - generic - _MODALS
+            place_link = bool(places(c.text) and places(text) and common)
+            typed_link = bool(shared) and any(f(c.text) and f(text) for f in (P.percents, P.amounts, P.durations))
+            date_link = bool(shared) and bool(c.deadline and c.deadline.date) and bool(P.find_dates(text))
+            if (same_sec and ov >= 0.3) or (len(shared) >= 2 and ov >= 0.25) or len(shared) >= 3 or place_link \
+                    or typed_link or date_link:
+                scored.append((ov + (0.5 if same_sec else 0), text, span, o))
+        if not scored:
+            out.append(_finding(run_id, Verdict.not_addressed, c, f"No corresponding text found in '{other.title}'.",
+                                Severity.low, mode))
             continue
-        o = best[1]
-        used.add(o.id)
-        cmp = judge(c, [o.text], evidence_mode=False)
-        if cmp.verdict == Verdict.consistent and best[0] < 0.6:
-            cmp = Comparison(
-                Verdict.needs_human_review,
-                "Possibly the same commitment, but the wording differs too much to confirm automatically.",
-                ["topic"],
-            )
-        spans = [o.provenance.span]
-        out.append(
-            _finding(
-                run_id,
-                cmp.verdict,
-                c,
-                cmp.explanation,
-                _severity(cmp.verdict, c, cmp, mode),
-                mode,
-                supporting=spans if cmp.verdict == Verdict.consistent else [],
-                conflicting=spans if cmp.verdict != Verdict.consistent else [],
-            )
-        )
+        scored.sort(key=lambda x: -x[0])
+        top = [x for x in scored if x[0] >= scored[0][0] * 0.7][:3]
+        for _, _, _, o in top:
+            if o is not None:
+                used.add(o.id)
+        cmp = judge(c, [t for _, t, _, _ in top], evidence_mode=False)
+        if cmp.verdict == Verdict.consistent and scored[0][0] < 0.34 and "topic" in cmp.fields:
+            cmp = Comparison(Verdict.needs_human_review, "Possibly related text, but the wording differs too much to "
+                                                         "confirm automatically.", ["topic"])
+        spans = [sp for _, _, sp, _ in top]
+        out.append(_finding(run_id, cmp.verdict, c, cmp.explanation, _severity(cmp.verdict, c, cmp, mode), mode,
+                            supporting=spans if cmp.verdict == Verdict.consistent else [],
+                            conflicting=spans if cmp.verdict != Verdict.consistent else []))
     for o in other_cs:
         if o.id not in used:
-            out.append(
-                _finding(
-                    run_id,
-                    Verdict.not_addressed,
-                    o,
-                    f"Appears only in '{other.title}'; '{base.title}' does not address it.",
-                    Severity.low,
-                    mode,
-                )
-            )
+            out.append(_finding(run_id, Verdict.not_addressed, o, f"Appears only in '{other.title}'; "
+                                f"'{base.title}' does not address it.", Severity.low, mode))
     return out

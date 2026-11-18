@@ -87,8 +87,8 @@ def parse_text(data: bytes, markdown: bool) -> RawDoc:
         para = para.strip()
         if not para:
             continue
-        # markdown lists / headings inside one paragraph become separate blocks
-        for line_group in _split_md_lines(para) if markdown else [para]:
+        # headings, list items and numbered clauses on their own lines become separate blocks
+        for line_group in _split_md_lines(para, markdown):
             is_heading = markdown and line_group.startswith("#")
             clean = line_group.lstrip("#").strip() if is_heading else line_group
             if clean:
@@ -108,15 +108,21 @@ def parse_text(data: bytes, markdown: bool) -> RawDoc:
     )
 
 
-def _split_md_lines(para: str) -> list[str]:
+_LINE_START = re.compile(
+    r"^\s*(?:[-*]\s+|\(?[a-z]{1,3}\)\s+|\(?[ivx]+\)\s+|\d+(?:\.\d+)*\.?\s+(?=\S)|"
+    r"(?:clause|section|article|schedule)\s+\d+(?:\.\d+)*\.?\s+(?=[A-Z]))", re.I)
+
+
+def _split_md_lines(para: str, markdown: bool = True) -> list[str]:
     out: list[str] = []
     cur: list[str] = []
     for line in para.splitlines():
-        if line.lstrip().startswith("#") or re.match(r"^\s*(?:[-*]|\(?[a-z]\)|\(?[ivx]+\))\s+", line):
+        heading = markdown and line.lstrip().startswith("#")
+        if heading or _LINE_START.match(line):
             if cur:
                 out.append(" ".join(cur))
             cur = [line.strip()]
-            if line.lstrip().startswith("#"):
+            if heading:
                 out.append(" ".join(cur))
                 cur = []
         else:

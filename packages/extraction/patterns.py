@@ -86,6 +86,9 @@ COLLECTIVE = {
 }
 
 
+_LOWER_NAME_PARTS = {"&", "of", "and", "de", "von", "plc", "ltd", "llc", "llp", "inc", "gmbh", "bv", "sa", "sas", "pty"}
+
+
 @dataclass
 class PartyDef:
     name: str
@@ -103,7 +106,7 @@ def find_party_definitions(text: str) -> list[PartyDef]:
         words = before.split(" ")
         name_words: list[str] = []
         for w in reversed(words):
-            if w and (w[0].isupper() or w[0].isdigit() or w in ("&", "of", "and", "de", "von", "&amp;")):
+            if w and (w[0].isupper() or w[0].isdigit() or w.rstrip(".,").lower() in _LOWER_NAME_PARTS):
                 name_words.insert(0, w)
                 if len(name_words) > 8:
                     break

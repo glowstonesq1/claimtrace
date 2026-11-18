@@ -125,6 +125,12 @@ def ingest_bytes(store: Store, filename: str, data: bytes, opts: IngestOptions |
     doc_id = "doc_" + uuid.uuid4().hex[:12]
     text, passages = segment(raw, doc_id)
     warnings = list(raw.warnings)
+    from claimtrace.core.text import looks_like_injection
+
+    suspicious = [p.section_number or str(p.ordinal) for p in passages if looks_like_injection(p.text)]
+    if suspicious:
+        warnings.append("INJECTION: Some passages contain instruction-like text aimed at AI tools (sections: "
+                        + ", ".join(suspicious[:10]) + "). Items from them are flagged for review.")
     if not passages:
         warnings.append("SCANNED: No readable text was found in this file. Nothing was analysed.")
     amends_id = opts.amends_document_id

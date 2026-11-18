@@ -11,6 +11,8 @@ import json
 import uuid
 from typing import Literal
 
+from pydantic import BaseModel, Field, ValidationError
+
 from claimtrace.core.models import (
     Commitment,
     CommitmentType,
@@ -22,9 +24,8 @@ from claimtrace.core.models import (
     derive_status,
 )
 from claimtrace.core.store import Store
-from claimtrace.core.text import find_quote, squash
+from claimtrace.core.text import find_quote, looks_like_injection, squash
 from claimtrace.integrations.llm import LLMError, LLMProvider
-from pydantic import BaseModel, Field, ValidationError
 
 from . import patterns as P
 from .rules import ExtractionResult, make_prov, make_span
@@ -94,7 +95,8 @@ def extract_llm(
         raise EgressNotAllowed(f"Document '{doc.id}' is not approved for sending to external endpoint '{provider.host}'.")
     by_passage = {p.id: p for p in passages}
     rules_by_quote = {squash(c.text): c for c in rules.commitments}
-    stats = {"llm_items": 0, "invalid_schema": 0, "quote_not_found": 0, "agreed_with_rules": 0, "llm_only": 0}
+    stats = {"llm_items": 0, "invalid_schema": 0, "quote_not_found": 0, "agreed_with_rules": 0, "llm_only": 0,
+             "dropped_suspicious_passage": 0}
     out: list[Commitment] = []
     for batch in _batches(passages):
         user = _render(doc, batch)
@@ -130,6 +132,9 @@ def extract_llm(
                 if match.obliging_party and item.obliging_party and match.obliging_party.lower() == item.obliging_party.lower():
                     match.provenance.extraction_method = "rules+llm"
                     match.provenance.model = provider.model
+                continue
+            if looks_like_injection(p.text):
+                stats["dropped_suspicious_passage"] += 1  # verbatim text can still be an injection
                 continue
             stats["llm_only"] += 1
             deadline = P.extract_deadline(span.quote)
