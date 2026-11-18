@@ -144,14 +144,31 @@ D3 asks for this field; it exists in the model but is not populated.
 | Kind | Rule | Date computed? |
 |---|---|---|
 | absolute | A date (`March 31, 2026`, `31 March 2026`, `2026-03-31`, `31/03/2026`) preceded by no later than, not later than, on or before, by, before, until, prior to, on, not after, in any event by. | Yes, from the text. For `a/b/yyyy`, only if one part is over 12 or both are equal; otherwise `date=None` and `ambiguous_format=True`. |
-| relative | `<n> <unit>` (n as digits or words up to twenty, thirty, forty(-five), fifty, sixty, ninety, hundred, a/an) with within, later than, notice, after, before, following, at least, not more than or period of nearby; optional business/working/banking/calendar; optional anchor after of, after, from, following, before, prior to. | Only if the anchor mentions "date of this agreement/contract", "effective date" or "commencement date", the document has a reference date ("dated", "made on", "entered into on", "effective as of/from", "as of" in the first six passages), the unit is days or weeks, and it is not business days. Otherwise `date=None`. `offset_days` is set for days and weeks only. |
+| relative | `<n> <unit>` (n as digits or words from zero to ninety-nine, hundred, a/an) with within, later than, notice, after, before, following, at least, not more than or period of nearby; optional business/working/banking/calendar; optional anchor after of, after, from, following, before, prior to. | Only if the anchor mentions "date of this agreement/contract", "effective date" or "commencement date", the document has a reference date ("dated", "made on", "entered into on", "effective as of/from", "as of" in the first six passages), and the unit is days or weeks. Business/working/banking days skip weekends and configured holidays (below). Otherwise `date=None`. `offset_days` is set for days and weeks only. |
 | recurring | weekly, monthly, quarterly, annually, daily, each/every month, once a year, ... | No. |
 | vague | promptly, as soon as (reasonably) practicable/possible, without undue delay, timely, forthwith, in due course, within a reasonable time, immediately, from time to time ... | No. |
 | absolute (bare) | Any date without a deadline preposition. | Yes, as raw context. |
 | none | Nothing found; stored as `deadline: null`. | |
 
-Business-day calendars are not implemented (v0.2 backlog), so business-day offsets never
-produce a date.
+### 3.1 Business-day calendars (v0.2)
+
+"10 Business Days of the Effective Date" becomes a date when the anchor resolves: counting starts
+the day after the reference date and skips Saturdays, Sundays and holidays
+(`extraction/calendar.add_business_days`). An unresolved anchor ("of receipt of an order") stays
+`date=None`, as before.
+
+Holidays come from the file named by `CLAIMTRACE_HOLIDAYS`: one ISO date (`YYYY-MM-DD`) per line,
+blank lines and `#` comments allowed. A missing or malformed file fails the analysis run (a wrong
+calendar would produce wrong dates silently). With no file, only weekends are skipped, and each
+computed business-day date carries the caveat that no holiday calendar is configured. The run
+manifest records `holiday_calendar: {count, id}` and the calendar fingerprint is part of the
+analysis idempotency key, so changing the file re-analyses documents.
+
+```
+# holidays.txt
+2026-12-25
+2026-12-28  # Boxing Day (substitute)
+```
 
 ## 4. document_effect, lifecycle and derived status (D2)
 

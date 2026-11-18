@@ -304,8 +304,11 @@ def _num(s: str) -> int | None:
     return int(s) if s.isdigit() else _NUMWORDS.get(s)
 
 
-def extract_deadline(sentence: str, reference_date: dt.date | None = None) -> Deadline:
-    """Classify timing in one sentence. Dates are computed only when the anchor resolves."""
+def extract_deadline(
+    sentence: str, reference_date: dt.date | None = None, holidays: frozenset[dt.date] = frozenset()
+) -> Deadline:
+    """Classify timing in one sentence. Dates are computed only when the anchor resolves; business days
+    skip weekends and `holidays`."""
     for fd in find_dates(sentence):
         pm = DEADLINE_PREP.search(sentence[: fd.start])
         if pm:
@@ -334,10 +337,14 @@ def extract_deadline(sentence: str, reference_date: dt.date | None = None) -> De
             anchor
             and reference_date
             and offset is not None
-            and not business
             and re.search(r"date of this (?:agreement|contract)|effective date|commencement date", anchor, re.I)
         ):
-            date = reference_date + dt.timedelta(days=offset)
+            if business:
+                from .calendar import add_business_days
+
+                date = add_business_days(reference_date, offset, holidays)
+            else:
+                date = reference_date + dt.timedelta(days=offset)
         return Deadline(
             kind="relative", raw=m.group(0).strip(), offset_days=offset, business_days=business, anchor=anchor, date=date
         )

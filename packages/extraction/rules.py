@@ -36,6 +36,7 @@ from claimtrace.core.text import find_quote, looks_like_injection, sentences_wit
 
 from . import patterns as P
 from .amendments import find_restatement, parse_instructions
+from .calendar import holidays_from_env
 
 EXTRACTOR_VERSION = "rules-0.2.0"
 
@@ -121,7 +122,8 @@ def agreement_date(passages: list[Passage]) -> dt.date | None:
 
 
 class PartyResolver:
-    def __init__(self, parties: list[Party]) -> None:
+    def __init__(self, parties: list[Party], holidays: frozenset[dt.date] = frozenset()) -> None:
+        self.holidays = holidays  # document context shared by every commitment (business-day calendar)
         self.by_key: dict[str, str] = {}
         for p in parties:
             alias = p.alias or p.name
@@ -182,7 +184,10 @@ def _commitment_type(modality: Modality, sentence: str, subject: str, action: st
     return CommitmentType.obligation
 
 
-def extract_rules(doc: Document, passages: list[Passage]) -> ExtractionResult:
+def extract_rules(doc: Document, passages: list[Passage], holidays: frozenset[dt.date] | None = None) -> ExtractionResult:
+    """`holidays` defaults to the CLAIMTRACE_HOLIDAYS calendar."""
+    if holidays is None:
+        holidays = holidays_from_env()
     res = ExtractionResult()
     ref_date = agreement_date(passages)
 
@@ -217,7 +222,7 @@ def extract_rules(doc: Document, passages: list[Passage]) -> ExtractionResult:
                     provenance=make_prov(doc, span, Confidence.high),
                 )
             )
-    resolver = PartyResolver(res.parties)
+    resolver = PartyResolver(res.parties, holidays)
 
     # 2. amendment instructions (their quoted replacement text is extracted as amendment commitments)
     instruction_passages: set[str] = set()
@@ -498,7 +503,7 @@ def _build_commitment(
             return None  # statements like "This Agreement shall continue..." are not commitments
     elif not known:
         reasons.append(f"'{party}' is not a defined party in this document.")
-    deadline = P.extract_deadline(sentence, ref_date)
+    deadline = P.extract_deadline(sentence, ref_date, resolver.holidays)
     conditions = P.find_conditions(sentence)
     exceptions = P.find_exceptions(sentence)
     references = P.find_references(sentence)
@@ -527,6 +532,10 @@ def _build_commitment(
         reasons.append(f"Date '{deadline.raw}' could be read as day/month or month/day.")
     if deadline.kind == "relative" and deadline.date is None and deadline.anchor:
         caveats.append(f"Deadline depends on '{deadline.anchor}'; no calendar date was computed.")
+    if deadline.business_days and deadline.date is not None:
+        n = len(resolver.holidays)
+        caveats.append("Business days counted excluding weekends and " + (f"{n} configured holiday(s)." if n else
+                       "no holidays: no holiday calendar is configured (CLAIMTRACE_HOLIDAYS)."))
     if exceptions:
         confidence = cap_confidence(confidence, Confidence.medium)
         caveats.append("Has exceptions: " + "; ".join(e[:100] for e in exceptions))
