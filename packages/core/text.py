@@ -10,7 +10,7 @@ import hashlib
 import re
 import unicodedata
 
-NORMALIZER_VERSION = "norm-1"
+NORMALIZER_VERSION = "norm-2"  # norm-2: every Unicode whitespace collapses (ReDoS hardening)
 
 _REPLACEMENTS = {
     " ": " ",
@@ -31,11 +31,23 @@ _REPLACEMENTS = {
 }
 
 
+# Line/paragraph separators other than "\n" (\v, \f, U+001C-U+001E, U+0085, U+2028) and U+2029.
+_LINE_BREAKS = re.compile(r"[\v\f\x1c-\x1e\x85\u2028]")
+_OTHER_SPACE = re.compile(r"[^\S\n]")  # every remaining Unicode whitespace character (U+1680, U+3000, ...)
+
+
 def normalize(text: str) -> str:
-    """NFKC, straight quotes, no soft hyphens, single spaces, paragraph breaks kept."""
+    """NFKC, straight quotes, no soft hyphens, single spaces, paragraph breaks kept.
+
+    Only " " and "\n" survive: exotic whitespace (U+1680, \v, \f, U+0085, ...) is collapsed too, so a long
+    run of it cannot reach the extraction regexes (ReDoS hardening).
+    """
     text = unicodedata.normalize("NFKC", text)
     for a, b in _REPLACEMENTS.items():
         text = text.replace(a, b)
+    text = text.replace("\u2029", "\n\n")
+    text = _LINE_BREAKS.sub("\n", text)
+    text = _OTHER_SPACE.sub(" ", text)
     text = re.sub(r"(\w)-\n(\w)", r"\1\2", text)  # de-hyphenate PDF line breaks
     paragraphs = re.split(r"\n\s*\n", text)
     out = []
