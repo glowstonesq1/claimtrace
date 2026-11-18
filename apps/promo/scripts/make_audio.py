@@ -162,7 +162,7 @@ def make_riser(sec: float = 3.2) -> np.ndarray:
     tone = np.sin(2 * np.pi * np.cumsum(f) / SR) * 0.35 + np.sin(2 * np.pi * np.cumsum(f * 1.5) / SR) * 0.15
     env = p**2.4
     x = (n * 0.9 + tone) * env
-    x[-int(0.02 * SR):] *= np.linspace(1, 0, int(0.02 * SR))
+    x[-int(0.02 * SR) :] *= np.linspace(1, 0, int(0.02 * SR))
     return reverb(x, 1.2, 0.25, 12)
 
 
