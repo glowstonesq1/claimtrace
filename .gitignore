@@ -14,3 +14,4 @@ apps/web/dist/
 evals/runs/*
 !evals/runs/published/
 *.egg-info/
+apps/web/node_modules/
