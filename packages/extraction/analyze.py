@@ -12,6 +12,7 @@ from claimtrace.core.text import NORMALIZER_VERSION
 from claimtrace.integrations.llm import LLMProvider
 
 from .apply import apply_amendments
+from .calendar import calendar_id, holidays_from_env
 from .llm import PROMPT_VERSION, extract_llm
 from .rules import EXTRACTOR_VERSION, extract_rules
 
@@ -19,7 +20,8 @@ from .rules import EXTRACTOR_VERSION, extract_rules
 def idem_key(store: Store, doc_id: str, provider: LLMProvider | None) -> str:
     doc = store.get_document(doc_id)
     model = f"{provider.name}:{provider.model}" if provider else "rules"
-    return f"{doc_id}:{doc.text_sha256}:{EXTRACTOR_VERSION}:{model}"
+    cal = calendar_id(holidays_from_env())
+    return f"{doc_id}:{doc.text_sha256}:{EXTRACTOR_VERSION}:{model}" + (f":cal={cal}" if cal else "")
 
 
 def start_run(store: Store, doc_id: str, provider: LLMProvider | None) -> tuple[AnalysisRun, bool]:
@@ -42,7 +44,8 @@ def execute_run(store: Store, run: AnalysisRun, provider: LLMProvider | None) ->
     store.update_document(doc)
     try:
         passages = store.passages(doc.id)
-        res = extract_rules(doc, passages)
+        holidays = holidays_from_env()
+        res = extract_rules(doc, passages, holidays)
         stats: dict[str, int] = {}
         if provider is not None:
             extra, stats = extract_llm(store, doc, passages, provider, res)
@@ -69,6 +72,7 @@ def execute_run(store: Store, run: AnalysisRun, provider: LLMProvider | None) ->
             "provider": provider.name if provider else "rules",
             "endpoint_host": provider.host if provider else None,
             "prompt_version": PROMPT_VERSION if provider else None,
+            "holiday_calendar": {"count": len(holidays), "id": calendar_id(holidays)},
         }
         run.status = "done"
         doc = store.get_document(doc.id)

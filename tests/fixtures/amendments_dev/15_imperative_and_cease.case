@@ -1,0 +1,23 @@
+=== base ===
+# Fleet Maintenance Agreement
+
+This Agreement is made between Drumlin Motor Engineers Ltd (the "Garage") and Eskvale Ambulance Trust (the "Trust").
+
+## 3. Servicing
+3.1 The Garage shall service each vehicle every 10,000 miles.
+3.2 The Garage shall return each serviced vehicle within 24 hours.
+
+## 8. Courtesy Vehicles
+8.1 The Garage shall provide a courtesy vehicle while any vehicle is off the road.
+=== amendment ===
+# Contract Variation 2
+
+This Variation is made on 10 January 2028 between Drumlin Motor Engineers Ltd (the "Garage") and Eskvale Ambulance Trust (the "Trust").
+
+1. Delete clause 3.2 and replace it with: "The Garage shall return each serviced vehicle within 12 hours."
+2. With effect from 1 February 2028, clause 8.1 shall cease to apply.
+=== expected ===
+{"effects": {"3.1": "in_force", "3.2": "replaced", "8.1": "deleted"},
+ "actions": ["replace", "delete"],
+ "verdicts": [{"subject_contains": "within 24 hours", "verdict": "contradicted"},
+              {"subject_contains": "courtesy vehicle", "verdict": "contradicted"}]}

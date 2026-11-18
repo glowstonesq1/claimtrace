@@ -1,0 +1,19 @@
+=== base ===
+# Equipment Rental Agreement
+
+This Agreement is made between Kestrel Plant Hire Ltd (the "Owner") and Brindle Groundworks Ltd (the "Hirer").
+
+## 3. Rental
+3.1 The Hirer shall pay a weekly rental of £1,250 for each excavator.
+3.2 The Owner shall service each excavator every 250 operating hours.
+=== amendment ===
+# Deed of Variation
+
+This Deed is made on 9 March 2027 between Kestrel Plant Hire Ltd (the "Owner") and Brindle Groundworks Ltd (the "Hirer").
+
+1. Clause 3.1 is varied by substituting "£1,400" for "£1,250".
+=== expected ===
+{"effects": {"3.1": "replaced", "3.2": "in_force"},
+ "actions": ["modify"],
+ "derived_contains": "weekly rental of £1,400",
+ "verdicts": [{"subject_contains": "weekly rental of £1,250", "verdict": "contradicted"}]}

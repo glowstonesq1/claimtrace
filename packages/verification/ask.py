@@ -31,6 +31,7 @@ from claimtrace.core.models import (
     Passage,
     Span,
     Verdict,
+    excluded_from_llm,
 )
 from claimtrace.core.store import Store
 from claimtrace.core.text import find_quote, tokens
@@ -779,7 +780,8 @@ If the passages do not answer the question, use status "not_addressed" and no ci
 
 
 def _llm_compose(ctx: _Ctx, question: str, passages: list[Passage], provider: LLMProvider) -> Answer | None:
-    allowed = [p for p in passages if not provider.external or ctx.docs[p.document_id].allow_external_llm]
+    allowed = [p for p in passages if (not provider.external or ctx.docs[p.document_id].allow_external_llm)
+               and not excluded_from_llm(p)]
     if not allowed:
         return None
     user = (

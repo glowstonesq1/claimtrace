@@ -1,0 +1,24 @@
+=== base ===
+# IT Support Agreement
+
+This Agreement is made between Corbel Systems Ltd (the "Supplier") and Lintwhite Solicitors LLP (the "Client").
+
+## 6. Backups
+6.1 The Supplier shall back up the Client's file server every night.
+6.2 The Supplier shall test a restore once each quarter.
+=== amendment ===
+# Amendment No. 3
+
+This Amendment is made on 3 March 2028 between Corbel Systems Ltd (the "Supplier") and Lintwhite Solicitors LLP (the "Client").
+
+## 1. Changes
+1.1 Clause 6.2 is deleted and replaced with the following:
+
+6.2 The Supplier shall test a restore once each month and report the result to the Client.
+
+1.2 Save as amended, the Agreement continues in full force.
+=== expected ===
+{"effects": {"6.1": "in_force", "6.2": "replaced"},
+ "actions": ["replace"],
+ "verdicts": [{"subject_contains": "once each quarter", "verdict": "contradicted"},
+              {"subject_contains": "every night", "verdict": "not_addressed"}]}

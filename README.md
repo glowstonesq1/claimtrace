@@ -68,6 +68,7 @@ claimtrace list
 claimtrace ask "How many days does the customer have to pay invoices?"
 claimtrace verify <contract-id> <amendment-id>
 claimtrace report <contract-id> --format md
+claimtrace report <contract-id> --format ics > deadlines.ics   # resolved deadlines as a calendar file
 ```
 
 ### Using a local model (optional)
@@ -121,7 +122,7 @@ Full outputs: [`examples/outputs/`](examples/outputs/). Sample questions: [`exam
 | POST | `/ask` · GET `/answers/{id}` | Grounded question answering |
 | POST | `/verify` · GET `/verifications/{id}` | Cross-document verification |
 | POST | `/answers/{id}/review` · `/findings/{id}/review` · `/commitments/{id}/review` | Append-only review |
-| GET | `/documents/{id}/report?format=json\|md\|html` · `/documents/{id}/deadlines.csv` | Exports |
+| GET | `/documents/{id}/report?format=json\|md\|html` · `/documents/{id}/deadlines.csv` · `/documents/{id}/deadlines.ics` | Exports |
 | GET | `/health` · `/privacy/egress` · `/privacy/tombstones` | Status, LLM send log, deletion records |
 
 ```bash

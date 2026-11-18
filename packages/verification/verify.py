@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import uuid
 
 from claimtrace import __version__
@@ -157,61 +158,99 @@ def verify_documents(store: Store, base_id: str, other_id: str) -> VerificationR
     return run
 
 
+def _instruction_finding(run_id: str, ins: AmendmentInstruction, explanation: str) -> Finding:
+    span = ins.provenance.span
+    return Finding(
+        id="fnd_" + uuid.uuid4().hex[:12],
+        run_id=run_id,
+        verdict=Verdict.needs_human_review,
+        subject_id=ins.id,
+        subject_text=span.quote,
+        subject_span=span,
+        conflicting=[span],
+        explanation=explanation,
+        severity=Severity.medium,
+        recommended_action=DEFAULT_ACTIONS[Verdict.needs_human_review],
+    )
+
+
 def _amendment(store: Store, run_id: str, base: Document, amd: Document) -> list[Finding]:
-    base_cs = store.objects(Commitment, base.id)
+    from claimtrace.core.text import squash
+    from claimtrace.extraction.amendments import number_tolerant_pattern
+    from claimtrace.extraction.apply import restated_counterpart, section_matches
+
+    base_cs = [c for c in store.objects(Commitment, base.id) if not c.amends_section]
     amd_cs = store.objects(Commitment, amd.id)
     touched: set[str] = set()
+    renumbered: dict[str, str] = {}
     out: list[Finding] = []
     for ins in store.objects(AmendmentInstruction, amd.id):
-        olds = [
-            c
-            for c in base_cs
-            if c.section_number
-            and (c.section_number == ins.target_section or c.section_number.startswith(ins.target_section + "("))
-        ]
         news = [c for c in amd_cs if c.amends_section == ins.target_section]
         new_spans = [n.provenance.span for n in news] or [ins.provenance.span]
+        sec = ins.resolved_section
+        if ins.needs_review or sec is None:
+            why = " ".join(ins.review_reasons) or "The amended clause could not be identified."
+            olds = [c for c in base_cs if sec and section_matches(c.section_number, sec) and c.id not in touched]
+            for subject in olds or news:
+                touched.add(subject.id)
+                out.append(_finding(run_id, Verdict.needs_human_review, subject, why, Severity.medium, "amendment",
+                                    conflicting=[ins.provenance.span]))
+            if not olds and not news:
+                out.append(_instruction_finding(run_id, ins, why))
+            continue
+        if ins.action == "restate":
+            restated = [c for c in amd_cs if not c.amends_section]
+            carried: set[str] = set()
+            for old in base_cs:
+                touched.add(old.id)
+                twin = restated_counterpart(old, restated)
+                if twin is None:
+                    out.append(_finding(run_id, Verdict.contradicted, old, "Not carried into the restated document, "
+                                        "which supersedes the original in its entirety.", Severity.high, "amendment",
+                                        conflicting=[ins.provenance.span]))
+                    continue
+                carried.add(twin.id)
+                if squash(twin.text) == squash(old.text):
+                    out.append(_finding(run_id, Verdict.consistent, old, f"Restated unchanged (§{twin.section_number or '?'}).",
+                                        Severity.info, "amendment", supporting=[twin.provenance.span]))
+                    continue
+                cmp = compare_values(old, twin.text, evidence_mode=False)
+                detail = cmp.explanation if cmp and cmp.verdict == Verdict.contradicted else "The wording was changed."
+                out.append(_finding(run_id, Verdict.contradicted, old, f"Changed in the restated document. {detail}",
+                                    _severity(Verdict.contradicted, old, cmp, "amendment"), "amendment",
+                                    conflicting=[twin.provenance.span]))
+            for n in restated:
+                if n.id not in carried:
+                    out.append(_finding(run_id, Verdict.not_addressed, n, "New in the restated document; the original "
+                                        "does not address it.", Severity.medium, "amendment",
+                                        supporting=[n.provenance.span]))
+            continue
+        if ins.action == "renumber":
+            for c in base_cs:
+                if section_matches(c.section_number, sec) and ins.renumber_to:
+                    renumbered[c.id] = ins.renumber_to
+            continue
+        if ins.action == "insert":
+            for n in news:
+                out.append(_finding(run_id, Verdict.not_addressed, n, f"New clause {ins.target_section} added by the "
+                                    "amendment; the original document does not address it.", Severity.medium,
+                                    "amendment", supporting=[n.provenance.span]))
+            continue
+        olds = [c for c in base_cs if section_matches(c.section_number, sec) and c.id not in touched]
+        if ins.action == "modify" and ins.old_text:
+            rx = re.compile(number_tolerant_pattern(ins.old_text), re.I)
+            olds = [c for c in olds if rx.search(c.text)]
         for old in olds:
             touched.add(old.id)
             if ins.action == "delete":
-                out.append(
-                    _finding(
-                        run_id,
-                        Verdict.contradicted,
-                        old,
-                        f"Clause {ins.target_section} is deleted by the amendment.",
-                        Severity.high,
-                        "amendment",
-                        conflicting=[ins.provenance.span],
-                    )
-                )
+                out.append(_finding(run_id, Verdict.contradicted, old, f"Clause {ins.target_section} is deleted by the "
+                                    "amendment.", Severity.high, "amendment", conflicting=[ins.provenance.span]))
                 continue
             cmp = next((r for n in news if (r := compare_values(old, n.text, evidence_mode=False))), None)
             detail = cmp.explanation if cmp and cmp.verdict == Verdict.contradicted else "The wording was replaced."
-            out.append(
-                _finding(
-                    run_id,
-                    Verdict.contradicted,
-                    old,
-                    f"Changed by the amendment (§{ins.target_section}). {detail}",
-                    _severity(Verdict.contradicted, old, cmp, "amendment"),
-                    "amendment",
-                    conflicting=new_spans,
-                )
-            )
-        if ins.action == "insert" and not olds:
-            for n in news:
-                out.append(
-                    _finding(
-                        run_id,
-                        Verdict.not_addressed,
-                        n,
-                        f"New clause {ins.target_section} added by the amendment; the original document does not address it.",
-                        Severity.medium,
-                        "amendment",
-                        supporting=[n.provenance.span],
-                    )
-                )
+            out.append(_finding(run_id, Verdict.contradicted, old, f"Changed by the amendment (§{ins.target_section}). "
+                                f"{detail}", _severity(Verdict.contradicted, old, cmp, "amendment"), "amendment",
+                                conflicting=new_spans))
     # amendment commitments that change a base clause by reference ("reduce the fee in clause 3.1 to ...")
     for n in amd_cs:
         if n.amends_section:
@@ -239,7 +278,8 @@ def _amendment(store: Store, run_id: str, base: Document, amd: Document) -> list
                     run_id,
                     Verdict.not_addressed,
                     old,
-                    "Not changed by this amendment; it remains in force as written.",
+                    (f"Renumbered as clause {renumbered[old.id]}; the wording is unchanged and remains in force."
+                     if old.id in renumbered else "Not changed by this amendment; it remains in force as written."),
                     Severity.info,
                     "amendment",
                 )

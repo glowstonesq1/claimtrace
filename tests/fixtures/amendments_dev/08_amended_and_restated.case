@@ -1,0 +1,24 @@
+=== base ===
+# Marketing Services Agreement
+
+This Agreement is made between Brackenridge Creative Ltd (the "Agency") and Pollard Leisure Parks Ltd (the "Client").
+
+## 1. Services
+1.1 The Agency shall deliver four campaign concepts each quarter.
+1.2 The Client shall pay a quarterly fee of £18,000.
+1.3 The Agency shall attend a monthly review meeting at the Client's offices.
+=== amendment ===
+# Amended and Restated Marketing Services Agreement
+
+This Agreement is made on 1 July 2027 between Brackenridge Creative Ltd (the "Agency") and Pollard Leisure Parks Ltd (the "Client") and amends and restates the Marketing Services Agreement in its entirety.
+
+## 1. Services
+1.1 The Agency shall deliver four campaign concepts each quarter.
+1.2 The Client shall pay a quarterly fee of £21,500.
+=== expected ===
+{"amendment_type": "contract",
+ "effects": {"1.1": "replaced", "1.2": "replaced", "1.3": "deleted"},
+ "actions": ["restate"],
+ "verdicts": [{"subject_contains": "four campaign concepts", "verdict": "consistent"},
+              {"subject_contains": "quarterly fee of £18,000", "verdict": "contradicted"},
+              {"subject_contains": "monthly review meeting", "verdict": "contradicted"}]}

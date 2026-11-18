@@ -10,13 +10,13 @@ FROM python:3.12.8-slim AS app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
     CLAIMTRACE_DB=/data/claimtrace.db CLAIMTRACE_HOST=0.0.0.0 CLAIMTRACE_CONTAINER_MODE=true
 WORKDIR /app
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md requirements.lock ./
 COPY packages ./packages
 COPY apps/api ./apps/api
 COPY examples ./examples
 COPY evals ./evals
 COPY --from=web /src/apps/api/static ./apps/api/static
-RUN pip install . && useradd --uid 10001 --create-home claimtrace && mkdir -p /data && chown claimtrace /data
+RUN pip install --require-hashes -r requirements.lock && pip install --no-deps . && useradd --uid 10001 --create-home claimtrace && mkdir -p /data && chown claimtrace /data
 USER claimtrace
 VOLUME ["/data"]
 EXPOSE 8000

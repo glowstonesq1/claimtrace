@@ -1,0 +1,22 @@
+=== base ===
+# Distribution Agreement
+
+This Agreement is made between Hollins Craft Brewery Ltd (the "Supplier") and Ravelston Wines Ltd (the "Distributor").
+
+## 4. Orders
+4.1 The Distributor shall place orders in multiples of 24 cases.
+
+## 9. Exclusivity
+9.1 The Supplier shall not appoint any other distributor in Scotland.
+9.2 The Distributor shall not sell competing craft beers in Scotland.
+=== amendment ===
+# Amendment No. 2
+
+This Amendment is made on 2 May 2027 between Hollins Craft Brewery Ltd (the "Supplier") and Ravelston Wines Ltd (the "Distributor").
+
+1. Clause 9 (Exclusivity) of the Agreement is deleted in its entirety.
+=== expected ===
+{"effects": {"4.1": "in_force", "9.1": "deleted", "9.2": "deleted"},
+ "actions": ["delete"],
+ "verdicts": [{"subject_contains": "appoint any other distributor", "verdict": "contradicted"},
+              {"subject_contains": "multiples of 24 cases", "verdict": "not_addressed"}]}

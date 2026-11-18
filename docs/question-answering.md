@@ -293,3 +293,17 @@ Sample result (MSA vs audit report): availability 99.5% vs measured 99.1% → co
 high; data outside the United Kingdom vs Dublin → contradicted, high; MFA → partially
 supported with sufficiency wording; breach notice 72 hours from different anchors →
 needs_human_review.
+
+## 13. Calendar export (ICS, v0.2)
+
+`GET /documents/{id}/deadlines.ics` and `claimtrace report <id> --format ics` produce an RFC 5545
+calendar (`report.deadlines_ics`). Only commitments that are **in force** (the base document's own
+and its amendments' replacements) and whose deadline has a **resolved calendar date** become
+events; relative deadlines with an unresolved anchor, vague timing and ambiguous `a/b/yyyy` dates
+are left out (they stay in the CSV and the register). Each event is an all-day `VEVENT` with a
+stable `UID` (`<commitment id>@claimtrace.local`), `SUMMARY` "<party>: <action>", and a
+`DESCRIPTION` holding the verbatim quote, the source location, the timing as written, review
+flags, caveats and the not-legal-advice note. Text values are escaped (`\\`, `\;`, `\,`, `\n`),
+lines end in CRLF and are folded at 75 octets without splitting a UTF-8 character. The file is
+built locally and returned as a download (`Content-Disposition: attachment`); nothing is sent or
+subscribed to.

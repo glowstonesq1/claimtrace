@@ -37,13 +37,14 @@ All models forbid extra fields (`extra="forbid"`).
 | quote | `text[char_start:char_end]` at creation time. |
 | page, section | Copied from the passage (page is `None` for Markdown and DOCX). |
 | document_title, document_version | Copied for display. |
+| locator | v0.2: copied from the passage, e.g. `table 1, row 3` for a DOCX table row. |
 
 | `Provenance` field | Meaning |
 |---|---|
 | source_document_id, document_version | Origin document. |
 | span | The exact text the object was extracted from. |
 | extraction_method | `rules`, `llm`, or `rules+llm` (rules item the model independently found with the same party). |
-| extractor_version | `EXTRACTOR_VERSION` (`rules-0.1.0`), also on LLM items. |
+| extractor_version | `EXTRACTOR_VERSION` (`rules-0.2.0`), also on LLM items. |
 | model, endpoint_host, prompt_version | Set for LLM items (`extract-commitments-v1`). |
 | extracted_at | UTC time. |
 | confidence | Copy of the object's confidence at creation. |
@@ -62,13 +63,15 @@ All models forbid extra fields (`extra="forbid"`).
 | normalizer_version | `NORMALIZER_VERSION` at ingest (`norm-1`). |
 | page_count | PDF only. |
 | status | parsed, analyzing, analyzed, failed (a plain string). |
-| warnings | Strings; `SCANNED:` and `INJECTION:` prefixes are used for the two loud warnings. |
+| warnings | Strings; `SCANNED:`, `INJECTION:`, `HIDDEN:` (v0.2) and `OCR:` (v0.2) prefixes mark the loud warnings. |
 | tags | Free strings; sample documents get `sample`. |
 | amends_document_id | The document this one amends. The spec's `related_to`/`relation` fields do not exist. |
 | allow_external_llm | Per-document opt-in for non-loopback LLM endpoints (D14). |
 
 `Passage`: id (`psg_<doc hex>_<ordinal:04d>`), document_id, ordinal, page, section_number,
-section_title, char_start, char_end, text.
+section_title, char_start, char_end, text, and (v0.2, optional) `hidden_text` (why part of it is
+invisible to a reader), `ocr_confidence` (page mean OCR word confidence, 0–100) and `locator`
+(`table N, row M`). Section numbers inside a schedule look like `Schedule 2/1.1`.
 
 ### 2.3 Extracted objects
 
@@ -137,7 +140,7 @@ numbered files in `core/migrations/`; `schema_version` records the applied numbe
 | answer_documents | answer_id, document_id (PK both) | answers and documents ON DELETE CASCADE |
 | verification_runs | id PK, base_document_id, other_document_id, json, created_at | both documents ON DELETE CASCADE |
 | findings | id PK, run_id, json | verification_runs ON DELETE CASCADE |
-| reviews | id PK, target_kind, target_id, json, at | none |
+| reviews | id PK, target_kind, target_id, json, at, prev_hash, hash, redacted (v0.2, migration 002) | none |
 | tombstones | document_id PK, checksum, deleted_at, reason, counts (JSON) | none |
 | egress_log | id autoincrement, document_id, host, bytes, purpose, at | none |
 | schema_version | version | none |
@@ -155,7 +158,7 @@ cites.
 
 | Removed | How |
 |---|---|
-| Review rows targeting the document's objects, the answers linked to it, and the findings of verification runs that involve it | Explicit `DELETE FROM reviews` |
+| Review rows targeting the document's objects, the answers linked to it, and the findings of verification runs that involve it | Content erased in place (`redacted=1`, json `{"redacted":true}`, target cleared); id and hashes kept so the chain verifies (v0.2) |
 | Edges whose src or dst is one of its objects, or the document id itself | Explicit delete (catches `supersedes` and `amends` edges, which have `document_id` NULL) |
 | Answers linked through `answer_documents` | Explicit delete (whole answer, even if it also cites other documents) |
 | The documents row | Explicit delete |
@@ -171,21 +174,42 @@ Tombstones hold no text. `reason` is `user_request` or `retention_<N>d`. Retenti
 (`CLAIMTRACE_RETENTION_DAYS`) runs in a daemon thread at startup and then hourly, deleting
 documents whose `uploaded_at` is older than the limit. `GET /privacy/tombstones` lists them.
 
-## 5. Append-only reviews and the egress log
+## 5. Append-only, hash-chained reviews and the egress log
 
-The `reviews` table has a trigger:
+Review decisions are append-only and, since v0.2 (migration `002_review_chain.sql`),
+**hash-chained** in insertion order:
 
-```sql
-CREATE TRIGGER reviews_no_update BEFORE UPDATE ON reviews
-BEGIN SELECT RAISE(ABORT, 'reviews are append-only'); END;
+```
+prev_hash = hash of the previous decision (or 64 zeros for the first)
+hash      = sha256( canonical_json({"decision": <decision>, "prev_hash": prev_hash}) )
 ```
 
-It blocks `UPDATE` only. `DELETE` is allowed and is used by document deletion, so the
-review trail of a deleted document is removed (D15 takes precedence over D7 here). Current
-review status is derived: the latest non-`note` decision for the target, ordered by `at` then
-rowid (`Store.current_review_status`). Setting `lifecycle` on a commitment review updates the
-commitment row; the review row records `prior_status` and `target_hash` from before the
-change.
+`<decision>` is the stored decision JSON (id, target_kind, target_id, decision, note, reviewer,
+reviewer_verified, prior_status, target_hash, at) without the hash fields; canonical JSON
+means sorted keys, `(",", ":")` separators, UTF-8 (`store.chain_hash`). `Store.add_review` reads
+the last hash and inserts inside one `BEGIN IMMEDIATE` transaction. API responses include
+`prev_hash` and `hash`.
+
+`GET /reviews/verify-chain` and `claimtrace reviews verify` (exit 1 when broken) recompute
+every link and return `{ok, checked, redacted, first_broken_id, reason, head}`. An edited
+decision breaks at that decision; an edited decision whose hash was also rewritten, or a
+removed or reordered decision, breaks at the next link.
+
+Triggers refuse `UPDATE` and `DELETE` on `reviews`, except (a) the one-time backfill that
+chains v0.1 rows when migration 002 runs on an existing database, and (b) erasure for
+document deletion (D15): the row's content is replaced by `{"redacted":true}` and its target
+cleared, but its id and hashes stay, so the chain still links (`redacted` counts these; their
+content can no longer be checked). Erased rows are not returned by `GET /reviews/{target_id}`.
+
+Limits: the chain is tamper-*evident*, not tamper-proof. Someone with write access to the
+database file can rewrite every hash from the edited row onward, or drop the newest rows; to
+detect that, record the `head` value somewhere else (a ticket, an email, a signed note) and
+compare later. Reviewer names are still self-declared (`reviewer_verified=false`).
+
+Current review status is derived: the latest non-`note` decision for the target, ordered by
+`at` then rowid (`Store.current_review_status`). Setting `lifecycle` on a commitment review
+updates the commitment row; the review row records `prior_status` and `target_hash` from
+before the change.
 
 `egress_log` records every call to an LLM endpoint: document_id, host, request bytes,
 purpose (`extract` per batch of passages, `answer` once per document whose passages were

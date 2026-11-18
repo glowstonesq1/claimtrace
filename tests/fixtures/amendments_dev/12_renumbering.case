@@ -1,0 +1,21 @@
+=== base ===
+# Landscaping Contract
+
+This Contract is made between Greenhithe Grounds Ltd (the "Contractor") and Burnside Business Park Ltd (the "Owner").
+
+## 4. Maintenance
+4.1 The Contractor shall mow all lawns fortnightly between April and October.
+4.2 The Contractor shall clear leaves from all paths weekly in autumn.
+4.3 The Contractor shall grit the car parks before forecast frost.
+=== amendment ===
+# Variation No. 1
+
+This Variation is made on 4 October 2027 between Greenhithe Grounds Ltd (the "Contractor") and Burnside Business Park Ltd (the "Owner").
+
+1. Clauses 4.2 and 4.3 are renumbered as clauses 4.3 and 4.4 respectively.
+2. Clause 4.4 (as renumbered) is deleted.
+=== expected ===
+{"effects": {"4.1": "in_force", "4.2": "in_force", "4.3": "deleted"},
+ "actions": ["renumber", "renumber", "delete"],
+ "verdicts": [{"subject_contains": "grit the car parks", "verdict": "contradicted"},
+              {"subject_contains": "clear leaves", "verdict": "not_addressed"}]}

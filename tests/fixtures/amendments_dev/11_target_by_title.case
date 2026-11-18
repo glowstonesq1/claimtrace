@@ -1,0 +1,26 @@
+=== base ===
+# Research Collaboration Agreement
+
+This Agreement is made between Arnmouth Biotech Ltd (the "Company") and Kelderby University (the "University").
+
+## 3. Reports
+3.1 The University shall deliver a progress report every six months.
+
+## 11. Confidentiality
+11.1 Each party shall keep the other party's Confidential Information secret for three years.
+11.2 The University shall not publish results without the Company's approval.
+
+## 12. Publicity
+12.1 The Company shall not use the University's name in advertising.
+=== amendment ===
+# Amendment Agreement
+
+This Amendment is made on 6 September 2027 between Arnmouth Biotech Ltd (the "Company") and Kelderby University (the "University").
+
+1. The clause headed "Confidentiality" is deleted and replaced with: "11.1 Each party shall keep the other party's Confidential Information secret for five years."
+2. The clause entitled "Publicity" is deleted.
+=== expected ===
+{"effects": {"3.1": "in_force", "11.1": "replaced", "11.2": "replaced", "12.1": "deleted"},
+ "actions": ["replace", "delete"],
+ "verdicts": [{"subject_contains": "secret for three years", "verdict": "contradicted"},
+              {"subject_contains": "University's name in advertising", "verdict": "contradicted"}]}

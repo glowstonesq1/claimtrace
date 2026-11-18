@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 
 from claimtrace.core.models import (
     EVIDENCE_TYPES,
+    OCR_LOW_CONFIDENCE,
     AmendmentInstruction,
     Claim,
     Commitment,
@@ -35,9 +36,10 @@ from claimtrace.core.models import (
 from claimtrace.core.text import find_quote, looks_like_injection, sentences_with_offsets
 
 from . import patterns as P
-from .amendments import parse_instructions
+from .amendments import find_restatement, parse_instructions
+from .calendar import holidays_from_env
 
-EXTRACTOR_VERSION = "rules-0.1.0"
+EXTRACTOR_VERSION = "rules-0.2.0"
 
 _REMEDY = re.compile(
     r"\b(?:service\s+credits?|liquidated\s+damages|terminat\w*|refund|compensat\w*|penalt\w*|"
@@ -85,6 +87,7 @@ def make_span(doc: Document, p: Passage, start: int, end: int) -> Span:
         section=p.section_number,
         document_title=doc.title,
         document_version=doc.version_label,
+        locator=p.locator,
     )
 
 
@@ -121,7 +124,8 @@ def agreement_date(passages: list[Passage]) -> dt.date | None:
 
 
 class PartyResolver:
-    def __init__(self, parties: list[Party]) -> None:
+    def __init__(self, parties: list[Party], holidays: frozenset[dt.date] = frozenset()) -> None:
+        self.holidays = holidays  # document context shared by every commitment (business-day calendar)
         self.by_key: dict[str, str] = {}
         for p in parties:
             alias = p.alias or p.name
@@ -182,7 +186,10 @@ def _commitment_type(modality: Modality, sentence: str, subject: str, action: st
     return CommitmentType.obligation
 
 
-def extract_rules(doc: Document, passages: list[Passage]) -> ExtractionResult:
+def extract_rules(doc: Document, passages: list[Passage], holidays: frozenset[dt.date] | None = None) -> ExtractionResult:
+    """`holidays` defaults to the CLAIMTRACE_HOLIDAYS calendar."""
+    if holidays is None:
+        holidays = holidays_from_env()
     res = ExtractionResult()
     ref_date = agreement_date(passages)
 
@@ -217,31 +224,16 @@ def extract_rules(doc: Document, passages: list[Passage]) -> ExtractionResult:
                     provenance=make_prov(doc, span, Confidence.high),
                 )
             )
-    resolver = PartyResolver(res.parties)
+    resolver = PartyResolver(res.parties, holidays)
 
     # 2. amendment instructions (their quoted replacement text is extracted as amendment commitments)
     instruction_passages: set[str] = set()
     if doc.doc_type == DocType.amendment or doc.amends_document_id:
-        for p in passages:
-            for ins in parse_instructions(p.text):
-                span = make_span(doc, p, ins.start, ins.end)
-                res.instructions.append(
-                    AmendmentInstruction(
-                        id=_id("ins"),
-                        document_id=doc.id,
-                        target_section=ins.target,
-                        action=ins.action,
-                        new_text=ins.new_text,
-                        provenance=make_prov(doc, span, Confidence.high),
-                    )
-                )
-                instruction_passages.add(p.id)
-                if ins.new_text and ins.new_start is not None:
-                    for c in _commitments_in(doc, p, resolver, ref_date, ins.new_start, ins.new_end):
-                        c.amends_section = ins.target
-                        c.section_number = ins.target
-                        c.status = derive_status(c)
-                        res.commitments.append(c)
+        restated = _restatement(doc, passages)
+        if restated is not None:
+            res.instructions.append(restated)  # the whole document is the new version; extract it normally
+        else:
+            _instructions(doc, passages, resolver, ref_date, res, instruction_passages)
 
     # 3. commitments and claims
     lead_in: tuple[str, str] | None = None  # (subject, modal phrase) from "The Supplier shall:"
@@ -254,6 +246,11 @@ def extract_rules(doc: Document, passages: list[Passage]) -> ExtractionResult:
             res.commitments.extend(_commitments_in(doc, p, resolver, ref_date, body_start, len(text), lead_in))
             continue
         lead_in = None
+        if p.locator:  # a table row: each cell is its own region; the row may give the deadline
+            res.commitments.extend(_table_row_commitments(doc, p, resolver, ref_date))
+            if doc.doc_type in EVIDENCE_TYPES:
+                res.claims.extend(_claims_in(doc, p))
+            continue
         found = _commitments_in(doc, p, resolver, ref_date, 0, len(text))
         res.commitments.extend(found)
         stripped = text.rstrip()
@@ -335,6 +332,119 @@ def extract_rules(doc: Document, passages: list[Passage]) -> ExtractionResult:
                         target.caveats.append(f'Qualified by §{c.section_number}: "{c.text[:120]}"')
                         target.confidence = cap_confidence(target.confidence, Confidence.medium)
     return res
+
+
+TABLE_CELL_SEP = " | "
+
+
+def _table_row_commitments(
+    doc: Document, p: Passage, resolver: PartyResolver, ref_date: dt.date | None
+) -> list[Commitment]:
+    cells: list[tuple[int, int]] = []
+    pos = 0
+    for part in p.text.split(TABLE_CELL_SEP):
+        cells.append((pos, pos + len(part)))
+        pos += len(part) + len(TABLE_CELL_SEP)
+    out: list[Commitment] = []
+    for lo, hi in cells:
+        found = _commitments_in(doc, p, resolver, ref_date, lo, hi)
+        for c in found:
+            if c.deadline is None:
+                for o_lo, o_hi in cells:
+                    if (o_lo, o_hi) == (lo, hi):
+                        continue
+                    other = p.text[o_lo:o_hi]
+                    d = P.extract_deadline(other, ref_date, resolver.holidays)
+                    if d.kind in ("absolute", "relative") and (d.date or d.offset_days or d.anchor):
+                        c.deadline = d
+                        c.caveats.append(f'Deadline taken from the same table row ({p.locator}): "{other[:80]}".')
+                        break
+        out.extend(found)
+    return out
+
+
+_SCHEDULE_TARGET = re.compile(r"^(?:Schedule|Annex|Appendix|Exhibit) \w+$")
+
+
+def _restatement(doc: Document, passages: list[Passage]) -> AmendmentInstruction | None:
+    """An amended-and-restated document supersedes the whole earlier version (target "*")."""
+    for p in passages[:6]:
+        m = find_restatement(p.text)
+        if m:
+            span = make_span(doc, p, m.start(), m.end())
+            return AmendmentInstruction(id=_id("ins"), document_id=doc.id, target_section="*", action="restate",
+                                        new_text=None, provenance=make_prov(doc, span, Confidence.high))
+    return None
+
+
+def _following(passages: list[Passage], idx: int, target: str) -> list[Passage]:
+    """Passages after an instruction ending in ':' that hold its replacement text."""
+    out: list[Passage] = []
+    if _SCHEDULE_TARGET.match(target):
+        rx = re.compile(rf"\b{re.escape(target)}\b", re.I)
+        for q in passages[idx + 1 :]:
+            if q.section_title and rx.search(q.section_title) and not parse_instructions(q.text):
+                out.append(q)
+        return out
+    for q in passages[idx + 1 :]:
+        if parse_instructions(q.text):
+            break
+        sec = q.section_number or ""
+        if out and not (sec == target or sec.startswith((target + ".", target + "("))):
+            break
+        out.append(q)
+    return out
+
+
+def _instructions(
+    doc: Document,
+    passages: list[Passage],
+    resolver: PartyResolver,
+    ref_date: dt.date | None,
+    res: ExtractionResult,
+    instruction_passages: set[str],
+) -> None:
+    consumed: set[str] = set()
+    for idx, p in enumerate(passages):
+        if p.id in consumed:
+            continue
+        for ins in parse_instructions(p.text):
+            span = make_span(doc, p, ins.start, ins.end)
+            extra = _following(passages, idx, ins.target) if ins.follows and ins.new_text is None else []
+            new_text = ins.new_text if ins.new_text is not None else (" ".join(q.text for q in extra) or None)
+            res.instructions.append(
+                AmendmentInstruction(
+                    id=_id("ins"),
+                    document_id=doc.id,
+                    target_section=ins.target,
+                    action=ins.action,
+                    new_text=new_text,
+                    old_text=ins.old_text,
+                    anchor_section=ins.anchor,
+                    position=ins.position,
+                    renumber_to=ins.renumber_to,
+                    provenance=make_prov(doc, span, Confidence.high),
+                )
+            )
+            instruction_passages.add(p.id)
+            regions: list[tuple[Passage, int, int, str]] = []
+            if ins.new_text and ins.new_start is not None and ins.new_end is not None:
+                regions.append((p, ins.new_start, ins.new_end, ins.target))
+            for q in extra:
+                consumed.add(q.id)
+                instruction_passages.add(q.id)
+                sec = q.section_number or ""
+                if _SCHEDULE_TARGET.match(ins.target):
+                    label = f"{ins.target}/{sec.split('/')[-1]}" if sec else ins.target
+                else:
+                    label = sec if sec == ins.target or sec.startswith((ins.target + ".", ins.target + "(")) else ins.target
+                regions.append((q, 0, len(q.text), label))
+            for q, lo, hi, label in regions:
+                for c in _commitments_in(doc, q, resolver, ref_date, lo, hi):
+                    c.amends_section = ins.target
+                    c.section_number = label
+                    c.status = derive_status(c)
+                    res.commitments.append(c)
 
 
 def _commitments_in(
@@ -429,7 +539,7 @@ def _build_commitment(
             return None  # statements like "This Agreement shall continue..." are not commitments
     elif not known:
         reasons.append(f"'{party}' is not a defined party in this document.")
-    deadline = P.extract_deadline(sentence, ref_date)
+    deadline = P.extract_deadline(sentence, ref_date, resolver.holidays)
     conditions = P.find_conditions(sentence)
     exceptions = P.find_exceptions(sentence)
     references = P.find_references(sentence)
@@ -458,6 +568,10 @@ def _build_commitment(
         reasons.append(f"Date '{deadline.raw}' could be read as day/month or month/day.")
     if deadline.kind == "relative" and deadline.date is None and deadline.anchor:
         caveats.append(f"Deadline depends on '{deadline.anchor}'; no calendar date was computed.")
+    if deadline.business_days and deadline.date is not None:
+        n = len(resolver.holidays)
+        caveats.append("Business days counted excluding weekends and " + (f"{n} configured holiday(s)." if n else
+                       "no holidays: no holiday calendar is configured (CLAIMTRACE_HOLIDAYS)."))
     if exceptions:
         confidence = cap_confidence(confidence, Confidence.medium)
         caveats.append("Has exceptions: " + "; ".join(e[:100] for e in exceptions))
@@ -487,6 +601,15 @@ def _build_commitment(
     if looks_like_injection(p.text):
         confidence = Confidence.low
         reasons.append("The passage contains instruction-like text aimed at AI tools; read it yourself.")
+    if p.ocr_confidence is not None and p.ocr_confidence < OCR_LOW_CONFIDENCE:
+        confidence = cap_confidence(confidence, Confidence.medium)
+        reasons.append(f"Text was read by OCR with low confidence ({p.ocr_confidence:.0f}/100).")
+        caveats.append(f"Read by OCR with low confidence ({p.ocr_confidence:.0f}/100) on page {p.page or '?'}; "
+                       "check the quote against the original.")
+    if p.hidden_text:
+        confidence = Confidence.low
+        reasons.append(f"The passage contains hidden text ({p.hidden_text}); check the original document.")
+        caveats.append(f"Hidden text: this passage contains text a reader of the original would not see ({p.hidden_text}).")
     c = Commitment(
         id=_id("cmt"),
         document_id=doc.id,

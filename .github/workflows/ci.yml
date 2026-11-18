@@ -12,7 +12,18 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12", cache: pip }
-      - run: pip install -e '.[dev]' pip-audit pip-licenses
+      - name: Install runtime dependencies from the hash-pinned lockfile
+        run: pip install --require-hashes -r requirements.lock
+      - name: Install ClaimTrace and dev tools
+        run: |
+          pip install --no-deps -e .
+          pip install 'pytest>=8' 'ruff>=0.6' 'mypy>=1.10' 'reportlab>=4' pip-audit pip-licenses pip-tools
+      - name: Lockfile matches pyproject.toml (existing pins kept; fails if a dependency is missing or extra)
+        run: |
+          cp requirements.lock /tmp/requirements.lock
+          pip-compile --quiet --generate-hashes --strip-extras --allow-unsafe --no-emit-index-url \
+            --output-file /tmp/requirements.lock pyproject.toml
+          diff <(grep -E '^[a-z0-9]' requirements.lock) <(grep -E '^[a-z0-9]' /tmp/requirements.lock)
       - name: Lint
         run: ruff check packages apps tests
       - name: Type check (core)
@@ -26,8 +37,8 @@ jobs:
           pip-licenses --packages $(python -c "import tomllib;d=tomllib.load(open('pyproject.toml','rb'));print(' '.join(x.split('>')[0].split('=')[0].split('[')[0] for x in d['project']['dependencies']))") --format=csv > licenses.csv
           cat licenses.csv
           ! grep -Ei '"(GNU|.*GPL)' licenses.csv
-      - name: Dependency vulnerability audit
-        run: pip-audit --skip-editable || true  # advisory until a lockfile with hashes lands (see roadmap)
+      - name: Dependency vulnerability audit (blocking)
+        run: pip-audit -r requirements.lock --require-hashes --disable-pip --strict
 
   web:
     runs-on: ubuntu-latest

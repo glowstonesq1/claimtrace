@@ -1,0 +1,27 @@
+=== base ===
+# Hosting Agreement
+
+This Agreement is made between Larchfield Data Centres Ltd (the "Provider") and Mossgiel Insurance Brokers Ltd (the "Customer").
+
+## 2. Services
+2.1 The Provider shall host the Customer's quoting platform in a UK data centre.
+
+## Schedule 2 Service Levels
+1. The Provider shall ensure the platform is available 99.5% of each month.
+2. The Provider shall respond to Severity 1 incidents within 1 hour.
+=== amendment ===
+# Second Amendment
+
+This Amendment is made on 11 June 2027 between Larchfield Data Centres Ltd (the "Provider") and Mossgiel Insurance Brokers Ltd (the "Customer").
+
+## 1. Amendments
+1.1 Schedule 2 is deleted and replaced with the schedule set out in the Annex to this Amendment.
+
+## Annex Replacement Schedule 2
+1. The Provider shall ensure the platform is available 99.9% of each month.
+2. The Provider shall respond to Severity 1 incidents within 30 minutes.
+=== expected ===
+{"effects": {"2.1": "in_force", "Schedule 2/1": "replaced", "Schedule 2/2": "replaced"},
+ "actions": ["replace"],
+ "verdicts": [{"subject_contains": "available 99.5% of each month", "verdict": "contradicted"},
+              {"subject_contains": "UK data centre", "verdict": "not_addressed"}]}
