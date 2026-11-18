@@ -6,7 +6,7 @@ import re
 import uuid
 from dataclasses import dataclass
 
-from claimtrace.core.models import Document, DocType, Passage
+from claimtrace.core.models import DocType, Document, Passage
 from claimtrace.core.store import Store
 from claimtrace.core.text import NORMALIZER_VERSION, normalize, sha256_bytes, sha256_text
 
@@ -65,11 +65,19 @@ def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
         start = offset
         parts.append(text)
         offset += len(text)
-        passages.append(Passage(
-            id=f"psg_{doc_id[4:]}_{len(passages):04d}", document_id=doc_id, ordinal=len(passages),
-            page=block.page, section_number=number, section_title=section_title,
-            char_start=start, char_end=offset, text=text,
-        ))
+        passages.append(
+            Passage(
+                id=f"psg_{doc_id[4:]}_{len(passages):04d}",
+                document_id=doc_id,
+                ordinal=len(passages),
+                page=block.page,
+                section_number=number,
+                section_title=section_title,
+                char_start=start,
+                char_end=offset,
+                text=text,
+            )
+        )
     return "\n\n".join(parts), passages
 
 
@@ -79,10 +87,19 @@ def _doc_type(value: str | None, filename: str) -> DocType:
         if v in DocType.__members__:
             return DocType(v)
     name = filename.lower()
-    for key, dt in (("amend", DocType.amendment), ("audit", DocType.audit_report), ("policy", DocType.policy),
-                    ("sow", DocType.sow), ("proposal", DocType.proposal), ("record", DocType.evidence),
-                    ("evidence", DocType.evidence), ("report", DocType.report), ("agreement", DocType.contract),
-                    ("contract", DocType.contract), ("msa", DocType.contract)):
+    for key, dt in (
+        ("amend", DocType.amendment),
+        ("audit", DocType.audit_report),
+        ("policy", DocType.policy),
+        ("sow", DocType.sow),
+        ("proposal", DocType.proposal),
+        ("record", DocType.evidence),
+        ("evidence", DocType.evidence),
+        ("report", DocType.report),
+        ("agreement", DocType.contract),
+        ("contract", DocType.contract),
+        ("msa", DocType.contract),
+    ):
         if key in name:
             return dt
     return DocType.other
@@ -103,6 +120,7 @@ def ingest_bytes(store: Store, filename: str, data: bytes, opts: IngestOptions |
         raw = parse_sandboxed(kind, data)
     else:
         from .parsers import parse
+
         raw = parse(kind, data)
     doc_id = "doc_" + uuid.uuid4().hex[:12]
     text, passages = segment(raw, doc_id)

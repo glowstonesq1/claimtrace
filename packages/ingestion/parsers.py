@@ -81,7 +81,7 @@ def parse_text(data: bytes, markdown: bool) -> RawDoc:
             if ":" in line:
                 k, v = line.split(":", 1)
                 meta[k.strip().lower()] = v.strip().strip('"')
-        text = text[m.end():]
+        text = text[m.end() :]
     blocks: list[Block] = []
     for para in re.split(r"\n\s*\n", text):
         para = para.strip()
@@ -97,8 +97,15 @@ def parse_text(data: bytes, markdown: bool) -> RawDoc:
     if not title:
         first_heading = next((b.text for b in blocks if b.heading), None)
         title = first_heading
-    return RawDoc(blocks=blocks, title=title, author=meta.get("author"), version=meta.get("version"),
-                  doc_type=meta.get("doc_type"), amends=meta.get("amends"), page_count=None)
+    return RawDoc(
+        blocks=blocks,
+        title=title,
+        author=meta.get("author"),
+        version=meta.get("version"),
+        doc_type=meta.get("doc_type"),
+        amends=meta.get("amends"),
+        page_count=None,
+    )
 
 
 def _split_md_lines(para: str) -> list[str]:
@@ -185,8 +192,9 @@ def parse_docx(data: bytes) -> RawDoc:
             if cells:
                 blocks.append(Block(text=" | ".join(dict.fromkeys(cells))))
     if numbered:
-        warnings.append("This DOCX uses automatic numbering, which is not visible in extracted text; "
-                        "clause numbers may be missing.")
+        warnings.append(
+            "This DOCX uses automatic numbering, which is not visible in extracted text; clause numbers may be missing."
+        )
     warnings.append("DOCX files have no fixed pages; page numbers are not available.")
     cp = d.core_properties
     return RawDoc(blocks=blocks, title=cp.title or None, author=cp.author or None, warnings=warnings)
@@ -202,8 +210,9 @@ def parse_pdf(data: bytes) -> RawDoc:
 
     for marker in _PDF_DANGEROUS:
         if marker in data:
-            raise IngestError("unsafe_content", "PDF contains active content (JavaScript, launch actions, "
-                                                "embedded files or forms); rejected.")
+            raise IngestError(
+                "unsafe_content", "PDF contains active content (JavaScript, launch actions, embedded files or forms); rejected."
+            )
     try:
         reader = PdfReader(io.BytesIO(data), strict=False)
     except (PdfReadError, ValueError) as e:
@@ -226,19 +235,29 @@ def parse_pdf(data: bytes) -> RawDoc:
             blocks.append(Block(text=para, page=i, heading=_looks_like_heading(para)))
     warnings: list[str] = []
     if chars < 40 * max(n, 1):
-        warnings.append("SCANNED: This PDF has little or no text layer (it may be a scanned image). "
-                        "ClaimTrace v0.1 cannot read images, so results will be incomplete or empty.")
+        warnings.append(
+            "SCANNED: This PDF has little or no text layer (it may be a scanned image). "
+            "ClaimTrace v0.1 cannot read images, so results will be incomplete or empty."
+        )
     meta = reader.metadata
-    return RawDoc(blocks=blocks, title=(meta.title if meta else None) or None,
-                  author=(meta.author if meta else None) or None, page_count=n, warnings=warnings)
+    return RawDoc(
+        blocks=blocks,
+        title=(meta.title if meta else None) or None,
+        author=(meta.author if meta else None) or None,
+        page_count=n,
+        warnings=warnings,
+    )
 
 
 _CLAUSE_START = re.compile(r"^(?:\d+(?:\.\d+)*\.?|\([a-z]{1,3}\)|[a-z]\)|Schedule\s+\w+|Article\s+\w+)\s")
 
 
 def _looks_like_heading(line: str) -> bool:
-    return (len(line) < 80 and not line.rstrip().endswith((".", ",", ";", ":"))
-            and (re.match(r"^\d+\.?\s+[A-Z]", line) is not None or line.isupper()))
+    return (
+        len(line) < 80
+        and not line.rstrip().endswith((".", ",", ";", ":"))
+        and (re.match(r"^\d+\.?\s+[A-Z]", line) is not None or line.isupper())
+    )
 
 
 def _pdf_paragraphs(txt: str) -> list[str]:

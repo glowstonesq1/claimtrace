@@ -28,8 +28,7 @@ def start_run(store: Store, doc_id: str, provider: LLMProvider | None) -> tuple[
     existing = store.find_run(key)
     if existing:
         return existing, False
-    run = AnalysisRun(id="run_" + uuid.uuid4().hex[:12], document_id=doc_id, extractor_version=EXTRACTOR_VERSION,
-                      status="queued")
+    run = AnalysisRun(id="run_" + uuid.uuid4().hex[:12], document_id=doc_id, extractor_version=EXTRACTOR_VERSION, status="queued")
     store.save_run(run, key)
     return run, True
 
@@ -50,14 +49,23 @@ def execute_run(store: Store, run: AnalysisRun, provider: LLMProvider | None) ->
             res.commitments.extend(extra)
         store.replace_extraction(doc.id, res.objects(), res.edges)
         amended = apply_amendments(store)
-        run.counts = {"commitments": len(res.commitments), "claims": len(res.claims), "parties": len(res.parties),
-                      "definitions": len(res.definitions), "amendment_instructions": len(res.instructions),
-                      "needs_review": sum(1 for c in res.commitments if c.needs_review),
-                      "amended_commitments_total": amended, **stats}
+        run.counts = {
+            "commitments": len(res.commitments),
+            "claims": len(res.claims),
+            "parties": len(res.parties),
+            "definitions": len(res.definitions),
+            "amendment_instructions": len(res.instructions),
+            "needs_review": sum(1 for c in res.commitments if c.needs_review),
+            "amended_commitments_total": amended,
+            **stats,
+        }
         run.run_manifest = {
-            "claimtrace_version": __version__, "document_checksum": doc.checksum_sha256,
-            "text_sha256": doc.text_sha256, "normalizer_version": NORMALIZER_VERSION,
-            "extractor_version": EXTRACTOR_VERSION, "model": provider.model if provider else None,
+            "claimtrace_version": __version__,
+            "document_checksum": doc.checksum_sha256,
+            "text_sha256": doc.text_sha256,
+            "normalizer_version": NORMALIZER_VERSION,
+            "extractor_version": EXTRACTOR_VERSION,
+            "model": provider.model if provider else None,
             "provider": provider.name if provider else "rules",
             "endpoint_host": provider.host if provider else None,
             "prompt_version": PROMPT_VERSION if provider else None,

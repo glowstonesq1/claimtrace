@@ -17,16 +17,17 @@ class Settings:
     host: str = field(default_factory=lambda: os.environ.get("CLAIMTRACE_HOST", "127.0.0.1"))
     port: int = field(default_factory=lambda: int(os.environ.get("CLAIMTRACE_PORT", "8000")))
     api_token: str | None = field(default_factory=lambda: os.environ.get("CLAIMTRACE_API_TOKEN") or None)
-    allowed_origins: list[str] = field(default_factory=lambda: [
-        o.strip() for o in os.environ.get("CLAIMTRACE_ALLOWED_ORIGINS", "").split(",") if o.strip()])
+    allowed_origins: list[str] = field(
+        default_factory=lambda: [o.strip() for o in os.environ.get("CLAIMTRACE_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+    )
     allow_url_ingestion: bool = field(default_factory=lambda: _bool("CLAIMTRACE_ALLOW_URL_INGESTION"))
     llm_provider: str = field(default_factory=lambda: os.environ.get("CLAIMTRACE_LLM_PROVIDER", "rules"))
     llm_base_url: str | None = field(default_factory=lambda: os.environ.get("CLAIMTRACE_LLM_BASE_URL") or None)
     llm_model: str | None = field(default_factory=lambda: os.environ.get("CLAIMTRACE_LLM_MODEL") or None)
-    llm_api_key: str | None = field(default_factory=lambda: os.environ.get("CLAIMTRACE_LLM_API_KEY") or None,
-                                    repr=False)
-    retention_days: int | None = field(default_factory=lambda: int(v) if (
-        v := os.environ.get("CLAIMTRACE_RETENTION_DAYS")) else None)
+    llm_api_key: str | None = field(default_factory=lambda: os.environ.get("CLAIMTRACE_LLM_API_KEY") or None, repr=False)
+    retention_days: int | None = field(
+        default_factory=lambda: int(v) if (v := os.environ.get("CLAIMTRACE_RETENTION_DAYS")) else None
+    )
     rate_limit_per_minute: int = field(default_factory=lambda: int(os.environ.get("CLAIMTRACE_RATE_LIMIT", "120")))
 
     @property

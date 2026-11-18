@@ -69,8 +69,7 @@ def _is_ip_literal(host: str) -> bool:
         return False
 
 
-def fetch_url(url: str, resolve: Resolver = _system_resolve,
-              transport: httpx.BaseTransport | None = None) -> tuple[str, bytes]:
+def fetch_url(url: str, resolve: Resolver = _system_resolve, transport: httpx.BaseTransport | None = None) -> tuple[str, bytes]:
     """Fetch a URL safely. Returns (filename_hint, bytes)."""
     current = url
     with httpx.Client(timeout=TIMEOUT, follow_redirects=False, transport=transport) as client:
@@ -79,9 +78,12 @@ def fetch_url(url: str, resolve: Resolver = _system_resolve,
             parts = urlsplit(current)
             ip_host = f"[{ip}]" if ":" in ip else ip
             pinned = urlunsplit((scheme, f"{ip_host}:{port}", parts.path or "/", parts.query, ""))
-            req = client.build_request("GET", pinned, headers={"Host": host, "Accept": "*/*",
-                                                                 "User-Agent": "ClaimTrace/0.1"},
-                                       extensions={"sni_hostname": host} if scheme == "https" else {})
+            req = client.build_request(
+                "GET",
+                pinned,
+                headers={"Host": host, "Accept": "*/*", "User-Agent": "ClaimTrace/0.1"},
+                extensions={"sni_hostname": host} if scheme == "https" else {},
+            )
             resp = client.send(req, stream=True)
             try:
                 if resp.status_code in (301, 302, 303, 307, 308):
@@ -101,11 +103,16 @@ def fetch_url(url: str, resolve: Resolver = _system_resolve,
                 resp.close()
             ctype = resp.headers.get("content-type", "").split(";")[0].strip().lower()
             name = parts.path.rsplit("/", 1)[-1] or "page"
-            ext = {"application/pdf": ".pdf", "text/markdown": ".md", "text/plain": ".txt",
-                   "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx"}.get(ctype)
+            ext = {
+                "application/pdf": ".pdf",
+                "text/markdown": ".md",
+                "text/plain": ".txt",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
+            }.get(ctype)
             if ext is None:
-                raise IngestError("unsupported_file_type",
-                                  "URL ingestion supports PDF, DOCX, Markdown and plain-text responses only.")
+                raise IngestError(
+                    "unsupported_file_type", "URL ingestion supports PDF, DOCX, Markdown and plain-text responses only."
+                )
             if not name.lower().endswith(ext):
                 name += ext
             return name, bytes(body)

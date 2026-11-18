@@ -13,9 +13,21 @@ import unicodedata
 NORMALIZER_VERSION = "norm-1"
 
 _REPLACEMENTS = {
-    " ": " ", " ": " ", " ": " ", "­": "", "​": "", "﻿": "",
-    "‘": "'", "’": "'", "“": '"', "”": '"', "–": "-", "—": "-",
-    "\r\n": "\n", "\r": "\n", "\t": " ",
+    " ": " ",
+    " ": " ",
+    " ": " ",
+    "­": "",
+    "​": "",
+    "﻿": "",
+    "‘": "'",
+    "’": "'",
+    "“": '"',
+    "”": '"',
+    "–": "-",
+    "—": "-",
+    "\r\n": "\n",
+    "\r": "\n",
+    "\t": " ",
 }
 
 
@@ -92,16 +104,65 @@ STOPWORDS = frozenset(
     further once only own too very just also per same both between within without upon whether""".split()
 )
 
-_SUFFIXES = ("ations", "ation", "ments", "ment", "ings", "ing", "ies", "ied", "ers", "er", "ed", "es", "s", "y")
+_SUFFIXES = tuple(
+    sorted(
+        (
+            "abilities",
+            "ability",
+            "ables",
+            "able",
+            "ibility",
+            "ible",
+            "ications",
+            "ication",
+            "icated",
+            "icate",
+            "ations",
+            "ation",
+            "ated",
+            "ates",
+            "ate",
+            "ating",
+            "ments",
+            "ment",
+            "ness",
+            "ings",
+            "ing",
+            "ities",
+            "ity",
+            "ies",
+            "ied",
+            "ers",
+            "er",
+            "ed",
+            "es",
+            "ive",
+            "ally",
+            "al",
+            "ly",
+            "s",
+            "y",
+        ),
+        key=len,
+        reverse=True,
+    )
+)
 
 
 def stem(word: str) -> str:
+    """Suffix stripping applied until stable, so "deliver"/"delivered"/"delivery" share one stem."""
     w = word.lower()
-    if len(w) <= 4 or w.isdigit():
+    if w.isdigit():
         return w
-    for suf in _SUFFIXES:
-        if w.endswith(suf) and len(w) - len(suf) >= 4:
-            return w[: -len(suf)]
+    for _ in range(3):
+        if len(w) <= 4:
+            break
+        for suf in _SUFFIXES:
+            if w.endswith(suf) and len(w) - len(suf) >= 4:
+                w = w[: -len(suf)]
+                break
+        else:
+            break
     return w
 
 

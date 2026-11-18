@@ -40,7 +40,7 @@ packages = [
 "claimtrace.core" = ["migrations/*.sql"]
 
 [tool.ruff]
-line-length = 110
+line-length = 130
 target-version = "py311"
 
 [tool.ruff.lint]

@@ -60,15 +60,17 @@ def apply_amendments(store: Store) -> int:
                 for old in current:
                     if old_text and re.search(re.escape(old_text), old.text, re.I):
                         d = old.model_copy(deep=True)
-                        d.id = "cmt_d_" + hashlib.sha1(f"{ins.id}:{old.id}".encode()).hexdigest()[:12]
+                        d.id = "cmt_d_" + hashlib.sha256(f"{ins.id}:{old.id}".encode()).hexdigest()[:12]
                         d.document_id = amd.id
                         d.text = re.sub(re.escape(old_text), ins.new_text, old.text, flags=re.I)
                         d.amends_section = ins.target_section
                         d.provenance = ins.provenance.model_copy(deep=True)
                         d.confidence = cap_confidence(d.confidence, Confidence.medium)
                         d.provenance.confidence = d.confidence
-                        d.caveats = [f"Wording derived by applying {loc} to the original clause; the quote shows "
-                                     "the amending instruction, not this exact sentence."]
+                        d.caveats = [
+                            f"Wording derived by applying {loc} to the original clause; the quote shows "
+                            "the amending instruction, not this exact sentence."
+                        ]
                         d.document_effect = DocumentEffect.in_force
                         d.status = derive_status(d)
                         derived.append(d)
@@ -81,13 +83,20 @@ def apply_amendments(store: Store) -> int:
                     old.document_effect = DocumentEffect.deleted if ins.action == "delete" else DocumentEffect.replaced
                     verb = "Deleted by " if ins.action == "delete" else "Replaced by "
                     old.caveats = [cv for cv in old.caveats if not cv.startswith(_AMEND_CAVEAT)]
-                    old.caveats.append(f"{verb}{loc}" + (f": \"{ins.new_text[:160]}\"" if ins.new_text else "."))
+                    old.caveats.append(f"{verb}{loc}" + (f': "{ins.new_text[:160]}"' if ins.new_text else "."))
                     old.status = derive_status(old)
                     dirty[old.id] = old
                     affected += 1
                     for n in new:
-                        edges.append(Edge(id=f"edg_sup_{n.id}_{old.id}"[:60], src_id=n.id, dst_id=old.id,
-                                          type=EdgeType.supersedes, provenance=ins.provenance))
+                        edges.append(
+                            Edge(
+                                id=f"edg_sup_{n.id}_{old.id}"[:60],
+                                src_id=n.id,
+                                dst_id=old.id,
+                                type=EdgeType.supersedes,
+                                provenance=ins.provenance,
+                            )
+                        )
                 holder[key] = new
     for c in dirty.values():
         store.update_object(c)
@@ -98,6 +107,10 @@ def apply_amendments(store: Store) -> int:
 
 
 def _old_from_instruction(ins: AmendmentInstruction) -> str | None:
-    m = re.search(r"(?:reference\s+to|words?|figure|number|amount)\s+[\"“]?(?P<old>[^\"”]{1,80}?)[\"”]?\s+"
-                  r"(?:in\s+(?:clause|section)\s+[\d.()a-z]+\s+)?(?:is|are|shall\s+be)", ins.provenance.span.quote, re.I)
+    m = re.search(
+        r"(?:reference\s+to|words?|figure|number|amount)\s+[\"“]?(?P<old>[^\"”]{1,80}?)[\"”]?\s+"
+        r"(?:in\s+(?:clause|section)\s+[\d.()a-z]+\s+)?(?:is|are|shall\s+be)",
+        ins.provenance.span.quote,
+        re.I,
+    )
     return m.group("old").strip() if m else None

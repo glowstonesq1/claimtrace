@@ -17,25 +17,36 @@ REPLACE_RE = re.compile(
     rf"{_SEC}{_OF}\s+(?:is|shall\s+be)\s+(?:hereby\s+)?(?:deleted\s+(?:in\s+its\s+entirety\s+)?and\s+replaced\s+(?:with|by)|"
     rf"amended\s+(?:to\s+read|so\s+as\s+to\s+read|as\s+follows)|replaced\s+(?:in\s+its\s+entirety\s+)?(?:with|by)|"
     rf"restated\s+(?:to\s+read|as\s+follows))(?:\s+the\s+following)?(?:\s+(?:new\s+)?(?:clause|section)\s+[\d.]+)?\s*:?\s*{_QUOTE}",
-    re.I)
+    re.I,
+)
 INSERT_RE = re.compile(
     rf"(?:the\s+following|a\s+new)\s+(?:new\s+)?(?:clause|section|paragraph)?\s*(?:is|shall\s+be)\s+(?:hereby\s+)?"
     rf"(?:added|inserted)(?:\s+(?:to|into)\s+(?:the\s+)?\w+)?\s+as\s+(?:a\s+new\s+)?(?:clause|section|paragraph)\s+"
-    rf"(?P<sec>\d+(?:\.\d+)*)\s*:?\s*{_QUOTE}", re.I)
+    rf"(?P<sec>\d+(?:\.\d+)*)\s*:?\s*{_QUOTE}",
+    re.I,
+)
 INSERT_RE2 = re.compile(
     rf"(?:a\s+new\s+)?(?:clause|section)\s+(?P<sec>\d+(?:\.\d+)*)\s+(?:is|shall\s+be)\s+(?:hereby\s+)?(?:added|inserted)"
-    rf"[^:\"“]{{0,60}}:?\s*{_QUOTE}", re.I)
+    rf"[^:\"“]{{0,60}}:?\s*{_QUOTE}",
+    re.I,
+)
 DELETE_RE = re.compile(
     rf"{_SEC}{_OF}\s+(?:is|shall\s+be)\s+(?:hereby\s+)?(?:deleted|removed|struck)(?:\s+in\s+its\s+entirety)?"
-    rf"(?:\s+and\s+(?:shall\s+)?(?:have\s+no\s+further\s+effect|is\s+of\s+no\s+further\s+effect))?\s*(?:\.|$)", re.I)
+    rf"(?:\s+and\s+(?:shall\s+)?(?:have\s+no\s+further\s+effect|is\s+of\s+no\s+further\s+effect))?\s*(?:\.|$)",
+    re.I,
+)
 MODIFY_RE = re.compile(
     rf"in\s+{_SEC}{_OF},?\s+(?:the\s+)?(?:reference\s+to|words?|figure|number|amount)\s+[\"“]?(?P<old>[^\"”]{{1,80}}?)[\"”]?\s+"
     rf"(?:is|are|shall\s+be)\s+(?:hereby\s+)?(?:replaced|substituted|amended)\s+(?:with|by|to)\s+[\"“]?(?P<new2>[^\"”]{{1,80}}?)[\"”]?"
-    rf"\s*(?:\.|$)", re.I)
+    rf"\s*(?:\.|$)",
+    re.I,
+)
 MODIFY_RE2 = re.compile(
     rf"(?:the\s+)?(?:reference\s+to|words?|figure)\s+[\"“]?(?P<old>[^\"”]{{1,80}}?)[\"”]?\s+in\s+{_SEC}{_OF}\s+"
     rf"(?:is|are|shall\s+be)\s+(?:hereby\s+)?(?:replaced|substituted|amended)\s+(?:with|by|to)\s+[\"“]?(?P<new2>[^\"”]{{1,80}}?)[\"”]?"
-    rf"\s*(?:\.|$)", re.I)
+    rf"\s*(?:\.|$)",
+    re.I,
+)
 
 
 @dataclass
@@ -65,12 +76,10 @@ def parse_instructions(text: str) -> list[Instruction]:
 
     for rx, action in ((REPLACE_RE, "replace"), (INSERT_RE, "insert"), (INSERT_RE2, "insert")):
         for m in rx.finditer(text):
-            add(Instruction(_sec(m["sec"]), action, m["new"].strip(), m.start(), m.end(),
-                            m.start("new"), m.end("new")))
+            add(Instruction(_sec(m["sec"]), action, m["new"].strip(), m.start(), m.end(), m.start("new"), m.end("new")))
     for rx in (MODIFY_RE, MODIFY_RE2):
         for m in rx.finditer(text):
-            add(Instruction(_sec(m["sec"]), "modify", m["new2"].strip(), m.start(), m.end(),
-                            old_text=m["old"].strip()))
+            add(Instruction(_sec(m["sec"]), "modify", m["new2"].strip(), m.start(), m.end(), old_text=m["old"].strip()))
     for m in DELETE_RE.finditer(text):
         add(Instruction(_sec(m["sec"]), "delete", None, m.start(), m.end()))
     return sorted(out, key=lambda i: i.start)

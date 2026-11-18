@@ -12,7 +12,6 @@ from collections.abc import Callable
 from typing import Protocol
 
 import httpx
-
 from claimtrace.core.config import Settings
 
 
@@ -32,8 +31,17 @@ class LLMProvider(Protocol):
 class OpenAICompatible:
     name = "openai"
 
-    def __init__(self, base_url: str, model: str, api_key: str | None, external: bool, host: str | None,
-                 timeout: float = 120.0, retries: int = 2, transport: httpx.BaseTransport | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        model: str,
+        api_key: str | None,
+        external: bool,
+        host: str | None,
+        timeout: float = 120.0,
+        retries: int = 2,
+        transport: httpx.BaseTransport | None = None,
+    ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.external = external
@@ -44,8 +52,12 @@ class OpenAICompatible:
         self._transport = transport
 
     def complete_json(self, system: str, user: str) -> dict:
-        body = {"model": self.model, "temperature": 0, "response_format": {"type": "json_object"},
-                "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}
+        body = {
+            "model": self.model,
+            "temperature": 0,
+            "response_format": {"type": "json_object"},
+            "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        }
         headers = {"Authorization": f"Bearer {self._key}"} if self._key else {}
         last: Exception | None = None
         for attempt in range(self._retries + 1):
@@ -61,7 +73,7 @@ class OpenAICompatible:
             except (httpx.HTTPError, LLMError, KeyError, ValueError) as e:
                 last = e
                 if attempt < self._retries:
-                    time.sleep(min(2 ** attempt, 8))
+                    time.sleep(min(2**attempt, 8))
         raise LLMError(f"LLM call failed after retries: {type(last).__name__}")
 
 
@@ -103,6 +115,7 @@ def provider_from_settings(s: Settings) -> LLMProvider | None:
         if not base or not s.llm_model:
             raise LLMError("Set CLAIMTRACE_LLM_BASE_URL and CLAIMTRACE_LLM_MODEL to use an LLM provider.")
         from urllib.parse import urlsplit
+
         host = urlsplit(base).hostname
         external = bool(host) and host not in ("localhost", "127.0.0.1", "::1", "ollama", "host.docker.internal")
         return OpenAICompatible(base, s.llm_model, s.llm_api_key, external=external, host=host)

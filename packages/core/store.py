@@ -37,8 +37,13 @@ from .models import (
 
 T = TypeVar("T", bound=BaseModel)
 
-_KIND = {Commitment: "commitment", Claim: "claim", Party: "party", Definition: "definition",
-         AmendmentInstruction: "amendment_instruction"}
+_KIND = {
+    Commitment: "commitment",
+    Claim: "claim",
+    Party: "party",
+    Definition: "definition",
+    AmendmentInstruction: "amendment_instruction",
+}
 
 
 def _now() -> str:
@@ -67,15 +72,13 @@ class Store:
             row = self.conn.execute("SELECT MAX(version) FROM schema_version").fetchone()
             current = row[0] or 0
             files = sorted(
-                f for f in resources.files("claimtrace.core").joinpath("migrations").iterdir()
-                if f.name.endswith(".sql")
+                f for f in resources.files("claimtrace.core").joinpath("migrations").iterdir() if f.name.endswith(".sql")
             )
             for f in files:
                 version = int(f.name.split("_", 1)[0])
                 if version > current:
                     # executescript manages its own transaction; keep schema + version atomic
-                    self.conn.executescript(
-                        f"BEGIN;\n{f.read_text()}\nINSERT INTO schema_version VALUES ({version});\nCOMMIT;")
+                    self.conn.executescript(f"BEGIN;\n{f.read_text()}\nINSERT INTO schema_version VALUES ({version});\nCOMMIT;")
 
     @contextmanager
     def tx(self) -> Iterator[sqlite3.Connection]:
@@ -147,8 +150,13 @@ class Store:
             for o in objects:
                 c.execute(
                     "INSERT INTO objects(id, kind, document_id, section_number, json) VALUES (?,?,?,?,?)",
-                    (o.id, _KIND[type(o)], o.document_id, getattr(o, "section_number", None),  # type: ignore[attr-defined]
-                     o.model_dump_json()),
+                    (
+                        o.id,
+                        _KIND[type(o)],
+                        o.document_id,
+                        getattr(o, "section_number", None),  # type: ignore[attr-defined]
+                        o.model_dump_json(),
+                    ),
                 )
             for e in edges:
                 c.execute(
@@ -175,8 +183,13 @@ class Store:
             for o in objs:
                 c.execute(
                     "INSERT OR REPLACE INTO objects(id, kind, document_id, section_number, json) VALUES (?,?,?,?,?)",
-                    (o.id, _KIND[type(o)], o.document_id, getattr(o, "section_number", None),  # type: ignore[attr-defined]
-                     o.model_dump_json()),
+                    (
+                        o.id,
+                        _KIND[type(o)],
+                        o.document_id,
+                        getattr(o, "section_number", None),  # type: ignore[attr-defined]
+                        o.model_dump_json(),
+                    ),
                 )
 
     def delete_objects_with_prefix(self, prefix: str) -> None:
@@ -237,8 +250,7 @@ class Store:
     def save_answer(self, a: Answer) -> None:
         cited = {c.span.document_id for c in a.citations} | set(a.document_ids)
         with self.tx() as c:
-            c.execute("INSERT OR REPLACE INTO answers(id, json, created_at) VALUES (?,?,?)",
-                      (a.id, a.model_dump_json(), _now()))
+            c.execute("INSERT OR REPLACE INTO answers(id, json, created_at) VALUES (?,?,?)", (a.id, a.model_dump_json(), _now()))
             for d in cited:
                 c.execute("INSERT OR IGNORE INTO answer_documents VALUES (?,?)", (a.id, d))
 
@@ -251,7 +263,9 @@ class Store:
     def answers_for_document(self, doc_id: str) -> list[Answer]:
         rows = self._rows(
             "SELECT a.json FROM answers a JOIN answer_documents d ON a.id=d.answer_id WHERE d.document_id=?"
-            " ORDER BY a.created_at", (doc_id,))
+            " ORDER BY a.created_at",
+            (doc_id,),
+        )
         return [Answer.model_validate_json(r[0]) for r in rows]
 
     def update_answer(self, a: Answer) -> None:
@@ -261,8 +275,7 @@ class Store:
     def save_verification(self, run: VerificationRun) -> None:
         with self.tx() as c:
             c.execute(
-                "INSERT INTO verification_runs(id, base_document_id, other_document_id, json, created_at)"
-                " VALUES (?,?,?,?,?)",
+                "INSERT INTO verification_runs(id, base_document_id, other_document_id, json, created_at) VALUES (?,?,?,?,?)",
                 (run.id, run.base_document_id, run.other_document_id, run.model_dump_json(), _now()),
             )
             for f in run.findings:
@@ -279,7 +292,8 @@ class Store:
     def verifications_for_document(self, doc_id: str) -> list[VerificationRun]:
         rows = self._rows(
             "SELECT id FROM verification_runs WHERE base_document_id=? OR other_document_id=? ORDER BY created_at",
-            (doc_id, doc_id))
+            (doc_id, doc_id),
+        )
         return [self.get_verification(r[0]) for r in rows]
 
     def get_finding(self, finding_id: str) -> Finding:
@@ -295,8 +309,10 @@ class Store:
     # ---- reviews (append-only) -------------------------------------------
     def add_review(self, r: ReviewDecision) -> None:
         with self.tx() as c:
-            c.execute("INSERT INTO reviews(id, target_kind, target_id, json, at) VALUES (?,?,?,?,?)",
-                      (r.id, r.target_kind, r.target_id, r.model_dump_json(), r.at.isoformat()))
+            c.execute(
+                "INSERT INTO reviews(id, target_kind, target_id, json, at) VALUES (?,?,?,?,?)",
+                (r.id, r.target_kind, r.target_id, r.model_dump_json(), r.at.isoformat()),
+            )
 
     def reviews(self, target_id: str | None = None) -> list[ReviewDecision]:
         if target_id:
@@ -315,8 +331,10 @@ class Store:
     # ---- egress ------------------------------------------------------------
     def log_egress(self, document_id: str | None, host: str, nbytes: int, purpose: str) -> None:
         with self.tx() as c:
-            c.execute("INSERT INTO egress_log(document_id, host, bytes, purpose, at) VALUES (?,?,?,?,?)",
-                      (document_id, host, nbytes, purpose, _now()))
+            c.execute(
+                "INSERT INTO egress_log(document_id, host, bytes, purpose, at) VALUES (?,?,?,?,?)",
+                (document_id, host, nbytes, purpose, _now()),
+            )
 
     def egress(self) -> list[dict]:
         rows = self._rows("SELECT document_id, host, bytes, purpose, at FROM egress_log ORDER BY id")
@@ -328,16 +346,22 @@ class Store:
         with self.tx() as c:
             obj_ids = [r[0] for r in c.execute("SELECT id FROM objects WHERE document_id=?", (doc_id,))]
             ans_ids = [r[0] for r in c.execute("SELECT answer_id FROM answer_documents WHERE document_id=?", (doc_id,))]
-            run_ids = [r[0] for r in c.execute(
-                "SELECT id FROM verification_runs WHERE base_document_id=? OR other_document_id=?", (doc_id, doc_id))]
-            finding_ids = [r[0] for r in c.execute(
-                f"SELECT id FROM findings WHERE run_id IN ({','.join('?' * len(run_ids))})", run_ids)] if run_ids else []
+            run_ids = [
+                r[0]
+                for r in c.execute(
+                    "SELECT id FROM verification_runs WHERE base_document_id=? OR other_document_id=?", (doc_id, doc_id)
+                )
+            ]
+            finding_ids = (
+                [r[0] for r in c.execute(f"SELECT id FROM findings WHERE run_id IN ({','.join('?' * len(run_ids))})", run_ids)]
+                if run_ids
+                else []
+            )
             targets = obj_ids + ans_ids + finding_ids
             n_reviews = 0
             for i in range(0, len(targets), 500):
                 chunk = targets[i : i + 500]
-                n_reviews += c.execute(
-                    f"DELETE FROM reviews WHERE target_id IN ({','.join('?' * len(chunk))})", chunk).rowcount
+                n_reviews += c.execute(f"DELETE FROM reviews WHERE target_id IN ({','.join('?' * len(chunk))})", chunk).rowcount
             if obj_ids:
                 for i in range(0, len(obj_ids), 500):
                     chunk = obj_ids[i : i + 500]
@@ -346,11 +370,12 @@ class Store:
             c.execute("DELETE FROM edges WHERE src_id=? OR dst_id=?", (doc_id, doc_id))
             for a in ans_ids:
                 c.execute("DELETE FROM answers WHERE id=?", (a,))
-            counts = {"objects": len(obj_ids), "answers": len(ans_ids), "verification_runs": len(run_ids),
-                      "reviews": n_reviews}
+            counts = {"objects": len(obj_ids), "answers": len(ans_ids), "verification_runs": len(run_ids), "reviews": n_reviews}
             c.execute("DELETE FROM documents WHERE id=?", (doc_id,))  # cascades passages, objects, runs, findings
-            c.execute("INSERT OR REPLACE INTO tombstones VALUES (?,?,?,?,?)",
-                      (doc_id, doc.checksum_sha256, _now(), reason, json.dumps(counts)))
+            c.execute(
+                "INSERT OR REPLACE INTO tombstones VALUES (?,?,?,?,?)",
+                (doc_id, doc.checksum_sha256, _now(), reason, json.dumps(counts)),
+            )
         self.compact()
         return counts
 
@@ -365,5 +390,6 @@ class Store:
 
     def tombstones(self) -> list[dict]:
         rows = self._rows("SELECT document_id, checksum, deleted_at, reason, counts FROM tombstones")
-        return [{"document_id": r[0], "checksum": r[1], "deleted_at": r[2], "reason": r[3],
-                 "counts": json.loads(r[4])} for r in rows]
+        return [
+            {"document_id": r[0], "checksum": r[1], "deleted_at": r[2], "reason": r[3], "counts": json.loads(r[4])} for r in rows
+        ]
