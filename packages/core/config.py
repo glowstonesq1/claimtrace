@@ -20,6 +20,11 @@ class Settings:
     allowed_origins: list[str] = field(
         default_factory=lambda: [o.strip() for o in os.environ.get("CLAIMTRACE_ALLOWED_ORIGINS", "").split(",") if o.strip()]
     )
+    allowed_hosts: list[str] = field(
+        default_factory=lambda: [h.strip() for h in os.environ.get("CLAIMTRACE_ALLOWED_HOSTS", "").split(",") if h.strip()]
+    )
+    # Inside Docker the server must bind 0.0.0.0; compose publishes the port on 127.0.0.1 only.
+    container_mode: bool = field(default_factory=lambda: _bool("CLAIMTRACE_CONTAINER_MODE"))
     allow_url_ingestion: bool = field(default_factory=lambda: _bool("CLAIMTRACE_ALLOW_URL_INGESTION"))
     llm_provider: str = field(default_factory=lambda: os.environ.get("CLAIMTRACE_LLM_PROVIDER", "rules"))
     llm_base_url: str | None = field(default_factory=lambda: os.environ.get("CLAIMTRACE_LLM_BASE_URL") or None)
