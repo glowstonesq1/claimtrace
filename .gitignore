@@ -16,3 +16,6 @@ evals/runs/*
 *.egg-info/
 apps/web/node_modules/
 apps/api/static/
+
+# Local agent worktrees and settings
+.claude/
