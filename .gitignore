@@ -16,3 +16,5 @@ evals/runs/*
 *.egg-info/
 apps/web/node_modules/
 apps/api/static/
+.hallmark/salt
+apps/site/.hallmark/

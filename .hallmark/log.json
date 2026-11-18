@@ -1,0 +1,30 @@
+[
+ {
+  "shape": "Bento Grid",
+  "theme": "specimen",
+  "axes": "light/high-contrast-serif/cool",
+  "hero": "Settled",
+  "nav": "edge-aligned",
+  "footer": "mast",
+  "imagery": "screenshots 5 (docs/img crops), promo film slot with screenshot fallback",
+  "photos": [],
+  "entry": "none (GSAP word scrub on promise; sticky walk crossfade, by request)",
+  "fingerprint": "light/high-contrast-serif/cool/Settled/edge-aligned/mast",
+  "sections": [
+   "hero",
+   "statement",
+   "pinned",
+   "bento",
+   "showcase",
+   "table",
+   "rows",
+   "band",
+   "footer"
+  ],
+  "signature": "the replaced delivery date struck through in the real register",
+  "waived": [],
+  "prompt": "ClaimTrace public launch site, editorial austere precise, job: run locally / star on GitHub",
+  "date": "2026-11-18",
+  "mode": "build"
+ }
+]

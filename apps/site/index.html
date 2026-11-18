@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClaimTrace</title>
+<meta name="description" content="ClaimTrace is an open-source, local-first workspace for contracts, amendments and audit reports. It builds a commitment register, answers only with verified quotes and checks documents against each other.">
+<meta property="og:title" content="ClaimTrace">
+<meta property="og:description" content="Upload documents. Map commitments and obligations. Ask questions. Verify every answer against the exact source.">
+<meta property="og:image" content="media/register.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400&family=Geist:wght@400;500&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="container nav__inner">
+    <a class="wordmark" href="./" aria-label="ClaimTrace, home">ClaimTrace</a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="#evaluation">Evaluation</a>
+      <a class="btn btn--quiet" href="https://github.com/glowstonesq1/claimtrace">Star on GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="container hero__grid">
+      <div class="hero__text">
+        <h1 id="hero-title">Did the amendment change the deadline?</h1>
+        <p class="lead">Runs on your computer and answers only with quotes it has verified.</p>
+        <div class="actions">
+          <a class="btn" href="#run">Run it locally</a>
+          <a class="btn btn--quiet" href="https://github.com/glowstonesq1/claimtrace">Star on GitHub</a>
+        </div>
+      </div>
+      <figure class="hero__figure">
+        <div class="shot shot--hero" data-slot="hero" data-kind="product" data-alt="A commitment in the register, struck through and marked as replaced by the amendment">
+          <img src="media/register-amended.png" width="696" height="612" fetchpriority="high"
+               alt="Register entry for clause 2.1: the delivery date of March 31, 2026 is struck through, marked Replaced by amendment, with a note quoting the new date of May 15, 2026.">
+        </div>
+        <figcaption>Clause 2.1 of the sample contract, replaced by Amendment No. 1.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="promise" aria-labelledby="promise-title">
+    <div class="container">
+      <h2 id="promise-title" class="promise__text" data-scrub>Every claim is a quote. Amendments are first-class. Uncertainty is visible.</h2>
+      <p class="promise__note">With no supporting text, the answer is “I could not find support for this in the uploaded documents.”</p>
+    </div>
+  </section>
+
+  <section class="walk" id="how" aria-labelledby="walk-title" data-walk>
+    <div class="container">
+      <h2 id="walk-title" class="walk__head">From contract to checked answer</h2>
+      <ol class="walk__steps">
+        <li class="walk__step">
+          <div class="walk__text">
+            <h3>Who owes what, by when</h3>
+            <p>Obligations, deadlines and conditions, each tied to the exact characters it came from.</p>
+          </div>
+          <figure class="walk__fig">
+            <div class="shot" data-slot="walk-register" data-kind="product" data-alt="The commitment register beside the source text, the quoted clause highlighted">
+              <img src="media/register.png" width="1280" height="900" loading="lazy"
+                   alt="The register: filters for who must act and kind, a replaced delivery commitment on the left, and the contract text on the right with clause 2.1 highlighted.">
+            </div>
+          </figure>
+        </li>
+        <li class="walk__step">
+          <div class="walk__text">
+            <h3>Ask, and get quotes back</h3>
+            <p>Answers lead with the wording in force. When documents disagree, you see both quotes.</p>
+          </div>
+          <figure class="walk__fig">
+            <div class="shot" data-slot="walk-ask" data-kind="product" data-alt="An answer marked Documents disagree, with two quoted sources">
+              <img src="media/ask-answer.png" width="1152" height="792" loading="lazy"
+                   alt="Answer to Is customer data kept in the UK: marked Documents disagree, quoting the contract clause against transfers outside the United Kingdom and the audit report stating data is hosted in Dublin, Ireland.">
+            </div>
+          </figure>
+        </li>
+        <li class="walk__step">
+          <div class="walk__text">
+            <h3>Check one document against another</h3>
+            <p>Contract against amendment, audit report or delivery record.</p>
+          </div>
+          <figure class="walk__fig">
+            <div class="shot shot--code">
+              <div class="verify">
+                <p class="verify__cmd"><code>$ claimtrace verify &lt;contract&gt; &lt;audit report&gt;</code></p>
+                <ol class="verify__list">
+                  <li><span class="verify__verdict">contradicted, high</span><span class="verify__quote">The Vendor shall ensure the Phase 1 System is available 99.5% …</span><span class="verify__why">Measured 99.1% is below the committed 99.5%.</span></li>
+                  <li><span class="verify__verdict">contradicted, high</span><span class="verify__quote">The Vendor shall not transfer Customer data outside the United Kingdom …</span><span class="verify__why">Location differs: commitment refers to United Kingdom; other document says Ireland.</span></li>
+                </ol>
+              </div>
+            </div>
+            <figcaption>The README example, in columns.</figcaption>
+          </figure>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="features" aria-labelledby="features-title">
+    <div class="container">
+      <h2 id="features-title">What it reads, checks and keeps</h2>
+      <div class="bento">
+        <article class="tile tile--a">
+          <h3>Questions across every document</h3>
+          <p>Answers cover only the documents you ticked.</p>
+          <div class="shot shot--tile" data-slot="tile-ask" data-kind="product" data-alt="The Ask screen with four documents ticked and a question typed">
+            <img src="media/ask-question.png" width="1152" height="413" loading="lazy"
+                 alt="The Ask screen: four sample documents ticked under Search in, the question Is customer data kept in the UK typed, and suggested questions below.">
+          </div>
+        </article>
+        <article class="tile tile--b">
+          <p class="tile__figure" aria-hidden="true">127.0.0.1</p>
+          <h3>Nothing leaves your machine</h3>
+          <p>Sends nothing out by default, and a test enforces it. A hosted model sees only documents you approve.</p>
+        </article>
+        <article class="tile tile--c">
+          <p class="tile__figure tile__figure--s" aria-hidden="true">.pdf .docx .md .txt</p>
+          <h3>PDF, DOCX, Markdown, plain text</h3>
+          <p>Exports Markdown, JSON, print-ready HTML and a deadline CSV.</p>
+        </article>
+        <article class="tile tile--d">
+          <h3>Or from the command line</h3>
+<pre class="snippet"><code>claimtrace ingest examples/documents/msa-v1.md
+claimtrace ingest examples/documents/amendment-1.md
+claimtrace ask "How many days does the customer have to pay invoices?"</code></pre>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="film" aria-labelledby="film-title">
+    <div class="container">
+      <h2 id="film-title">Watch ClaimTrace at work</h2>
+      <figure class="film__frame" data-film>
+        <img class="film__fallback" src="media/film-fallback.png" width="1280" height="720" loading="lazy"
+             alt="The Ask screen with the four sample documents selected: a contract, its amendment, a vendor security audit report and a delivery record.">
+        <video class="film__video" controls preload="metadata" playsinline poster="media/claimtrace-promo.jpg">
+          <source src="media/claimtrace-promo.mp4" type="video/mp4">
+        </video>
+      </figure>
+    </div>
+  </section>
+
+  <section class="evaluation" id="evaluation" aria-labelledby="eval-title">
+    <div class="container">
+      <div class="eval__head">
+        <h2 id="eval-title">The numbers, including the bad ones</h2>
+        <p class="lead">Scored on 46 sealed cases nobody opened before the code was frozen.</p>
+      </div>
+      <div class="eval__body">
+        <table class="eval__table">
+          <caption class="visually-hidden">Version 0.1 rules engine on the sealed holdout set, against a keyword baseline</caption>
+          <thead>
+            <tr><th scope="col">Measure</th><th scope="col" class="num">ClaimTrace</th><th scope="col" class="num">Keyword floor</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Hallucination rate, lower is better</th><td class="num">0.00</td><td class="num">0.50</td></tr>
+            <tr><th scope="row">False all-clear rate, lower is better</th><td class="num">0.03</td><td class="num">0.29</td></tr>
+            <tr><th scope="row">Contradictions, precision and recall</th><td class="num">0.82 / 0.64</td><td class="num">0.00 recall</td></tr>
+            <tr class="is-weak"><th scope="row">Consistency checks</th><td class="num">0.81</td><td class="num">0.76</td></tr>
+            <tr class="is-weak"><th scope="row">Amendment verification</th><td class="num">0.61</td><td class="num">0.00</td></tr>
+            <tr class="is-weak"><th scope="row">Amendment effect</th><td class="num">0.50</td><td class="num">not scored</td></tr>
+          </tbody>
+        </table>
+        <div class="eval__notes">
+          <p>Amendments scored 0.89 in development and 0.61 here. Check amendments yourself.</p>
+          <p>On consistency, a constant “consistent” guess does as well. All cases are synthetic.</p>
+          <p><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md">Every number, with intervals</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="limits" aria-labelledby="limits-title">
+    <div class="container limits__grid">
+      <h2 id="limits-title">What it will not do</h2>
+      <dl class="rows">
+        <div class="row"><dt>Give legal advice</dt><dd>No risk scores, no view on enforceability.</dd></div>
+        <div class="row"><dt>Read scanned PDFs</dt><dd>They are flagged, not read.</dd></div>
+        <div class="row"><dt>Guess at a paraphrase</dt><dd>It answers “not found” instead.</dd></div>
+        <div class="row"><dt>Replace your contract system</dt><dd>It is not a CLM and not a chatbot.</dd></div>
+      </dl>
+    </div>
+  </section>
+
+  <section class="run" id="run" aria-labelledby="run-title">
+    <div class="container run__grid">
+      <div class="run__text">
+        <h2 id="run-title">Run it on your own machine</h2>
+        <p class="lead">Python 3.11+ and Node 20+, or Docker Compose. Then click Load sample documents.</p>
+        <div class="actions">
+          <a class="btn btn--invert" href="https://github.com/glowstonesq1/claimtrace">Star on GitHub</a>
+          <a class="btn btn--line" href="https://github.com/glowstonesq1/claimtrace#quickstart">Read the quickstart</a>
+        </div>
+      </div>
+      <div class="run__code">
+<pre><code>git clone https://github.com/glowstonesq1/claimtrace
+cd claimtrace
+make dev
+make serve        # http://127.0.0.1:8000
+
+# or
+docker compose up --build</code></pre>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="foot">
+  <div class="container">
+    <p class="foot__mark">ClaimTrace</p>
+    <ul class="foot__links">
+      <li><a href="https://github.com/glowstonesq1/claimtrace">Source on GitHub</a></li>
+      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md">Evaluation</a></li>
+      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/roadmap.md">Roadmap</a></li>
+      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/security.md">Security</a></li>
+      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/privacy.md">Privacy</a></li>
+      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/contributing.md">Contributing</a></li>
+    </ul>
+    <p class="foot__legal">Apache-2.0. Not legal advice. The sample documents are fictional.</p>
+  </div>
+</footer>
+
+<script>window.hallmarkSlots = (m) => { for (const [k, v] of Object.entries(m)) { const s = document.querySelector(`[data-slot="${k}"]`); if (!s) continue; const im = new Image(); im.src = typeof v === 'string' ? v : v.src; im.alt = (typeof v === 'object' && v.alt) || s.dataset.alt || ''; s.querySelectorAll(':scope > img').forEach((o) => o.remove()); s.prepend(im); } };
+document.querySelectorAll('[data-slot] img').forEach((i) => { if (i.complete && !i.naturalWidth) i.remove(); else i.addEventListener('error', () => i.remove(), { once: true }); });</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
+<script src="site.js" defer></script>
+</body>
+</html>
