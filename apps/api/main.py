@@ -442,6 +442,11 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
     def review_commitment(commitment_id: str, body: ReviewRequest, store: S) -> ReviewDecision:
         return _review(store, "commitment", commitment_id, body)
 
+    @app.get("/reviews/verify-chain", tags=["review"])
+    def verify_review_chain(store: S) -> dict:
+        """Recompute the review hash chain; `first_broken_id` names the first decision that does not verify."""
+        return store.verify_review_chain()
+
     @app.get("/reviews/{target_id}", response_model=list[ReviewDecision], tags=["review"])
     def get_reviews(target_id: str, store: S) -> list[ReviewDecision]:
         return store.reviews(target_id)

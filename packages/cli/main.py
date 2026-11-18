@@ -44,6 +44,9 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--format", choices=["md", "json", "html", "ics"], default="md")
     d = sub.add_parser("delete", help="delete a document and everything derived from it")
     d.add_argument("doc")
+    rv = sub.add_parser("reviews", help="review trail")
+    rvs = rv.add_subparsers(dest="reviews_cmd", required=True)
+    rvs.add_parser("verify", help="check the review hash chain (exit 1 if broken)")
     ev = sub.add_parser("eval", help="evaluation suite")
     evs = ev.add_subparsers(dest="eval_cmd", required=True)
     er = evs.add_parser("run")
@@ -120,6 +123,13 @@ def main(argv: list[str] | None = None) -> int:
         rep = build_report(store, args.doc)
         out = {"md": render_markdown, "html": render_html}.get(args.format)
         print(out(rep) if out else json.dumps(rep, indent=2, default=str))
+    elif args.cmd == "reviews":
+        res = store.verify_review_chain()
+        if res["ok"]:
+            print(f"OK: {res['checked']} review decision(s) verified ({res['redacted']} erased), head {res['head']}")
+            return 0
+        print(f"BROKEN at {res['first_broken_id']}: {res['reason']}")
+        return 1
     elif args.cmd == "delete":
         from claimtrace.extraction import apply_amendments
 

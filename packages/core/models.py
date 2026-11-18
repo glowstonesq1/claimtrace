@@ -395,6 +395,9 @@ class ReviewDecision(_Model):
     prior_status: ReviewStatus
     target_hash: str
     at: datetime = Field(default_factory=utcnow)
+    # hash chain (v0.2): set by Store.add_review; not part of the hashed content
+    prev_hash: str | None = None
+    hash: str | None = None
 
 
 class AnalysisRun(_Model):
