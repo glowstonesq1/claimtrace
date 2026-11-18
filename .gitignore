@@ -13,6 +13,7 @@ apps/web/dist/
 .ruff_cache/
 evals/runs/*
 !evals/runs/published/
+!evals/runs/dev/
 *.egg-info/
 apps/web/node_modules/
 apps/api/static/

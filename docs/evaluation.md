@@ -89,6 +89,16 @@ Intervals are bootstrap 95% CIs over cases (1,000 resamples, fixed seed). "n" is
 or matched items the metric is computed over. Raw per-case outputs, gold labels and predictions are in each
 run's `cases.jsonl`; versions and the dataset hash are in `manifest.json`.
 
+### v0.2 engine work: development run on core (not a generalisation result)
+
+The v0.2 amendment work was developed against hand-written unit fixtures
+(`tests/fixtures/amendments_dev/`) and the core set only; the sealed amendment set and the holdout were
+never opened. On core (the error-analysis set) the rules system moved from 0.89 to **1.00** amendment
+verification accuracy (n=28) and from 0.87 to **0.97** amendment effect accuracy (n=31); every other
+metric is unchanged. Because core was used for tuning, this shows coverage and no regression, not
+generalisation; the v0.2 gate is the sealed `amendments-v2` set. Run files:
+[`evals/runs/dev/v0.2-core-rules/`](../evals/runs/dev/v0.2-core-rules/).
+
 ### What the keyword floor is
 
 `--model keyword`: every sentence with *shall/must/will/may* is a commitment owed by the last capitalised
