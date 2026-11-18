@@ -174,6 +174,7 @@ class Span(_Model):
     section: str | None = None
     document_title: str | None = None
     document_version: str | None = None
+    locator: str | None = None  # finer location inside the section, e.g. "table 1, row 3"
 
 
 class Provenance(_Model):
@@ -222,6 +223,7 @@ class Passage(_Model):
     text: str
     hidden_text: str | None = None  # why (part of) this passage is invisible to a reader; excluded from model prompts
     ocr_confidence: float | None = None  # mean OCR word confidence (0-100) of the page, when the text came from OCR
+    locator: str | None = None  # e.g. "table 1, row 3": a DOCX table row, cells joined with " | "
 
 
 OCR_LOW_CONFIDENCE = 70.0  # below this, items from an OCR page carry a caveat and need review

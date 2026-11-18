@@ -184,6 +184,13 @@ Checks inside the parsers (D12):
   render mode 3, under 2 pt, or outside the media box is recorded on the block and later on the
   passage (`hidden_text`); DOCX runs with `w:vanish`, white colour or under 2 pt likewise. See
   [security.md](security.md).
+- DOCX body order and tables (v0.2): paragraphs and tables are read in document order. Each table
+  row becomes one block/passage: non-empty cells joined with `" | "` (a horizontally merged cell
+  appears once; a literal `" | "` inside a cell becomes `" / "`), with `locator="table N, row M"`
+  on the passage and on every span quoted from it. Rows take the section number of the clause they
+  follow. The rules extractor reads each cell as its own region, so quotes never cross a cell
+  boundary and still verify; a commitment with no timing of its own takes a date or relative
+  deadline from another cell in the same row, with a caveat saying so.
 - OCR (v0.2, optional extra `pip install 'claimtrace[ocr]'` plus the `tesseract` binary): pages
   with fewer than 40 text characters are rendered with pypdfium2 at 300 dpi and read with
   Tesseract (`ingestion/ocr.py`). OCR text replaces a page's text only if it is longer. Each OCR

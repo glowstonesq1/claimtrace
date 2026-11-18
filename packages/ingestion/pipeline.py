@@ -54,6 +54,8 @@ def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
             heading_num, section_title = schedule, (sm.group(3) or "").strip(" -:.") or text
             parent_num = heading_num
             number: str | None = heading_num
+        elif block.locator:  # a table row belongs to the clause it appears in
+            number = parent_num or heading_num
         elif block.heading:
             m = _HEADING_NUM.match(text)
             heading_num, section_title = (m.group(1), m.group(2)) if m else (None, text)
@@ -90,6 +92,7 @@ def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
                 text=text,
                 hidden_text=block.hidden,
                 ocr_confidence=block.ocr_confidence,
+                locator=block.locator,
             )
         )
     return "\n\n".join(parts), passages

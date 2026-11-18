@@ -37,6 +37,7 @@ All models forbid extra fields (`extra="forbid"`).
 | quote | `text[char_start:char_end]` at creation time. |
 | page, section | Copied from the passage (page is `None` for Markdown and DOCX). |
 | document_title, document_version | Copied for display. |
+| locator | v0.2: copied from the passage, e.g. `table 1, row 3` for a DOCX table row. |
 
 | `Provenance` field | Meaning |
 |---|---|
@@ -62,13 +63,15 @@ All models forbid extra fields (`extra="forbid"`).
 | normalizer_version | `NORMALIZER_VERSION` at ingest (`norm-1`). |
 | page_count | PDF only. |
 | status | parsed, analyzing, analyzed, failed (a plain string). |
-| warnings | Strings; `SCANNED:` and `INJECTION:` prefixes are used for the two loud warnings. |
+| warnings | Strings; `SCANNED:`, `INJECTION:`, `HIDDEN:` (v0.2) and `OCR:` (v0.2) prefixes mark the loud warnings. |
 | tags | Free strings; sample documents get `sample`. |
 | amends_document_id | The document this one amends. The spec's `related_to`/`relation` fields do not exist. |
 | allow_external_llm | Per-document opt-in for non-loopback LLM endpoints (D14). |
 
 `Passage`: id (`psg_<doc hex>_<ordinal:04d>`), document_id, ordinal, page, section_number,
-section_title, char_start, char_end, text.
+section_title, char_start, char_end, text, and (v0.2, optional) `hidden_text` (why part of it is
+invisible to a reader), `ocr_confidence` (page mean OCR word confidence, 0–100) and `locator`
+(`table N, row M`). Section numbers inside a schedule look like `Schedule 2/1.1`.
 
 ### 2.3 Extracted objects
 

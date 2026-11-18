@@ -87,6 +87,7 @@ def make_span(doc: Document, p: Passage, start: int, end: int) -> Span:
         section=p.section_number,
         document_title=doc.title,
         document_version=doc.version_label,
+        locator=p.locator,
     )
 
 
@@ -245,6 +246,11 @@ def extract_rules(doc: Document, passages: list[Passage], holidays: frozenset[dt
             res.commitments.extend(_commitments_in(doc, p, resolver, ref_date, body_start, len(text), lead_in))
             continue
         lead_in = None
+        if p.locator:  # a table row: each cell is its own region; the row may give the deadline
+            res.commitments.extend(_table_row_commitments(doc, p, resolver, ref_date))
+            if doc.doc_type in EVIDENCE_TYPES:
+                res.claims.extend(_claims_in(doc, p))
+            continue
         found = _commitments_in(doc, p, resolver, ref_date, 0, len(text))
         res.commitments.extend(found)
         stripped = text.rstrip()
@@ -326,6 +332,35 @@ def extract_rules(doc: Document, passages: list[Passage], holidays: frozenset[dt
                         target.caveats.append(f'Qualified by §{c.section_number}: "{c.text[:120]}"')
                         target.confidence = cap_confidence(target.confidence, Confidence.medium)
     return res
+
+
+TABLE_CELL_SEP = " | "
+
+
+def _table_row_commitments(
+    doc: Document, p: Passage, resolver: PartyResolver, ref_date: dt.date | None
+) -> list[Commitment]:
+    cells: list[tuple[int, int]] = []
+    pos = 0
+    for part in p.text.split(TABLE_CELL_SEP):
+        cells.append((pos, pos + len(part)))
+        pos += len(part) + len(TABLE_CELL_SEP)
+    out: list[Commitment] = []
+    for lo, hi in cells:
+        found = _commitments_in(doc, p, resolver, ref_date, lo, hi)
+        for c in found:
+            if c.deadline is None:
+                for o_lo, o_hi in cells:
+                    if (o_lo, o_hi) == (lo, hi):
+                        continue
+                    other = p.text[o_lo:o_hi]
+                    d = P.extract_deadline(other, ref_date, resolver.holidays)
+                    if d.kind in ("absolute", "relative") and (d.date or d.offset_days or d.anchor):
+                        c.deadline = d
+                        c.caveats.append(f'Deadline taken from the same table row ({p.locator}): "{other[:80]}".')
+                        break
+        out.extend(found)
+    return out
 
 
 _SCHEDULE_TARGET = re.compile(r"^(?:Schedule|Annex|Appendix|Exhibit) \w+$")

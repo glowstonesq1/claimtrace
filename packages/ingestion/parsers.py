@@ -186,24 +186,27 @@ def check_docx_container(data: bytes) -> None:
 def parse_docx(data: bytes) -> RawDoc:
     check_docx_container(data)
     import docx  # python-docx; parser is configured with resolve_entities=False
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
 
     d = docx.Document(io.BytesIO(data))
     blocks: list[Block] = []
     warnings: list[str] = []
     numbered = False
-    for p in d.paragraphs:
-        t = p.text.strip()
-        if not t:
-            continue
-        style = (p.style.name or "").lower() if p.style is not None else ""
-        if p._p.pPr is not None and p._p.pPr.numPr is not None:
-            numbered = True
-        blocks.append(Block(text=t, heading=style.startswith("heading") or style == "title", hidden=_docx_hidden(p)))
-    for table in d.tables:
-        for row in table.rows:
-            cells = [c.text.strip() for c in row.cells if c.text.strip()]
-            if cells:
-                blocks.append(Block(text=" | ".join(dict.fromkeys(cells))))
+    n_tables = 0
+    for el in d.element.body.iterchildren():
+        if el.tag == _W + "p":
+            p = Paragraph(el, d)
+            t = p.text.strip()
+            if not t:
+                continue
+            style = (p.style.name or "").lower() if p.style is not None else ""
+            if p._p.pPr is not None and p._p.pPr.numPr is not None:
+                numbered = True
+            blocks.append(Block(text=t, heading=style.startswith("heading") or style == "title", hidden=_docx_hidden(p)))
+        elif el.tag == _W + "tbl":
+            n_tables += 1
+            blocks.extend(_docx_table_rows(Table(el, d), n_tables))
     if numbered:
         warnings.append(
             "This DOCX uses automatic numbering, which is not visible in extracted text; clause numbers may be missing."
@@ -239,6 +242,30 @@ def _docx_hidden(p: object) -> str | None:
         if sz is not None and (sz.get(_W + "val") or "").isdigit() and int(sz.get(_W + "val")) < 4:  # half-points
             reasons.append("tiny text (under 2 pt)")
     return "; ".join(dict.fromkeys(reasons)) or None
+
+
+TABLE_CELL_SEP = " | "
+
+
+def _docx_table_rows(table: object, n: int) -> list[Block]:
+    """One block per row: non-empty cells joined with " | " (merged cells once), with a "table N, row M" locator."""
+    out: list[Block] = []
+    for r, row in enumerate(table.rows, start=1):  # type: ignore[attr-defined]
+        seen: set[int] = set()
+        cells: list[str] = []
+        hidden: list[str] = []
+        for cell in row.cells:
+            if id(cell._tc) in seen:
+                continue
+            seen.add(id(cell._tc))
+            text = " ".join(x.strip() for x in cell.text.split("\n") if x.strip())
+            if text:
+                cells.append(text.replace(TABLE_CELL_SEP, " / "))
+            hidden += [h for para in cell.paragraphs if (h := _docx_hidden(para))]
+        if cells:
+            out.append(Block(text=TABLE_CELL_SEP.join(cells), locator=f"table {n}, row {r}",
+                             hidden="; ".join(dict.fromkeys(hidden)) or None))
+    return out
 
 
 # ---------------------------------------------------------------- pdf
