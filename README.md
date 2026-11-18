@@ -2,6 +2,8 @@
 
 **Upload documents. Map commitments and obligations. Ask questions. Verify every answer against the exact source.**
 
+Website: [glowstonesq1.github.io/claimtrace](https://glowstonesq1.github.io/claimtrace/)
+
 ClaimTrace is a local-first, open-source workspace for reading contracts, amendments, audit reports, policies
 and delivery records. It builds a register of who owes what to whom, by when and under which conditions. It
 answers questions only with verified quotes, and checks documents against each other. A typical check: did

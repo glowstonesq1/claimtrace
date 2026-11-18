@@ -19,3 +19,5 @@ apps/api/static/
 
 # Local agent worktrees and settings
 .claude/
+.hallmark/salt
+apps/site/.hallmark/
