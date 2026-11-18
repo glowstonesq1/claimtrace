@@ -194,6 +194,7 @@ def parse_docx(data: bytes) -> RawDoc:
     warnings: list[str] = []
     numbered = False
     n_tables = 0
+    styles = _DocxStyles(d.styles.element)
     for el in d.element.body.iterchildren():
         if el.tag == _W + "p":
             p = Paragraph(el, d)
@@ -203,10 +204,10 @@ def parse_docx(data: bytes) -> RawDoc:
             style = (p.style.name or "").lower() if p.style is not None else ""
             if p._p.pPr is not None and p._p.pPr.numPr is not None:
                 numbered = True
-            blocks.append(Block(text=t, heading=style.startswith("heading") or style == "title", hidden=_docx_hidden(p)))
+            blocks.append(Block(text=t, heading=style.startswith("heading") or style == "title", hidden=_docx_hidden(p, styles)))
         elif el.tag == _W + "tbl":
             n_tables += 1
-            blocks.extend(_docx_table_rows(Table(el, d), n_tables))
+            blocks.extend(_docx_table_rows(Table(el, d), n_tables, styles))
     if numbered:
         warnings.append(
             "This DOCX uses automatic numbering, which is not visible in extracted text; clause numbers may be missing."
@@ -225,21 +226,98 @@ def _on(el: object) -> bool:
     return val is None or val.lower() not in ("0", "false", "off")
 
 
-def _docx_hidden(p: object) -> str | None:
-    """Reason a paragraph contains text Word does not display, or None."""
+# A colour is "near-white" when every channel is at least this bright (FFFFFE, F4F6F5, ...).
+_NEAR_WHITE_CHANNEL = 0xF0
+_WHITE_THEME_COLOURS = ("background1", "light1")
+
+
+def _near_white_hex(val: str) -> bool:
+    if not re.fullmatch(r"[0-9A-Fa-f]{6}", val):
+        return False  # "auto" and malformed values are not white
+    return all(int(val[i : i + 2], 16) >= _NEAR_WHITE_CHANNEL for i in (0, 2, 4))
+
+
+class _DocxStyles:
+    """Run properties inherited from styles.xml: character style (w:rStyle), paragraph style (w:pStyle),
+    each with its w:basedOn chain, then the document defaults. Direct run properties win over all of them."""
+
+    _MAX_DEPTH = 16
+
+    def __init__(self, styles_el: object) -> None:
+        self._by_id: dict[str, object] = {}
+        for st in styles_el.iter(_W + "style"):  # type: ignore[attr-defined]
+            sid = st.get(_W + "styleId")
+            if sid:
+                self._by_id.setdefault(sid, st)
+        dflt = styles_el.find(f"{_W}docDefaults/{_W}rPrDefault/{_W}rPr")  # type: ignore[attr-defined]
+        self._defaults = [dflt] if dflt is not None else []
+
+    def _chain(self, style_id: str | None) -> list[object]:
+        out: list[object] = []
+        seen: set[str] = set()
+        while style_id and style_id not in seen and len(seen) < self._MAX_DEPTH:
+            seen.add(style_id)
+            st = self._by_id.get(style_id)
+            if st is None:
+                break
+            rpr = st.find(_W + "rPr")  # type: ignore[attr-defined]
+            if rpr is not None:
+                out.append(rpr)
+            based = st.find(_W + "basedOn")  # type: ignore[attr-defined]
+            style_id = based.get(_W + "val") if based is not None else None
+        return out
+
+    def run_props(self, r: object, ppr: object | None) -> list[object]:
+        """rPr elements that apply to run `r`, most specific first."""
+        out: list[object] = []
+        rpr = r.find(_W + "rPr")  # type: ignore[attr-defined]
+        if rpr is not None:
+            out.append(rpr)
+            rstyle = rpr.find(_W + "rStyle")
+            if rstyle is not None:
+                out += self._chain(rstyle.get(_W + "val"))
+        if ppr is not None:
+            pstyle = ppr.find(_W + "pStyle")  # type: ignore[attr-defined]
+            out += self._chain(pstyle.get(_W + "val") if pstyle is not None else "Normal")
+        else:
+            out += self._chain("Normal")
+        return out + self._defaults
+
+
+def _first(props: list[object], *tags: str) -> object | None:
+    for rpr in props:
+        for tag in tags:
+            el = rpr.find(_W + tag)  # type: ignore[attr-defined]
+            if el is not None:
+                return el
+    return None
+
+
+def _docx_hidden(p: object, styles: _DocxStyles | None = None) -> str | None:
+    """Reason a paragraph contains text Word does not display, or None.
+
+    Properties are resolved as Word does: direct run formatting, then the run's character style, then the
+    paragraph style (each following w:basedOn), then document defaults.
+    """
     reasons: list[str] = []
+    ppr = p._p.pPr  # type: ignore[attr-defined]
     for r in p._p.iter(_W + "r"):  # type: ignore[attr-defined]
         text = "".join(t.text or "" for t in r.iter(_W + "t")).strip()
-        rpr = r.find(_W + "rPr")
-        if not text or rpr is None:
+        if not text:
             continue
-        if any(_on(v) for v in (rpr.find(_W + "vanish"), rpr.find(_W + "specVanish")) if v is not None):
+        props = styles.run_props(r, ppr) if styles is not None else [x for x in [r.find(_W + "rPr")] if x is not None]
+        vanish = _first(props, "vanish", "specVanish")
+        if vanish is not None and _on(vanish):
             reasons.append("hidden (w:vanish) text")
-        color = rpr.find(_W + "color")
-        if color is not None and (color.get(_W + "val") or "").upper() in ("FFFFFF", "FEFEFE", "FDFDFD", "FCFCFC"):
+        color = _first(props, "color")
+        if color is not None and (
+            _near_white_hex(color.get(_W + "val") or "")  # type: ignore[attr-defined]
+            or (color.get(_W + "themeColor") or "") in _WHITE_THEME_COLOURS  # type: ignore[attr-defined]
+        ):
             reasons.append("white text")
-        sz = rpr.find(_W + "sz")
-        if sz is not None and (sz.get(_W + "val") or "").isdigit() and int(sz.get(_W + "val")) < 4:  # half-points
+        sz = _first(props, "sz")
+        val = (sz.get(_W + "val") or "") if sz is not None else ""  # type: ignore[attr-defined]
+        if val.isdigit() and int(val) < 4:  # half-points
             reasons.append("tiny text (under 2 pt)")
     return "; ".join(dict.fromkeys(reasons)) or None
 
@@ -247,7 +325,7 @@ def _docx_hidden(p: object) -> str | None:
 TABLE_CELL_SEP = " | "
 
 
-def _docx_table_rows(table: object, n: int) -> list[Block]:
+def _docx_table_rows(table: object, n: int, styles: _DocxStyles | None = None) -> list[Block]:
     """One block per row: non-empty cells joined with " | " (merged cells once), with a "table N, row M" locator."""
     out: list[Block] = []
     for r, row in enumerate(table.rows, start=1):  # type: ignore[attr-defined]
@@ -261,7 +339,7 @@ def _docx_table_rows(table: object, n: int) -> list[Block]:
             text = " ".join(x.strip() for x in cell.text.split("\n") if x.strip())
             if text:
                 cells.append(text.replace(TABLE_CELL_SEP, " / "))
-            hidden += [h for para in cell.paragraphs if (h := _docx_hidden(para))]
+            hidden += [h for para in cell.paragraphs if (h := _docx_hidden(para, styles))]
         if cells:
             out.append(Block(text=TABLE_CELL_SEP.join(cells), locator=f"table {n}, row {r}",
                              hidden="; ".join(dict.fromkeys(hidden)) or None))
@@ -295,13 +373,42 @@ def _mult(m: list[float], n: list[float]) -> list[float]:
     return [a * a2 + b * c2, a * b2 + b * d2, c * a2 + d * c2, c * b2 + d * d2, e * a2 + f * c2 + e2, e * b2 + f * d2 + f2]
 
 
+def _group_hidden(pieces: list[tuple[str, str, float] | None]) -> list[tuple[str, str]]:
+    """Join hidden fragments that are drawn consecutively (no visible text between them), so text split
+    into short pieces ("2.2 T", "he Cu", ...) is judged as a whole. Each run is returned both whole and
+    split per line (same baseline), since a run can straddle paragraphs."""
+    out: list[tuple[str, str]] = []
+    run: list[tuple[str, str, float]] = []
+
+    def flush() -> None:
+        if not run:
+            return
+        out.append(("".join(t for t, _, _ in run), "; ".join(dict.fromkeys(r for _, r, _ in run))))
+        line: list[tuple[str, str, float]] = []
+        for piece in run + [("", "", float("nan"))]:
+            if line and not abs(piece[2] - line[-1][2]) <= 1.0:
+                if len(line) < len(run):
+                    out.append(("".join(t for t, _, _ in line), "; ".join(dict.fromkeys(r for _, r, _ in line))))
+                line = []
+            line.append(piece)
+        run.clear()
+
+    for piece in pieces:
+        if piece is None:
+            flush()
+        else:
+            run.append(piece)
+    flush()
+    return out
+
+
 def _pdf_page_text(page: object) -> tuple[str, list[tuple[str, str]]]:
-    """Extract a page's text and the fragments a reader would not see, with the reason."""
+    """Extract a page's text and the (aggregated) fragments a reader would not see, with the reason."""
     box = page.mediabox  # type: ignore[attr-defined]
     x0, y0, x1, y1 = (float(v) for v in (box.left, box.bottom, box.right, box.top))
     state = {"fill": 0.0, "tr": 0.0}
     stack: list[dict[str, float]] = []
-    hidden: list[tuple[str, str]] = []
+    pieces: list[tuple[str, str, float] | None] = []  # None: visible text, which ends a hidden run
 
     def before(op: bytes, args: list, cm: list, tm: list) -> None:
         if op == b"q":
@@ -333,16 +440,45 @@ def _pdf_page_text(page: object) -> tuple[str, list[tuple[str, str]]]:
         x, y = m[4], m[5]
         if x < x0 - 5 or x > x1 + 5 or y < y0 - 5 or y > y1 + 5:
             reasons.append("text placed off the page")
-        if reasons:
-            hidden.append((text, "; ".join(reasons)))
+        pieces.append((text, "; ".join(reasons), y) if reasons else None)
 
     txt = page.extract_text(visitor_operand_before=before, visitor_text=visit) or ""  # type: ignore[attr-defined]
-    return txt, hidden
+    return txt, _group_hidden(pieces)
+
+
+_MIN_HIDDEN_CHARS = 6  # shorter hidden runs (a stray white bullet or space) match almost any paragraph
+
+
+def _squeeze(t: str) -> str:
+    return re.sub(r"\s+", "", t).lower()
+
+
+def _overlaps(flat: str, run: str) -> bool:
+    """`run` occurs in `flat`, `flat` lies inside `run`, or one straddles the other's edge by at least
+    _MIN_HIDDEN_CHARS characters (a hidden run is often split across extracted paragraphs)."""
+    if run in flat or (flat and flat in run):
+        return True
+    k = _MIN_HIDDEN_CHARS
+    # run starts inside flat and continues past its end
+    i = flat.find(run[:k], max(0, len(flat) - len(run)))
+    while i >= 0:
+        if run.startswith(flat[i:]):
+            return True
+        i = flat.find(run[:k], i + 1)
+    # run starts before flat and ends inside it
+    j = run.find(flat[:k], max(0, len(run) - len(flat)))
+    while j >= 0:
+        if flat.startswith(run[j:]):
+            return True
+        j = run.find(flat[:k], j + 1)
+    return False
 
 
 def _hidden_reason(para: str, hidden: list[tuple[str, str]]) -> str | None:
-    flat = re.sub(r"\s+", " ", para).strip().lower()
-    reasons = [r for t, r in hidden if len(t.strip()) >= 6 and re.sub(r"\s+", " ", t).strip().lower() in flat]
+    """Reasons for hidden runs that overlap `para`. Whitespace is ignored on both sides, because text
+    extraction re-spaces split fragments ("2.2 T\nhe Cu" for "2.2 The Cu")."""
+    flat = _squeeze(para)
+    reasons = [r for t, r in hidden if len(sq := _squeeze(t)) >= _MIN_HIDDEN_CHARS and _overlaps(flat, sq)]
     return "; ".join(dict.fromkeys(reasons)) or None
 
 _PDF_DANGEROUS = (b"/JavaScript", b"/JS ", b"/JS(", b"/Launch", b"/EmbeddedFile", b"/RichMedia", b"/XFA")
