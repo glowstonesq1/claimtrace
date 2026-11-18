@@ -2,17 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- Only this origin, plus cdnjs for the pinned GSAP scripts below. No inline script or style: keep
+     page scripts in files (head.js, slots.js, site.js). Fonts are self-hosted (fonts.css, SIL OFL). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self'; font-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClaimTrace</title>
 <meta name="description" content="ClaimTrace is an open-source, local-first workspace for contracts, amendments and audit reports. It builds a commitment register, answers only with verified quotes and checks documents against each other.">
 <meta property="og:title" content="ClaimTrace">
 <meta property="og:description" content="Upload documents. Map commitments and obligations. Ask questions. Verify every answer against the exact source.">
 <meta property="og:image" content="media/register.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..900;1,6..96,400&family=Geist:wght@400;500&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
+<link rel="preload" href="fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/geist-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="styles.css">
-<script>document.documentElement.classList.add('js');</script>
+<script src="head.js"></script>
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -232,10 +235,13 @@ docker compose up --build</code></pre>
   </div>
 </footer>
 
-<script>window.hallmarkSlots = (m) => { for (const [k, v] of Object.entries(m)) { const s = document.querySelector(`[data-slot="${k}"]`); if (!s) continue; const im = new Image(); im.src = typeof v === 'string' ? v : v.src; im.alt = (typeof v === 'object' && v.alt) || s.dataset.alt || ''; s.querySelectorAll(':scope > img').forEach((o) => o.remove()); s.prepend(im); } };
-document.querySelectorAll('[data-slot] img').forEach((i) => { if (i.complete && !i.naturalWidth) i.remove(); else i.addEventListener('error', () => i.remove(), { once: true }); });</script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" defer></script>
+<script src="slots.js"></script>
+<!-- GSAP 3.12.5 pinned with Subresource Integrity. The sha384 values were computed from the npm package
+     gsap@3.12.5 (dist/gsap.min.js, dist/ScrollTrigger.min.js); that cdnjs serves byte-identical files
+     could not be confirmed offline. If they ever differ, the browser refuses the script and site.js
+     keeps the static (no-animation) layout. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" integrity="sha384-Z3REaz79l2IaAZqJsSABtTbhjgOUYyV3p90XNnAPCSHg3EMTz1fouunq9WZRtj3d" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
 <script src="site.js" defer></script>
 </body>
 </html>
