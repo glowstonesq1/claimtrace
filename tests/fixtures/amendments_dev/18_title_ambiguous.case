@@ -1,0 +1,24 @@
+=== base ===
+# Services Agreement
+
+This Agreement is made between Lowfield Cleaning Ltd (the "Supplier") and Marrick Offices Ltd (the "Customer").
+
+## 3. Payment
+3.1 The Customer shall pay each invoice within 30 days.
+
+## 5. Payment
+5.1 The Supplier shall pay any service credits within 14 days.
+
+## 6. Insurance
+6.1 The Supplier shall maintain public liability insurance.
+=== amendment ===
+# Variation
+
+This Variation is made on 2 May 2027 between Lowfield Cleaning Ltd (the "Supplier") and Marrick Offices Ltd (the "Customer").
+
+1. The clause headed "Payment" is deleted.
+2. The clause headed "insurance" is deleted.
+=== expected ===
+{"effects": {"3.1": "in_force", "5.1": "in_force", "6.1": "deleted"},
+ "actions": ["delete", "delete"],
+ "unresolved": 1}

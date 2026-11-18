@@ -1,0 +1,21 @@
+=== base ===
+# Software Licence Agreement
+
+This Agreement is made between Corvane Systems Ltd (the "Licensor") and Hethersett Foods Ltd (the "Licensee").
+
+## 4. Fees
+4.1 The Licensee shall pay the annual licence fee within 30 days of invoice.
+
+## 9. Termination
+9.1 Either party may terminate this Agreement on 90 days' written notice.
+9.2 The Licensee shall return all copies of the Software on termination.
+=== amendment ===
+# Amendment No. 2
+
+This Amendment is made on 4 October 2027 between Corvane Systems Ltd (the "Licensor") and Hethersett Foods Ltd (the "Licensee").
+
+1. The clause headed "Term" is deleted.
+=== expected ===
+{"effects": {"4.1": "in_force", "9.1": "in_force", "9.2": "in_force"},
+ "actions": ["delete"],
+ "unresolved": 1}

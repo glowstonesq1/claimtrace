@@ -37,16 +37,22 @@ def section_matches(section: str | None, target: str) -> bool:
     return bool(section) and (section == target or section.startswith((target + ".", target + "(", target + "/")))  # type: ignore[union-attr]
 
 
-def _title_section(title: str, passages: list[Passage]) -> str | None:
+def _title_section(title: str, passages: list[Passage], doc_title: str) -> tuple[str | None, str | None]:
+    """The clause whose heading is exactly `title` (normalised, case-insensitive), or (None, reason).
+
+    There is deliberately no partial match: "Term" must never resolve to "Termination". A heading that
+    matches nothing, or matches more than one separate clause, is left for human review.
+    """
     want = squash(title)
     hits = [p for p in passages if p.section_title and squash(p.section_title) == want]
-    if not hits:
-        hits = [p for p in passages if p.section_title and want in squash(p.section_title)]
     nums = [p.section_number for p in hits if p.section_number]
     if not nums:
-        return None
+        return None, f"no clause headed exactly '{title}' was found in '{doc_title}'"
     top = min(nums, key=len)
-    return top if all(section_matches(n, top) for n in nums) else None
+    if not all(section_matches(n, top) for n in nums):
+        found = ", ".join(sorted({n for n in nums if not any(section_matches(n, m) and n != m for m in nums)}))
+        return None, f"more than one clause is headed '{title}' in '{doc_title}' ({found})"
+    return top, None
 
 
 def resolve_target(
@@ -69,10 +75,7 @@ def resolve_target(
     target = ins.target_section
     if target.startswith("title:"):
         title = target[len("title:") :]
-        sec = _title_section(title, passages)
-        if sec is None:
-            return None, f"no clause headed '{title}' was found in '{base.title}'"
-        return sec, None
+        return _title_section(title, passages, base.title)
     sec = aliases.get(target, target)
     if not exists(sec):
         return None, f"clause {target} does not exist in '{base.title}'"
