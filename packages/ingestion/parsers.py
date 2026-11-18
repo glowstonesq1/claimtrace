@@ -11,6 +11,10 @@ import re
 import zipfile
 from dataclasses import asdict, dataclass, field
 
+from claimtrace.core.models import OCR_LOW_CONFIDENCE
+
+from .ocr import OcrFunc, default_ocr
+
 
 class IngestError(Exception):
     def __init__(self, code: str, message: str) -> None:
@@ -24,6 +28,9 @@ class Block:
     text: str
     page: int | None = None
     heading: bool = False
+    hidden: str | None = None  # why some of this text is not visible to a reader (white, tiny, off-page, w:vanish)
+    locator: str | None = None  # e.g. "table 1, row 3" for DOCX table rows
+    ocr_confidence: float | None = None  # 0-100 when the text came from OCR
 
 
 @dataclass
@@ -179,24 +186,27 @@ def check_docx_container(data: bytes) -> None:
 def parse_docx(data: bytes) -> RawDoc:
     check_docx_container(data)
     import docx  # python-docx; parser is configured with resolve_entities=False
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
 
     d = docx.Document(io.BytesIO(data))
     blocks: list[Block] = []
     warnings: list[str] = []
     numbered = False
-    for p in d.paragraphs:
-        t = p.text.strip()
-        if not t:
-            continue
-        style = (p.style.name or "").lower() if p.style is not None else ""
-        if p._p.pPr is not None and p._p.pPr.numPr is not None:
-            numbered = True
-        blocks.append(Block(text=t, heading=style.startswith("heading") or style == "title"))
-    for table in d.tables:
-        for row in table.rows:
-            cells = [c.text.strip() for c in row.cells if c.text.strip()]
-            if cells:
-                blocks.append(Block(text=" | ".join(dict.fromkeys(cells))))
+    n_tables = 0
+    for el in d.element.body.iterchildren():
+        if el.tag == _W + "p":
+            p = Paragraph(el, d)
+            t = p.text.strip()
+            if not t:
+                continue
+            style = (p.style.name or "").lower() if p.style is not None else ""
+            if p._p.pPr is not None and p._p.pPr.numPr is not None:
+                numbered = True
+            blocks.append(Block(text=t, heading=style.startswith("heading") or style == "title", hidden=_docx_hidden(p)))
+        elif el.tag == _W + "tbl":
+            n_tables += 1
+            blocks.extend(_docx_table_rows(Table(el, d), n_tables))
     if numbered:
         warnings.append(
             "This DOCX uses automatic numbering, which is not visible in extracted text; clause numbers may be missing."
@@ -206,11 +216,140 @@ def parse_docx(data: bytes) -> RawDoc:
     return RawDoc(blocks=blocks, title=cp.title or None, author=cp.author or None, warnings=warnings)
 
 
+_W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+
+def _on(el: object) -> bool:
+    """A w:vanish / w:specVanish toggle is on unless w:val says false/0/off."""
+    val = el.get(_W + "val")  # type: ignore[attr-defined]
+    return val is None or val.lower() not in ("0", "false", "off")
+
+
+def _docx_hidden(p: object) -> str | None:
+    """Reason a paragraph contains text Word does not display, or None."""
+    reasons: list[str] = []
+    for r in p._p.iter(_W + "r"):  # type: ignore[attr-defined]
+        text = "".join(t.text or "" for t in r.iter(_W + "t")).strip()
+        rpr = r.find(_W + "rPr")
+        if not text or rpr is None:
+            continue
+        if any(_on(v) for v in (rpr.find(_W + "vanish"), rpr.find(_W + "specVanish")) if v is not None):
+            reasons.append("hidden (w:vanish) text")
+        color = rpr.find(_W + "color")
+        if color is not None and (color.get(_W + "val") or "").upper() in ("FFFFFF", "FEFEFE", "FDFDFD", "FCFCFC"):
+            reasons.append("white text")
+        sz = rpr.find(_W + "sz")
+        if sz is not None and (sz.get(_W + "val") or "").isdigit() and int(sz.get(_W + "val")) < 4:  # half-points
+            reasons.append("tiny text (under 2 pt)")
+    return "; ".join(dict.fromkeys(reasons)) or None
+
+
+TABLE_CELL_SEP = " | "
+
+
+def _docx_table_rows(table: object, n: int) -> list[Block]:
+    """One block per row: non-empty cells joined with " | " (merged cells once), with a "table N, row M" locator."""
+    out: list[Block] = []
+    for r, row in enumerate(table.rows, start=1):  # type: ignore[attr-defined]
+        seen: set[int] = set()
+        cells: list[str] = []
+        hidden: list[str] = []
+        for cell in row.cells:
+            if id(cell._tc) in seen:
+                continue
+            seen.add(id(cell._tc))
+            text = " ".join(x.strip() for x in cell.text.split("\n") if x.strip())
+            if text:
+                cells.append(text.replace(TABLE_CELL_SEP, " / "))
+            hidden += [h for para in cell.paragraphs if (h := _docx_hidden(para))]
+        if cells:
+            out.append(Block(text=TABLE_CELL_SEP.join(cells), locator=f"table {n}, row {r}",
+                             hidden="; ".join(dict.fromkeys(hidden)) or None))
+    return out
+
+
 # ---------------------------------------------------------------- pdf
+_HIDDEN_FONT_PT = 2.0
+_NEAR_WHITE = 0.95
+
+
+def _gray_of(op: bytes, args: list) -> float | None:
+    """Lowest channel of a fill colour as 0..1 lightness, or None if unknown (patterns, spot colours)."""
+    try:
+        vals = [float(a) for a in args]
+    except (TypeError, ValueError):
+        return None
+    if op == b"g" or (op in (b"sc", b"scn") and len(vals) == 1):
+        return vals[0]
+    if op == b"rg" or (op in (b"sc", b"scn") and len(vals) == 3):
+        return min(vals)
+    if op == b"k" or (op in (b"sc", b"scn") and len(vals) == 4):
+        c, m, y, k = vals
+        return min((1 - c) * (1 - k), (1 - m) * (1 - k), (1 - y) * (1 - k))
+    return None
+
+
+def _mult(m: list[float], n: list[float]) -> list[float]:
+    a, b, c, d, e, f = m
+    a2, b2, c2, d2, e2, f2 = n
+    return [a * a2 + b * c2, a * b2 + b * d2, c * a2 + d * c2, c * b2 + d * d2, e * a2 + f * c2 + e2, e * b2 + f * d2 + f2]
+
+
+def _pdf_page_text(page: object) -> tuple[str, list[tuple[str, str]]]:
+    """Extract a page's text and the fragments a reader would not see, with the reason."""
+    box = page.mediabox  # type: ignore[attr-defined]
+    x0, y0, x1, y1 = (float(v) for v in (box.left, box.bottom, box.right, box.top))
+    state = {"fill": 0.0, "tr": 0.0}
+    stack: list[dict[str, float]] = []
+    hidden: list[tuple[str, str]] = []
+
+    def before(op: bytes, args: list, cm: list, tm: list) -> None:
+        if op == b"q":
+            stack.append(dict(state))
+        elif op == b"Q" and stack:
+            state.update(stack.pop())
+        elif op in (b"g", b"rg", b"k", b"sc", b"scn"):
+            g = _gray_of(op, args)
+            if g is not None:
+                state["fill"] = g
+        elif op == b"Tr" and args:
+            try:
+                state["tr"] = float(args[0])
+            except (TypeError, ValueError):
+                pass
+
+    def visit(text: str, cm: list, tm: list, font: object, size: float) -> None:
+        if not text.strip():
+            return
+        m = _mult([float(v) for v in tm], [float(v) for v in cm])
+        scale = (m[2] ** 2 + m[3] ** 2) ** 0.5 or 1.0
+        reasons = []
+        if state["tr"] == 3:
+            reasons.append("invisible (render mode 3) text")
+        if state["fill"] >= _NEAR_WHITE:
+            reasons.append("white or near-white text")
+        if 0 < float(size or 0) * scale < _HIDDEN_FONT_PT:
+            reasons.append("tiny text (under 2 pt)")
+        x, y = m[4], m[5]
+        if x < x0 - 5 or x > x1 + 5 or y < y0 - 5 or y > y1 + 5:
+            reasons.append("text placed off the page")
+        if reasons:
+            hidden.append((text, "; ".join(reasons)))
+
+    txt = page.extract_text(visitor_operand_before=before, visitor_text=visit) or ""  # type: ignore[attr-defined]
+    return txt, hidden
+
+
+def _hidden_reason(para: str, hidden: list[tuple[str, str]]) -> str | None:
+    flat = re.sub(r"\s+", " ", para).strip().lower()
+    reasons = [r for t, r in hidden if len(t.strip()) >= 6 and re.sub(r"\s+", " ", t).strip().lower() in flat]
+    return "; ".join(dict.fromkeys(reasons)) or None
+
 _PDF_DANGEROUS = (b"/JavaScript", b"/JS ", b"/JS(", b"/Launch", b"/EmbeddedFile", b"/RichMedia", b"/XFA")
 
 
-def parse_pdf(data: bytes) -> RawDoc:
+def parse_pdf(data: bytes, ocr: OcrFunc | None = None) -> RawDoc:
+    """`ocr` reads pages without a text layer; None means the installed engine, if any (see ocr.py)."""
     from pypdf import PdfReader
     from pypdf.errors import PdfReadError
 
@@ -233,13 +372,33 @@ def parse_pdf(data: bytes) -> RawDoc:
     if n > MAX_PDF_PAGES:
         raise IngestError("too_many_pages", f"PDF has {n} pages; the limit is {MAX_PDF_PAGES}.")
     blocks: list[Block] = []
+    warnings: list[str] = []
+    pages = [_pdf_page_text(page) for page in reader.pages]
+    thin = [i for i, (txt, _) in enumerate(pages, start=1) if len(txt.strip()) < 40]
+    engine = ocr if ocr is not None else default_ocr()
+    read: dict[int, tuple[str, float]] = {}
+    if thin and engine is not None:
+        try:
+            read = engine(data, thin)
+        except Exception:  # noqa: BLE001 - an OCR failure must not lose the text layer
+            warnings.append("OCR failed on this file; pages without a text layer were not read.")
     chars = 0
-    for i, page in enumerate(reader.pages, start=1):
-        txt = page.extract_text() or ""
+    used: dict[int, float] = {}
+    for i, (txt, hidden) in enumerate(pages, start=1):
+        o_text, o_conf = read.get(i, ("", 0.0))
+        if i in thin and len(o_text.strip()) > len(txt.strip()):
+            used[i] = o_conf
+            chars += len(o_text.strip())
+            for para in _pdf_paragraphs(o_text):
+                blocks.append(Block(text=para, page=i, heading=_looks_like_heading(para), ocr_confidence=o_conf))
+            continue
         chars += len(txt.strip())
         for para in _pdf_paragraphs(txt):
-            blocks.append(Block(text=para, page=i, heading=_looks_like_heading(para)))
-    warnings: list[str] = []
+            blocks.append(Block(text=para, page=i, heading=_looks_like_heading(para), hidden=_hidden_reason(para, hidden)))
+    if used:
+        detail = ", ".join(f"page {p} {c:.0f}/100" + (" (low)" if c < OCR_LOW_CONFIDENCE else "") for p, c in used.items())
+        warnings.append(f"OCR: {len(used)} page(s) without a text layer were read by OCR (mean word confidence: {detail}). "
+                        "OCR can misread words and numbers; check quotes against the original.")
     if chars < 40 * max(n, 1):
         warnings.append(
             "SCANNED: This PDF has little or no text layer (it may be a scanned image). "
@@ -286,9 +445,9 @@ def _pdf_paragraphs(txt: str) -> list[str]:
     return paras
 
 
-def parse(kind: str, data: bytes) -> RawDoc:
+def parse(kind: str, data: bytes, ocr: OcrFunc | None = None) -> RawDoc:
     if kind == "pdf":
-        return parse_pdf(data)
+        return parse_pdf(data, ocr)
     if kind == "docx":
         return parse_docx(data)
     return parse_text(data, markdown=(kind == "md"))

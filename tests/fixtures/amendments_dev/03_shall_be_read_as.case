@@ -1,0 +1,19 @@
+=== base ===
+# Logistics Framework Agreement
+
+This Agreement is made between Thornbury Haulage Ltd (the "Carrier") and Quillon Garden Centres Ltd (the "Customer").
+
+## 7. Insurance
+7.1 The Carrier shall maintain goods-in-transit insurance of not less than £250,000 per vehicle.
+7.2 The Carrier shall provide a copy of its insurance certificate on request.
+=== amendment ===
+# Amendment Agreement
+
+This Amendment is made on 14 April 2027 between Thornbury Haulage Ltd (the "Carrier") and Quillon Garden Centres Ltd (the "Customer").
+
+1. With effect from the date of this Amendment, clause 7.1 shall be read as: "The Carrier shall maintain goods-in-transit insurance of not less than £400,000 per vehicle."
+=== expected ===
+{"effects": {"7.1": "replaced", "7.2": "in_force"},
+ "actions": ["replace"],
+ "verdicts": [{"subject_contains": "not less than £250,000 per vehicle", "verdict": "contradicted"},
+              {"subject_contains": "copy of its insurance certificate", "verdict": "not_addressed"}]}

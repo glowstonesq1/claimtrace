@@ -1,4 +1,4 @@
-.PHONY: dev web test lint typecheck e2e eval serve docker clean
+.PHONY: dev web test lint typecheck check e2e eval serve docker clean lock audit
 
 PY ?= .venv/bin/python
 
@@ -22,11 +22,23 @@ typecheck:
 	.venv/bin/mypy
 	cd apps/web && npm run typecheck
 
+check:          ## ruff + mypy + pytest (what CI's python job gates on)
+	.venv/bin/ruff check packages apps tests
+	.venv/bin/mypy
+	.venv/bin/pytest -q
+
 e2e:            ## needs a running server on :8765 and Playwright
 	cd apps/web && BASE=http://127.0.0.1:8765 node e2e/smoke.mjs
 
 eval:
 	.venv/bin/claimtrace eval run --suite core --model rules
+
+lock:           ## regenerate the hash-pinned runtime lockfile (needs pip-tools)
+	.venv/bin/pip-compile --quiet --generate-hashes --strip-extras --allow-unsafe --no-emit-index-url \
+		--output-file requirements.lock pyproject.toml
+
+audit:          ## vulnerability audit of the lockfile (needs pip-audit; queries PyPI's advisory data)
+	.venv/bin/pip-audit -r requirements.lock --require-hashes --disable-pip --strict
 
 docker:
 	docker compose up --build

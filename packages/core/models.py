@@ -174,6 +174,7 @@ class Span(_Model):
     section: str | None = None
     document_title: str | None = None
     document_version: str | None = None
+    locator: str | None = None  # finer location inside the section, e.g. "table 1, row 3"
 
 
 class Provenance(_Model):
@@ -220,6 +221,19 @@ class Passage(_Model):
     char_start: int
     char_end: int
     text: str
+    hidden_text: str | None = None  # why (part of) this passage is invisible to a reader; excluded from model prompts
+    ocr_confidence: float | None = None  # mean OCR word confidence (0-100) of the page, when the text came from OCR
+    locator: str | None = None  # e.g. "table 1, row 3": a DOCX table row, cells joined with " | "
+
+
+OCR_LOW_CONFIDENCE = 70.0  # below this, items from an OCR page carry a caveat and need review
+
+
+def excluded_from_llm(p: Passage) -> bool:
+    """Passages never sent to a language model: hidden text or instruction-like text (see docs/security.md)."""
+    from .text import looks_like_injection
+
+    return bool(p.hidden_text) or looks_like_injection(p.text)
 
 
 class Party(_Model):
@@ -288,9 +302,19 @@ class Claim(_Model):
 class AmendmentInstruction(_Model):
     id: str
     document_id: str
+    # a clause number ("4.2"), a schedule ("Schedule 2"), a heading ("title:Confidentiality"),
+    # "*" for an amended-and-restated document, or "after 4.3"/"before 4.1" for an unnumbered insert
     target_section: str
-    action: str  # replace | delete | insert | modify
+    action: str  # replace | delete | insert | modify | renumber | restate
     new_text: str | None
+    old_text: str | None = None  # modify: the words being changed
+    anchor_section: str | None = None  # insert: the clause it goes after/before
+    position: str | None = None  # insert: "after" | "before"
+    renumber_to: str | None = None  # renumber: the new clause number
+    # set by apply_amendments once the target is looked up in the amended document
+    resolved_section: str | None = None
+    needs_review: bool = False
+    review_reasons: list[str] = Field(default_factory=list)
     provenance: Provenance
 
 
@@ -371,6 +395,9 @@ class ReviewDecision(_Model):
     prior_status: ReviewStatus
     target_hash: str
     at: datetime = Field(default_factory=utcnow)
+    # hash chain (v0.2): set by Store.add_review; not part of the hashed content
+    prev_hash: str | None = None
+    hash: str | None = None
 
 
 class AnalysisRun(_Model):

@@ -144,14 +144,31 @@ D3 asks for this field; it exists in the model but is not populated.
 | Kind | Rule | Date computed? |
 |---|---|---|
 | absolute | A date (`March 31, 2026`, `31 March 2026`, `2026-03-31`, `31/03/2026`) preceded by no later than, not later than, on or before, by, before, until, prior to, on, not after, in any event by. | Yes, from the text. For `a/b/yyyy`, only if one part is over 12 or both are equal; otherwise `date=None` and `ambiguous_format=True`. |
-| relative | `<n> <unit>` (n as digits or words up to twenty, thirty, forty(-five), fifty, sixty, ninety, hundred, a/an) with within, later than, notice, after, before, following, at least, not more than or period of nearby; optional business/working/banking/calendar; optional anchor after of, after, from, following, before, prior to. | Only if the anchor mentions "date of this agreement/contract", "effective date" or "commencement date", the document has a reference date ("dated", "made on", "entered into on", "effective as of/from", "as of" in the first six passages), the unit is days or weeks, and it is not business days. Otherwise `date=None`. `offset_days` is set for days and weeks only. |
+| relative | `<n> <unit>` (n as digits or words from zero to ninety-nine, hundred, a/an) with within, later than, notice, after, before, following, at least, not more than or period of nearby; optional business/working/banking/calendar; optional anchor after of, after, from, following, before, prior to. | Only if the anchor mentions "date of this agreement/contract", "effective date" or "commencement date", the document has a reference date ("dated", "made on", "entered into on", "effective as of/from", "as of" in the first six passages), and the unit is days or weeks. Business/working/banking days skip weekends and configured holidays (below). Otherwise `date=None`. `offset_days` is set for days and weeks only. |
 | recurring | weekly, monthly, quarterly, annually, daily, each/every month, once a year, ... | No. |
 | vague | promptly, as soon as (reasonably) practicable/possible, without undue delay, timely, forthwith, in due course, within a reasonable time, immediately, from time to time ... | No. |
 | absolute (bare) | Any date without a deadline preposition. | Yes, as raw context. |
 | none | Nothing found; stored as `deadline: null`. | |
 
-Business-day calendars are not implemented (v0.2 backlog), so business-day offsets never
-produce a date.
+### 3.1 Business-day calendars (v0.2)
+
+"10 Business Days of the Effective Date" becomes a date when the anchor resolves: counting starts
+the day after the reference date and skips Saturdays, Sundays and holidays
+(`extraction/calendar.add_business_days`). An unresolved anchor ("of receipt of an order") stays
+`date=None`, as before.
+
+Holidays come from the file named by `CLAIMTRACE_HOLIDAYS`: one ISO date (`YYYY-MM-DD`) per line,
+blank lines and `#` comments allowed. A missing or malformed file fails the analysis run (a wrong
+calendar would produce wrong dates silently). With no file, only weekends are skipped, and each
+computed business-day date carries the caveat that no holiday calendar is configured. The run
+manifest records `holiday_calendar: {count, id}` and the calendar fingerprint is part of the
+analysis idempotency key, so changing the file re-analyses documents.
+
+```
+# holidays.txt
+2026-12-25
+2026-12-28  # Boxing Day (substitute)
+```
 
 ## 4. document_effect, lifecycle and derived status (D2)
 
@@ -167,40 +184,79 @@ has three; "amended" and "superseded" appear only as derived `status` values.
 ## 5. Amendments
 
 Instructions are parsed only in documents with `doc_type=amendment` or an
-`amends_document_id`. Replacement text must be inside straight or curly double quotes,
-5 to 2000 characters, within one passage.
+`amends_document_id` (`extraction/amendments.py`). Parsing only says what an instruction asks
+for and which clause it names; whether that clause exists is decided against the amended
+document in `extraction/apply.py`.
 
-| Action | Supported drafting (case-insensitive; "clause" may be section, paragraph or article; "of the Agreement" optional; "hereby" optional) |
+A **target** can be a clause number (`Clause 4.2`, `clauses 4.3 to 4.5`, with an optional
+descriptive parenthesis such as `Clause 10 (Non-Solicitation)` or `(as renumbered)`), a
+schedule (`Schedule 2`, `Annex B`), or a heading (`the clause headed "Confidentiality"`,
+`the clause entitled "Publicity"`, `the "Liability" clause`). Auxiliaries are flexible
+(`is`, `are`, `shall be`, `will be`, `is to be`, `hereby`, `now`), and instructions can start
+mid-sentence, so letter-style drafting ("We agree that clause 4.2 will be replaced with ...")
+and "With effect from ..., clause X shall ..." both parse. Replacement text is quoted, or —
+when the instruction ends in a colon — taken from the following passage(s).
+
+| Action | Supported drafting (examples; case-insensitive) |
 |---|---|
-| replace | `Clause X is/shall be deleted [in its entirety] and replaced with/by: "..."`; `Clause X is amended to read / so as to read / as follows: "..."`; `Clause X is replaced [in its entirety] with/by "..."`; `Clause X is restated to read / as follows: "..."` (optionally "the following [new] clause N") |
-| insert | `The following / A new [clause] is added/inserted [to/into the X] as [a new] clause N: "..."`; `[A new] clause N is added/inserted ...: "..."` |
-| delete | `Clause X is deleted / removed / struck [in its entirety] [and shall have no further effect]` ending the sentence |
-| modify | `In clause X, the reference to / word(s) / figure / number / amount "old" is/are replaced/substituted/amended with/by/to "new".`; `The reference to / word(s) / figure "old" in clause X is replaced with "new".` |
+| replace | `... is deleted [in its entirety] and replaced with/by [the following]: "..."`; `... is amended [and restated] to read / so as to read / as follows`; `... is replaced [in its entirety] with/by`; `... shall be read as: "..."`; `... shall [now] read [as follows]`; `... is varied to read`; `... is changed to`; `Delete clause X and replace it with: "..."`; `The following is substituted for clause X: "..."`; `Schedule N is [deleted and] replaced with the schedule set out in the Annex` (new text = passages under a later heading naming `Schedule N`) |
+| insert | `The following new clause N is inserted after/before clause M: "..."`; `A new clause is inserted immediately before clause M as follows: "..."`; `Insert the following after clause M: "..."`; `After clause M insert: "..."`; `[A new] clause N is added/inserted [as clause N]: "..."`. An unnumbered insert takes the number at the start of its quote, otherwise the target is `after M` / `before M`. Inserts never change existing clauses. |
+| delete | `... is deleted / removed / struck out / revoked / omitted [in its entirety]`; `... shall cease to apply / will no longer apply / shall have no further effect [from <date>]`; `Delete clause X.` |
+| modify | `In clause X, the words/reference to/figure "old" are replaced/substituted with/by "new"`; `In clause X, "old" becomes "new"`; `The words "old" in clause X are replaced by "new"`; `Clause X is amended by deleting "old" and inserting/substituting "new" [in its place]`; `Clause X is amended by replacing/changing/increasing/reducing "old" with/to "new"`; `Clause X is amended by substituting "new" for "old"`; `Clause X shall be read as if "old" were replaced by "new"` / `were deleted`; `In clause X, delete "old" and insert "new"`. Unquoted short values work too ("the reference to 90 days is replaced by 60 days"). |
+| renumber | `Clause 9 is renumbered as clause 10`; `Clauses 4.2 and 4.3 are renumbered as clauses 4.3 and 4.4 [respectively]`; `Clauses 4.3 to 4.5 are renumbered as clauses 4.4 to 4.6`. Renumberings in one sentence take effect together; later instructions that use the new numbers are mapped back to the original clause. |
+| restate | A document that "amends and restates the ... in its entirety", is titled "Amended and Restated ...", or "supersedes and replaces the ... in its entirety" is treated as a **new version**: one `restate` instruction (target `*`), and the whole document is extracted as ordinary commitments. |
+
+Numbers in modify wording match in any common form: "30 days" also matches "thirty days" and
+"thirty (30) days", and "forty-five (45) days" matches "45 days" (`number_tolerant_pattern`,
+0–99 in words; larger values as digits).
+
+Schedule numbering: a heading (or a short line) such as `Schedule 2 Service Levels` starts a
+schedule; numbered paragraphs inside it get section numbers like `Schedule 2/1.1`, so they no
+longer collide with main-body clause 1.1.
 
 Applying them (`apply_amendments`):
 
-1. Reset every commitment to `in_force` and remove earlier amendment caveats; delete all
-   `cmt_d_` commitments and all `amends`/`supersedes` edges.
+1. Reset every commitment to `in_force` and remove earlier amendment caveats and
+   "Amendment target not found" review reasons; delete all `cmt_d_` commitments and all
+   `amends`/`supersedes` edges.
 2. For each amendment whose base is stored, oldest upload first, add an `amends` edge, then
-   for each instruction find the current base commitments for the target section (exact
-   match, or "X(" sub-items; a previous amendment's replacement if one exists).
-3. replace, delete, and insert onto an existing section mark them `replaced` or `deleted`,
-   add the caveat `Replaced by <title> §<instruction section>: "<new text>"` or `Deleted by
-   <title> §<section>.`, and add `supersedes` edges from each new commitment.
-4. modify: when the old words occur in a base commitment, create a derived copy with the
-   words substituted, confidence capped at medium, and the caveat "Wording derived by
-   applying ... the quote shows the amending instruction, not this exact sentence."
-5. insert with no existing section: the new commitments simply stand.
+   resolve each instruction's target in the **base document's passages** (`resolve_target`):
+   clause numbers match the clause and anything inside it (`4.1`, `4.1.2`, `4.1(a)`,
+   `Schedule 2/1`); headings resolve to the heading's clause number; renumbered numbers map
+   back to the original clause; an insert's `after`/`before` anchor must exist.
+3. **Unresolved target**: the instruction gets `needs_review=true` and a reason
+   ("Amendment target not found: clause 14.2 does not exist in '<title>'; the instruction was
+   not applied ..."), the amendment's replacement commitments are flagged for review, and the
+   base is left unchanged. Verify reports `needs_human_review` for it.
+4. replace and delete mark the base commitments `replaced` or `deleted`, add the caveat
+   `Replaced by <title> §<instruction section>: "<new text>"` or `Deleted by <title> §<section>.`,
+   and add `supersedes` edges from each new commitment.
+5. modify: only base commitments that contain the old words (number-tolerant) are changed: a
+   derived copy with the words substituted is created, confidence capped at medium, with the
+   caveat "Wording derived by applying ... the quote shows the amending instruction, not this
+   exact sentence." If the words are not found in the target clause, the instruction is
+   flagged for review and not applied.
+6. restate: each base commitment is `replaced` when the restated document carries it forward
+   (same words, or same clause number) and `deleted` when it does not. Verify reports
+   `consistent` for clauses restated word for word, `contradicted` for changed or dropped
+   ones, and `not_addressed` for clauses new in the restated document.
+7. renumber: the base commitment stays `in_force` with a "Renumbered as clause N" caveat.
+
+`AmendmentInstruction` stores `old_text`, `anchor_section`, `position`, `renumber_to`, and,
+after applying, `resolved_section`, `needs_review` and `review_reasons`.
+
+Development fixtures for every phrasing above are in `tests/fixtures/amendments_dev/`
+(hand-written; not derived from any eval set).
 
 Known unsupported drafting:
 
-- Replacement text without quotes, or spanning more than one paragraph.
 - Changes by narrative or reference ("the Vendor shall reduce the fixed fee in clause 3.1
   to GBP 110,000"). This is extracted as an ordinary obligation; the base clause stays
   `in_force`. Verify (amendment mode) reports it; Ask does not.
-- Amendments to definitions, schedules or annexes; renumbering; "clause X is amended by
-  deleting ... and inserting ..."; sub-clause targets at deeper levels (1.3.1 is not matched
-  by 1.3).
+- Amendments to definitions by term ("the definition of 'Services' is amended ...").
+- Clauses that contain no commitment (e.g. "This Agreement continues for 3 years") are
+  resolved as targets but have no `document_effect` to show.
+- There is no model-assisted fallback yet (roadmap v0.2 item 1 lists one).
 - Linking by title requires the base to be uploaded first and the `amends:` front matter to
   equal its title. Otherwise the link must be set via `amends_document_id`.
 

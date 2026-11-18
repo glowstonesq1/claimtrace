@@ -228,3 +228,54 @@ def deadlines_csv(store: Store, doc_id: str) -> str:
                                       c.deadline.date, c.deadline.raw, c.status.value, c.needs_review, c.text,
                                       c.provenance.span.document_title, c.provenance.span.document_version)])
     return buf.getvalue()
+
+
+# ---------------------------------------------------------------- ICS (RFC 5545)
+def ics_escape(text: str) -> str:
+    """TEXT value escaping (RFC 5545 §3.3.11)."""
+    return (text.replace("\\", "\\\\").replace(";", "\;").replace(",", "\\,")
+            .replace("\r\n", "\\n").replace("\n", "\\n").replace("\r", "\\n"))
+
+
+def _fold(line: str) -> str:
+    """Fold content lines at 75 octets without splitting a UTF-8 character (RFC 5545 §3.1)."""
+    out: list[str] = []
+    cur, size, limit = "", 0, 75
+    for ch in line:
+        n = len(ch.encode("utf-8"))
+        if size + n > limit:
+            out.append(cur)
+            cur, size, limit = " ", 1, 75
+        cur += ch
+        size += n
+    out.append(cur)
+    return "\r\n".join(out)
+
+
+def deadlines_ics(store: Store, doc_id: str, now: datetime | None = None) -> str:
+    """Calendar of the in-force deadlines with a resolved date. Nothing is fetched or sent; the user downloads it."""
+    from datetime import timedelta
+
+    doc = store.get_document(doc_id)
+    stamp = (now or datetime.now(UTC)).astimezone(UTC).strftime("%Y%m%dT%H%M%SZ")
+    amend_ids = [d.id for d in store.list_documents() if d.amends_document_id == doc_id]
+    items = store.objects(Commitment, doc_id) + [c for d in amend_ids for c in store.objects(Commitment, d)]
+    lines = ["BEGIN:VCALENDAR", "VERSION:2.0", f"PRODID:-//ClaimTrace//ClaimTrace {__version__}//EN",
+             "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:" + ics_escape(f"Deadlines: {doc.title}")]
+    for c in sorted(items, key=lambda c: (c.deadline.date.isoformat() if c.deadline and c.deadline.date else "", c.id)):
+        if not c.deadline or c.deadline.date is None or c.document_effect != DocumentEffect.in_force:
+            continue
+        day = c.deadline.date
+        who = c.obliging_party or "Unnamed party"
+        span = c.provenance.span
+        where = f"{span.document_title or doc.title} {span.document_version or ''} §{c.section_number or span.section or '?'}"
+        desc = [f'"{c.text}"', f"Source: {where.strip()}", f"Timing as written: {c.deadline.raw or ''}"]
+        if c.needs_review:
+            desc.append("Flagged for review: " + "; ".join(c.review_reasons or ["see ClaimTrace"]))
+        desc += [*c.caveats, "Check the quote before relying on this date. ClaimTrace is not legal advice."]
+        lines += ["BEGIN:VEVENT", f"UID:{c.id}@claimtrace.local", f"DTSTAMP:{stamp}",
+                  f"DTSTART;VALUE=DATE:{day:%Y%m%d}", f"DTEND;VALUE=DATE:{day + timedelta(days=1):%Y%m%d}",
+                  "SUMMARY:" + ics_escape(f"{who}: {c.action}"[:200]), "DESCRIPTION:" + ics_escape("\n".join(desc)),
+                  "TRANSP:TRANSPARENT", "END:VEVENT"]
+    lines.append("END:VCALENDAR")
+    return "".join(_fold(x) + "\r\n" for x in lines)

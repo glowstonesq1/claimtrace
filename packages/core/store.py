@@ -5,6 +5,7 @@ Objects are stored as validated JSON; reads re-validate, so a corrupted row fail
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 import threading
@@ -51,6 +52,17 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+GENESIS_HASH = "0" * 64
+_CHAIN_EXCLUDE = {"prev_hash", "hash"}
+
+
+def chain_hash(decision_json: str, prev_hash: str) -> str:
+    """sha256 over the canonical JSON (sorted keys, no whitespace, UTF-8) of {decision, prev_hash}."""
+    payload = {"decision": json.loads(decision_json), "prev_hash": prev_hash}
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 class NotFound(Exception):
     pass
 
@@ -81,11 +93,23 @@ class Store:
                 if version > current:
                     # executescript manages its own transaction; keep schema + version atomic
                     self.conn.executescript(f"BEGIN;\n{f.read_text()}\nINSERT INTO schema_version VALUES ({version});\nCOMMIT;")
+                    if version == 2 and current >= 1:
+                        self._chain_legacy_reviews()
+
+    def _chain_legacy_reviews(self) -> None:
+        """One-time: chain v0.1 review rows (no hashes yet) in insertion order."""
+        with self.tx() as c:
+            prev = GENESIS_HASH
+            for rid, js, h in c.execute("SELECT id, json, hash FROM reviews ORDER BY rowid").fetchall():
+                if h is None:
+                    h = chain_hash(js, prev)
+                    c.execute("UPDATE reviews SET prev_hash=?, hash=? WHERE id=?", (prev, h, rid))
+                prev = h
 
     @contextmanager
-    def tx(self) -> Iterator[sqlite3.Connection]:
+    def tx(self, immediate: bool = False) -> Iterator[sqlite3.Connection]:
         with self._lock:
-            self.conn.execute("BEGIN")
+            self.conn.execute("BEGIN IMMEDIATE" if immediate else "BEGIN")
             try:
                 yield self.conn
             except BaseException:
@@ -308,20 +332,54 @@ class Store:
         with self.tx() as c:
             c.execute("UPDATE findings SET json=? WHERE id=?", (f.model_dump_json(), f.id))
 
-    # ---- reviews (append-only) -------------------------------------------
+    # ---- reviews (append-only, hash-chained) ---------------------------------
     def add_review(self, r: ReviewDecision) -> None:
-        with self.tx() as c:
+        """Append a decision, linking it to the previous one. Sets r.prev_hash and r.hash."""
+        body = r.model_dump_json(exclude=_CHAIN_EXCLUDE)
+        with self.tx(immediate=True) as c:
+            row = c.execute("SELECT hash FROM reviews ORDER BY rowid DESC LIMIT 1").fetchone()
+            prev = row[0] if row and row[0] else GENESIS_HASH
+            h = chain_hash(body, prev)
             c.execute(
-                "INSERT INTO reviews(id, target_kind, target_id, json, at) VALUES (?,?,?,?,?)",
-                (r.id, r.target_kind, r.target_id, r.model_dump_json(), r.at.isoformat()),
+                "INSERT INTO reviews(id, target_kind, target_id, json, at, prev_hash, hash) VALUES (?,?,?,?,?,?,?)",
+                (r.id, r.target_kind, r.target_id, body, r.at.isoformat(), prev, h),
             )
+        r.prev_hash, r.hash = prev, h
 
     def reviews(self, target_id: str | None = None) -> list[ReviewDecision]:
+        cols = "SELECT json, prev_hash, hash FROM reviews WHERE redacted=0"
         if target_id:
-            rows = self._rows("SELECT json FROM reviews WHERE target_id=? ORDER BY at, rowid", (target_id,))
+            rows = self._rows(cols + " AND target_id=? ORDER BY at, rowid", (target_id,))
         else:
-            rows = self._rows("SELECT json FROM reviews ORDER BY at, rowid")
-        return [ReviewDecision.model_validate_json(r[0]) for r in rows]
+            rows = self._rows(cols + " ORDER BY at, rowid")
+        out = []
+        for js, prev, h in rows:
+            r = ReviewDecision.model_validate_json(js)
+            r.prev_hash, r.hash = prev, h
+            out.append(r)
+        return out
+
+    def verify_review_chain(self) -> dict:
+        """Recompute every link. Reports the first decision whose content, hash or link does not match."""
+        rows = self._rows("SELECT id, json, prev_hash, hash, redacted FROM reviews ORDER BY rowid")
+        prev = GENESIS_HASH
+        redacted = 0
+        for rid, js, prev_hash, h, red in rows:
+            reason = None
+            if prev_hash != prev:
+                reason = "link to the previous decision does not match (a decision was removed, reordered or altered)"
+            elif h is None:
+                reason = "decision has no hash"
+            elif red:
+                redacted += 1  # erased under D15: content is gone, only the link can be checked
+            elif chain_hash(js, prev_hash) != h:
+                reason = "decision content does not match its hash (it was edited)"
+            if reason:
+                return {"ok": False, "checked": len(rows), "redacted": redacted, "first_broken_id": rid,
+                        "reason": reason, "head": None}
+            prev = h
+        return {"ok": True, "checked": len(rows), "redacted": redacted, "first_broken_id": None, "reason": None,
+                "head": prev if rows else None}
 
     def current_review_status(self, target_id: str) -> ReviewStatus:
         status = ReviewStatus.unreviewed
@@ -363,7 +421,12 @@ class Store:
             n_reviews = 0
             for i in range(0, len(targets), 500):
                 chunk = targets[i : i + 500]
-                n_reviews += c.execute(f"DELETE FROM reviews WHERE target_id IN ({','.join('?' * len(chunk))})", chunk).rowcount
+                # erase content but keep id and hashes so the review chain still verifies
+                n_reviews += c.execute(
+                    "UPDATE reviews SET json='{\"redacted\":true}', target_kind='redacted', target_id='', redacted=1 "
+                    f"WHERE redacted=0 AND target_id IN ({','.join('?' * len(chunk))})",
+                    chunk,
+                ).rowcount
             if obj_ids:
                 for i in range(0, len(obj_ids), 500):
                     chunk = obj_ids[i : i + 500]

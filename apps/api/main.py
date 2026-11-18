@@ -47,7 +47,7 @@ from claimtrace.ingestion import IngestError, IngestOptions, ingest_bytes
 from claimtrace.ingestion.pipeline import MAX_UPLOAD_BYTES
 from claimtrace.integrations.llm import LLMProvider, provider_from_settings
 from claimtrace.verification import answer_question, verify_documents
-from claimtrace.verification.report import build_report, deadlines_csv, render_html, render_markdown
+from claimtrace.verification.report import build_report, deadlines_csv, deadlines_ics, render_html, render_markdown
 
 log = logging.getLogger("claimtrace")
 STATIC_DIR = Path(__file__).parent / "static"
@@ -442,6 +442,11 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
     def review_commitment(commitment_id: str, body: ReviewRequest, store: S) -> ReviewDecision:
         return _review(store, "commitment", commitment_id, body)
 
+    @app.get("/reviews/verify-chain", tags=["review"])
+    def verify_review_chain(store: S) -> dict:
+        """Recompute the review hash chain; `first_broken_id` names the first decision that does not verify."""
+        return store.verify_review_chain()
+
     @app.get("/reviews/{target_id}", response_model=list[ReviewDecision], tags=["review"])
     def get_reviews(target_id: str, store: S) -> list[ReviewDecision]:
         return store.reviews(target_id)
@@ -463,6 +468,13 @@ def create_app(settings: Settings | None = None, store: Store | None = None,
         store.get_document(doc_id)
         return PlainTextResponse(deadlines_csv(store, doc_id), media_type="text/csv; charset=utf-8",
                                  headers={"Content-Disposition": f'attachment; filename="deadlines-{doc_id}.csv"'})
+
+    @app.get("/documents/{doc_id}/deadlines.ics", tags=["reports"])
+    def ics_export(doc_id: str, store: S) -> Response:
+        """In-force deadlines with a resolved date as an iCalendar file (download only; nothing is sent)."""
+        store.get_document(doc_id)
+        return Response(deadlines_ics(store, doc_id), media_type="text/calendar; charset=utf-8",
+                        headers={"Content-Disposition": f'attachment; filename="deadlines-{doc_id}.ics"'})
 
     # -------------------------------------------------------------- privacy / samples
     @app.get("/privacy/egress", tags=["system"])

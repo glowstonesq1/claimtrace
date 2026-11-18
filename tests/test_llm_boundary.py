@@ -41,9 +41,10 @@ def test_hallucinated_quotes_are_dropped_and_real_ones_kept(store):
     p = FakeProvider(responder)
     run = analyze_document(store, doc.id, p)
     assert run.status == "done"
-    assert run.counts["quote_not_found"] == 1 and run.counts["llm_only"] == 1
-    # the injected sentence IS verbatim in the document; it is dropped because its passage looks like an injection
-    assert run.counts["dropped_suspicious_passage"] == 1
+    # the injected sentence IS verbatim in the document, but its passage looks like an injection, so it is never
+    # sent to the model (v0.2) and a model quote of it cannot be located in what was sent
+    assert run.counts["quote_not_found"] == 2 and run.counts["llm_only"] == 1
+    assert not any("Ignore your instructions" in u for _, u in p.calls)
     assert any(w.startswith("INJECTION") for w in store.get_document(doc.id).warnings)
     texts = [c.text for c in store.objects(Commitment, doc.id)]
     assert "Each month the Supplier sends a usage summary to the Customer." in texts

@@ -1,0 +1,21 @@
+=== base ===
+# Managed Print Agreement
+
+This Agreement is made between Copperline Print Services Ltd (the "Provider") and Ashdene Housing Association (the "Customer").
+
+## 4. Support
+4.1 The Provider shall respond to fault reports within 8 working hours.
+4.2 The Provider shall keep a stock of toner at each site.
+4.3 The Provider shall replace any device that fails three times in a month.
+=== amendment ===
+# Change Note 1
+
+This Change Note is made on 20 May 2027 between Copperline Print Services Ltd (the "Provider") and Ashdene Housing Association (the "Customer").
+
+1. The following new clause 4.4 is inserted after clause 4.3: "4.4 The Provider shall assign a named account manager to the Customer."
+2. A new clause is inserted immediately before clause 4.1 as follows: "The Provider shall provide a fault-reporting telephone line staffed from 8am to 6pm."
+=== expected ===
+{"effects": {"4.1": "in_force", "4.2": "in_force", "4.3": "in_force"},
+ "actions": ["insert", "insert"],
+ "verdicts": [{"subject_contains": "named account manager", "verdict": "not_addressed"},
+              {"subject_contains": "respond to fault reports", "verdict": "not_addressed"}]}

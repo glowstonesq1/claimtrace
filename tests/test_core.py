@@ -52,7 +52,9 @@ def test_relative_deadline_is_computed_only_when_anchor_resolves():
     d = P.extract_deadline("within 30 days of the date of this Agreement", dt.date(2026, 1, 10))
     assert d.date == dt.date(2026, 2, 9)
     d2 = P.extract_deadline("within 10 Business Days of the date of this Agreement", dt.date(2026, 1, 10))
-    assert d2.date is None  # business-day calendars are not guessed
+    assert d2.date == dt.date(2026, 1, 23)  # v0.2: weekends skipped (10 Jan 2026 is a Saturday)
+    d3 = P.extract_deadline("within 10 Business Days of receipt", dt.date(2026, 1, 10))
+    assert d3.date is None  # an unresolved anchor is never guessed
 
 
 def test_party_definitions():

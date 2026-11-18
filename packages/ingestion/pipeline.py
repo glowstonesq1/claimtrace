@@ -10,13 +10,15 @@ from claimtrace.core.models import DocType, Document, Passage
 from claimtrace.core.store import Store
 from claimtrace.core.text import NORMALIZER_VERSION, normalize, sha256_bytes, sha256_text
 
+from .ocr import OcrFunc
 from .parsers import IngestError, RawDoc, detect_kind
 from .sandbox import parse_sandboxed
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
 _NUM = re.compile(r"^(?P<num>(?:\d+(?:\.\d+)*\.?|[A-Z]\.\d+(?:\.\d+)*|\([a-z]{1,3}\)|[a-z]\)))\s+")
-_HEADING_NUM = re.compile(r"^(?:(?:Section|Clause|Article|Schedule)\s+)?(\d+(?:\.\d+)*|[A-Z])\.?\s+(.+)$")
+_HEADING_NUM = re.compile(r"^(?:(?:Section|Clause|Article)\s+)?(\d+(?:\.\d+)*|[A-Z])\.?\s+(.+)$")
+_SCHEDULE_HEADING = re.compile(r"^(Schedule|Annex|Appendix|Exhibit)\s+(\d+|[A-Z])\b[.:]?(?:\s*[-:]?\s*(.*))?$", re.I)
 
 
 @dataclass
@@ -30,6 +32,7 @@ class IngestOptions:
     tags: list[str] | None = None
     allow_external_llm: bool = False
     sandbox: bool = True
+    ocr: OcrFunc | None = None  # in-process parsing only; the sandbox uses the installed engine (ocr.default_ocr)
 
 
 def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
@@ -40,15 +43,26 @@ def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
     section_title: str | None = None
     heading_num: str | None = None
     parent_num: str | None = None
+    schedule: str | None = None  # "Schedule 2": numbers inside it become "Schedule 2/1.1"
     for block in raw.blocks:
         text = normalize(block.text)
         if not text:
             continue
-        if block.heading:
-            m = _HEADING_NUM.match(text)
-            heading_num, section_title = (m.group(1), m.group(2)) if m else (None, text)
+        sm = _SCHEDULE_HEADING.match(text)
+        if sm and (block.heading or (len(text) < 90 and not text.endswith((".", ";", ",")))):
+            schedule = f"{sm.group(1).title()} {sm.group(2).upper() if sm.group(2).isalpha() else sm.group(2)}"
+            heading_num, section_title = schedule, (sm.group(3) or "").strip(" -:.") or text
             parent_num = heading_num
             number: str | None = heading_num
+        elif block.locator:  # a table row belongs to the clause it appears in
+            number = parent_num or heading_num
+        elif block.heading:
+            m = _HEADING_NUM.match(text)
+            heading_num, section_title = (m.group(1), m.group(2)) if m else (None, text)
+            if schedule and heading_num:  # schedules come last: a numbered heading stays inside it
+                heading_num = f"{schedule}/{heading_num}"
+            parent_num = heading_num if (m or not schedule) else schedule
+            number = heading_num if m else parent_num
         else:
             m = _NUM.match(text)
             if m:
@@ -56,8 +70,8 @@ def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
                 if raw_num.startswith("(") or raw_num.endswith(")"):
                     number = f"{parent_num}{raw_num if raw_num.startswith('(') else '(' + raw_num}" if parent_num else raw_num
                 else:
-                    number = raw_num
-                    parent_num = raw_num
+                    number = f"{schedule}/{raw_num}" if schedule else raw_num
+                    parent_num = number
             else:
                 number = parent_num or heading_num
         if parts:
@@ -76,6 +90,9 @@ def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
                 char_start=start,
                 char_end=offset,
                 text=text,
+                hidden_text=block.hidden,
+                ocr_confidence=block.ocr_confidence,
+                locator=block.locator,
             )
         )
     return "\n\n".join(parts), passages
@@ -121,7 +138,7 @@ def ingest_bytes(store: Store, filename: str, data: bytes, opts: IngestOptions |
     else:
         from .parsers import parse
 
-        raw = parse(kind, data)
+        raw = parse(kind, data, opts.ocr)
     doc_id = "doc_" + uuid.uuid4().hex[:12]
     text, passages = segment(raw, doc_id)
     warnings = list(raw.warnings)
@@ -131,6 +148,11 @@ def ingest_bytes(store: Store, filename: str, data: bytes, opts: IngestOptions |
     if suspicious:
         warnings.append("INJECTION: Some passages contain instruction-like text aimed at AI tools (sections: "
                         + ", ".join(suspicious[:10]) + "). Items from them are flagged for review.")
+    hidden = [p.section_number or str(p.ordinal) for p in passages if p.hidden_text]
+    if hidden:
+        warnings.append("HIDDEN: Some passages contain text a reader would not see (white, tiny, off-page or hidden "
+                        "formatting) (sections: " + ", ".join(hidden[:10]) + "). Items from them are flagged for "
+                        "review and they are never sent to a language model.")
     if not passages:
         warnings.append("SCANNED: No readable text was found in this file. Nothing was analysed.")
     amends_id = opts.amends_document_id

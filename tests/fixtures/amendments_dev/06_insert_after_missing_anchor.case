@@ -1,0 +1,19 @@
+=== base ===
+# Catering Agreement
+
+This Agreement is made between Fennick Food Services Ltd (the "Caterer") and Stourleigh College (the "College").
+
+## 3. Service
+3.1 The Caterer shall provide hot lunches on every teaching day.
+3.2 The Caterer shall display allergen information for each dish.
+=== amendment ===
+# Variation Letter
+
+This Variation is made on 1 June 2027 between Fennick Food Services Ltd (the "Caterer") and Stourleigh College (the "College").
+
+1. The following new clause 8.10 is inserted after clause 8.9: "8.10 The Caterer shall offer a vegan option at every service."
+=== expected ===
+{"effects": {"3.1": "in_force", "3.2": "in_force"},
+ "actions": ["insert"],
+ "unresolved": 1,
+ "verdicts": [{"subject_contains": "vegan option", "verdict": "needs_human_review"}]}

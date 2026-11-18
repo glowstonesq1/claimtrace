@@ -13,9 +13,16 @@ apps/web/dist/
 .ruff_cache/
 evals/runs/*
 !evals/runs/published/
+!evals/runs/dev/
 *.egg-info/
 apps/web/node_modules/
 apps/api/static/
 
 # Local agent worktrees and settings
 .claude/
+.hallmark/salt
+apps/site/.hallmark/
+# promo film (apps/promo)
+apps/promo/node_modules/
+apps/promo/out/
+apps/promo/public/audio/

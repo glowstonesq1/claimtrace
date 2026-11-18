@@ -1,0 +1,27 @@
+=== base ===
+# Window Maintenance Agreement
+
+This Agreement is made between Clearview Access Ltd (the "Contractor") and Halberd Property Management Ltd (the "Manager").
+
+## 4. Works
+4.1 The Contractor shall clean all external windows every eight weeks.
+4.2 The Contractor shall complete each visit between 7am and 4pm.
+4.3 The Contractor shall photograph each elevation after cleaning.
+=== amendment ===
+# Letter Amendment
+
+From Halberd Property Management Ltd (the "Manager") to Clearview Access Ltd (the "Contractor"), dated 2 August 2027.
+
+Dear Sirs,
+
+We write further to our recent meeting. We agree that clause 4.2 will be replaced with the following: "The Contractor shall complete each visit between 9am and 6pm."
+
+We also agree that clause 4.3 will no longer apply.
+
+Please countersign this letter to confirm your agreement.
+=== expected ===
+{"effects": {"4.1": "in_force", "4.2": "replaced", "4.3": "deleted"},
+ "actions": ["replace", "delete"],
+ "verdicts": [{"subject_contains": "between 7am and 4pm", "verdict": "contradicted"},
+              {"subject_contains": "photograph each elevation", "verdict": "contradicted"},
+              {"subject_contains": "every eight weeks", "verdict": "not_addressed"}]}

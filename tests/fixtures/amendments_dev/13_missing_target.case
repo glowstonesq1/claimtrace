@@ -1,0 +1,21 @@
+=== base ===
+# Security Services Agreement
+
+This Agreement is made between Wardlaw Guarding Ltd (the "Contractor") and Inchmore Retail Park Ltd (the "Client").
+
+## 2. Patrols
+2.1 The Contractor shall patrol the site every two hours overnight.
+2.2 The Contractor shall record each patrol in the site log.
+=== amendment ===
+# Amendment No. 1
+
+This Amendment is made on 1 November 2027 between Wardlaw Guarding Ltd (the "Contractor") and Inchmore Retail Park Ltd (the "Client").
+
+1. Clause 14.2 is deleted and replaced with the following: "The Contractor shall carry public liability insurance of £10,000,000."
+2. Clause 2.1 is amended to read: "The Contractor shall patrol the site every hour overnight."
+=== expected ===
+{"effects": {"2.1": "replaced", "2.2": "in_force"},
+ "actions": ["replace", "replace"],
+ "unresolved": 1,
+ "verdicts": [{"subject_contains": "public liability insurance", "verdict": "needs_human_review"},
+              {"subject_contains": "every two hours overnight", "verdict": "contradicted"}]}

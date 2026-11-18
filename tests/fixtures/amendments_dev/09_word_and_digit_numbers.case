@@ -1,0 +1,23 @@
+=== base ===
+# Supply Agreement
+
+This Agreement is made between Glenholm Paper Mills Ltd (the "Seller") and Corriemuir Packaging Ltd (the "Buyer").
+
+## 6. Payment
+6.1 The Buyer shall pay each invoice within thirty (30) days of the invoice date.
+
+## 8. Notices
+8.1 The Seller shall give the Buyer not less than 60 days' notice of any price increase.
+=== amendment ===
+# Variation Agreement
+
+This Variation is made on 15 July 2027 between Glenholm Paper Mills Ltd (the "Seller") and Corriemuir Packaging Ltd (the "Buyer").
+
+1. In clause 6.1, "thirty (30) days" is replaced by "forty-five (45) days".
+2. In clause 8.1, the reference to sixty days is replaced by ninety days.
+=== expected ===
+{"effects": {"6.1": "replaced", "8.1": "replaced"},
+ "actions": ["modify", "modify"],
+ "derived_contains": "within forty-five (45) days of the invoice date",
+ "verdicts": [{"subject_contains": "within thirty (30) days", "verdict": "contradicted"},
+              {"subject_contains": "not less than 60 days' notice", "verdict": "contradicted"}]}
