@@ -220,6 +220,14 @@ class Passage(_Model):
     char_start: int
     char_end: int
     text: str
+    hidden_text: str | None = None  # why (part of) this passage is invisible to a reader; excluded from model prompts
+
+
+def excluded_from_llm(p: Passage) -> bool:
+    """Passages never sent to a language model: hidden text or instruction-like text (see docs/security.md)."""
+    from .text import looks_like_injection
+
+    return bool(p.hidden_text) or looks_like_injection(p.text)
 
 
 class Party(_Model):

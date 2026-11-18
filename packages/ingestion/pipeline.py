@@ -86,6 +86,7 @@ def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
                 char_start=start,
                 char_end=offset,
                 text=text,
+                hidden_text=block.hidden,
             )
         )
     return "\n\n".join(parts), passages
@@ -141,6 +142,11 @@ def ingest_bytes(store: Store, filename: str, data: bytes, opts: IngestOptions |
     if suspicious:
         warnings.append("INJECTION: Some passages contain instruction-like text aimed at AI tools (sections: "
                         + ", ".join(suspicious[:10]) + "). Items from them are flagged for review.")
+    hidden = [p.section_number or str(p.ordinal) for p in passages if p.hidden_text]
+    if hidden:
+        warnings.append("HIDDEN: Some passages contain text a reader would not see (white, tiny, off-page or hidden "
+                        "formatting) (sections: " + ", ".join(hidden[:10]) + "). Items from them are flagged for "
+                        "review and they are never sent to a language model.")
     if not passages:
         warnings.append("SCANNED: No readable text was found in this file. Nothing was analysed.")
     amends_id = opts.amends_document_id

@@ -22,6 +22,7 @@ from claimtrace.core.models import (
     Passage,
     cap_confidence,
     derive_status,
+    excluded_from_llm,
 )
 from claimtrace.core.store import Store
 from claimtrace.core.text import find_quote, looks_like_injection, squash
@@ -98,7 +99,7 @@ def extract_llm(
     stats = {"llm_items": 0, "invalid_schema": 0, "quote_not_found": 0, "agreed_with_rules": 0, "llm_only": 0,
              "dropped_suspicious_passage": 0}
     out: list[Commitment] = []
-    for batch in _batches(passages):
+    for batch in _batches([p for p in passages if not excluded_from_llm(p)]):  # hidden / injection-like text stays local
         user = _render(doc, batch)
         if provider.host:
             store.log_egress(doc.id, provider.host, len(user.encode()), "extract")

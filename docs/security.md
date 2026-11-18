@@ -22,7 +22,8 @@ Out of scope for v0.1: multi-tenant isolation, authenticated multi-user access c
 | Active content | Reject DOCX with macros, OLE/ActiveX or external templates; reject PDFs with JavaScript, launch actions, embedded files, rich media or XFA; reject encrypted PDFs | `parsers.py` | `test_docx_macros_rejected`, `test_pdf_with_javascript_rejected` |
 | Type confusion | Extension **and** magic bytes must agree; UTF-8 required for text; 20 MB upload cap enforced while streaming | `detect_kind`, `_read_capped` | `test_type_mismatch_and_unsupported`, `test_oversized_upload_rejected` |
 | SSRF via URL ingestion | **Off by default.** http/https on ports 80/443 only, no credentials in URLs; all resolved addresses must be global (blocks private, loopback, link-local incl. 169.254.169.254, multicast, reserved, IPv4-mapped IPv6); connect to the **validated IP** with the original Host header and TLS SNI (defeats DNS rebinding between check and use); every redirect re-validated, max 3; 20 MB / 15 s caps; HTML responses refused | `ingestion/url.py` | `test_ssrf.py` (rebinding, redirect, metadata, mapped IPv6) |
-| Indirect prompt injection | Document text is wrapped in `<untrusted_document>` delimiters, the model is told it is data; model output is schema-validated; every quote is located by our code in stored text; the model has no tools and no actions exist for it to trigger; passages with instruction-like text are flagged and LLM-only items quoting them are dropped | `extraction/llm.py`, `core/text.looks_like_injection` | `test_llm_boundary.py`, `test_injected_instructions_are_just_text` |
+| Indirect prompt injection | Document text is wrapped in `<untrusted_document>` delimiters, the model is told it is data; model output is schema-validated; every quote is located by our code in stored text; the model has no tools and no actions exist for it to trigger; passages with instruction-like text are flagged and (since v0.2) never included in a model prompt; LLM-only items quoting them are dropped | `extraction/llm.py`, `verification/ask.py`, `core/models.excluded_from_llm` | `test_llm_boundary.py`, `test_injected_instructions_are_just_text` |
+| Hidden text (v0.2) | PDF text drawn white or near-white (lightest channel ≥ 0.95), in render mode 3 (invisible), under 2 pt, or positioned outside the page's media box, and DOCX runs with `w:vanish`/`w:specVanish`, white colour or size under 2 pt are recorded on the passage (`Passage.hidden_text`). The document gets a `HIDDEN:` warning; commitments from those passages are low confidence, need review, and carry a "Hidden text" caveat; the passages are never sent to a model | `parsers._pdf_page_text`, `parsers._docx_hidden`, `rules._build_commitment` | `test_hidden_text.py` |
 | Verbatim-but-misleading quotes | Stage-2 grounding: exceptions, "notwithstanding", "subject to" and a qualifying next sentence cap confidence and add caveats; condition clauses link to the clause they qualify | `rules.py` | `test_condition_clause_qualifies_its_subject` |
 | Stored XSS | React renders text nodes only (CI fails on `dangerouslySetInnerHTML`); HTML report escapes every field and sets CSP `default-src 'none'`; app CSP forbids inline scripts | `apps/web`, `report.render_html` | `test_xss_is_inert_in_reports_and_csv` |
 | CSV formula injection | Cells starting with `= + - @` are prefixed with `'` | `report.deadlines_csv` | same |
@@ -35,8 +36,9 @@ Out of scope for v0.1: multi-tenant isolation, authenticated multi-user access c
 
 ## Known gaps (tracked on the roadmap)
 
-- Hidden text in PDFs (white or 1-pt text, off-page text) and hidden DOCX runs are not detected; they are
-  parsed like visible text.
+- Hidden-text detection does not see text hidden behind images or shapes, text the same colour as a
+  coloured background, clipping paths, or DOCX text hidden through a paragraph or character *style* (only
+  direct run formatting is read). White text on a dark background is flagged although it is visible.
 - The injection detector is a pattern list; it will miss paraphrased or encoded instructions.
 - No hash-pinned Python lockfile yet; `pip-audit` is advisory.
 - The rate limiter is per process and in memory.

@@ -556,6 +556,10 @@ def _build_commitment(
     if looks_like_injection(p.text):
         confidence = Confidence.low
         reasons.append("The passage contains instruction-like text aimed at AI tools; read it yourself.")
+    if p.hidden_text:
+        confidence = Confidence.low
+        reasons.append(f"The passage contains hidden text ({p.hidden_text}); check the original document.")
+        caveats.append(f"Hidden text: this passage contains text a reader of the original would not see ({p.hidden_text}).")
     c = Commitment(
         id=_id("cmt"),
         document_id=doc.id,
