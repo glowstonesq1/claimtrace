@@ -2,17 +2,18 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { Badge, EvidenceQuote, ReviewControls } from "./components";
 import { ANSWER, CONFIDENCE, VERDICT } from "./labels";
+import { Skeleton } from "./motion";
 import type { Answer, Doc, Span, VerificationRun } from "./types";
 
 const showSpan = (s: Span) => { window.location.hash = `#/doc/${s.document_id}?p=${s.passage_id}`; };
 
 function DocPicker({ docs, selected, onChange }: { docs: Doc[]; selected: string[]; onChange: (ids: string[]) => void }) {
   return (
-    <fieldset className="card" style={{ marginBottom: 12 }}>
+    <fieldset className="card">
       <legend><strong>Search in</strong></legend>
       {docs.map((d) => (
-        <label key={d.id} style={{ fontWeight: 400, display: "flex", gap: 8, alignItems: "center", minHeight: 32 }}>
-          <input type="checkbox" style={{ width: 20, minHeight: 20 }} checked={selected.includes(d.id)}
+        <label key={d.id} className="check">
+          <input type="checkbox" checked={selected.includes(d.id)}
             onChange={(e) => onChange(e.target.checked ? [...selected, d.id] : selected.filter((x) => x !== d.id))} />
           {d.title} <span className="muted small">({d.version_label})</span>
         </label>))}
@@ -55,17 +56,18 @@ export function Ask() {
         <label htmlFor="q">Your question</label>
         <div className="row"><input id="q" value={q} onChange={(e) => setQ(e.target.value)} maxLength={1000}
           placeholder="e.g. When must the supplier deliver?" style={{ flex: "4 1 300px" }} />
-          <button className="primary" disabled={busy || q.trim().length < 3} style={{ flex: "0 0 auto" }}>
+          <button type="submit" className="primary" disabled={busy || q.trim().length < 3}>
             {busy ? "Searching…" : "Ask"}</button></div>
-        <div className="help">Try: {examples.map((x, i) => <span key={x}>{i > 0 && " · "}<button type="button"
-          className="btn" style={{ minHeight: 32, padding: "2px 8px", margin: 2 }} onClick={() => ask(x)}>{x}</button></span>)}</div>
+        <div className="help examples"><span>Try:</span>{examples.map((x) => <button key={x} type="button"
+          className="btn small" onClick={() => ask(x)}>{x}</button>)}</div>
       </form>
       {error && <div className="errbox" role="alert">{error}</div>}
-      {answer && st && (
-        <section className="card" aria-labelledby="ans-h" tabIndex={-1} ref={out}>
-          <h2 id="ans-h" style={{ marginTop: 0 }}>Answer</h2>
-          <p><Badge tone={st.tone} icon={st.icon}>{st.label}</Badge>{" "}<span className="small muted">{CONFIDENCE[answer.confidence]}</span></p>
-          <p style={{ whiteSpace: "pre-wrap" }}>{answer.answer_text}</p>
+      {busy && <Skeleton label="Searching the documents…" lines={["w-30", "w-95", "w-80", "w-95 tall", "w-60"]} />}
+      {!busy && answer && st && (
+        <section key={answer.id} className="card reveal" aria-labelledby="ans-h" tabIndex={-1} ref={out}>
+          <h2 id="ans-h" className="flush">Answer</h2>
+          <p className="badges"><Badge tone={st.tone} icon={st.icon}>{st.label}</Badge><span className="small muted">{CONFIDENCE[answer.confidence]}</span></p>
+          <p className="answer-text">{answer.answer_text}</p>
           {answer.citations.length > 0 && <h3>Sources</h3>}
           {answer.citations.map((c, i) => <EvidenceQuote key={i} span={c.span} role={c.role} note={c.note}
             verified={c.verified} onShow={showSpan} />)}
@@ -73,7 +75,7 @@ export function Ask() {
             <ol className="path">{answer.graph_path.map((g, i) => <li key={i}>{g.node}</li>)}</ol></>)}
           {answer.caveats.length > 0 && (<><h3>Things to know</h3><ul>{answer.caveats.map((c) => <li key={c}>{c}</li>)}</ul></>)}
           {answer.follow_ups.length > 0 && (<><h3>You could also ask</h3>
-            <ul className="list-plain">{answer.follow_ups.map((f) => <li key={f}><button className="btn" onClick={() => ask(f)}>{f}</button></li>)}</ul></>)}
+            <ul className="list-plain">{answer.follow_ups.map((f) => <li key={f}><button type="button" className="btn" onClick={() => ask(f)}>{f}</button></li>)}</ul></>)}
           <ReviewControls kind="answers" id={answer.id} status={answer.review_status} />
         </section>
       )}
@@ -108,7 +110,7 @@ export function Verify({ runId }: { runId?: string }) {
     <>
       <h1>Check documents against each other</h1>
       <p className="muted">Compare a contract with an amendment, a proposal, an audit report or a delivery record. Every
-        finding shows the exact text it is based on. A "Matches" result on evidence means matching text was found — you
+        finding shows the exact text it is based on. A “Matches” result on evidence means matching text was found; you
         still decide whether it is enough.</p>
       <div className="card">
         <div className="row">
@@ -118,24 +120,25 @@ export function Verify({ runId }: { runId?: string }) {
           <div className="field"><label htmlFor="other">Compare with</label>
             <select id="other" value={other} onChange={(e) => setOther(e.target.value)}>
               {docs.map((d) => <option key={d.id} value={d.id}>{d.title} ({d.version_label})</option>)}</select></div>
-          <button className="primary" style={{ flex: "0 0 auto" }} disabled={busy || !base || !other || base === other} onClick={verify}>
+          <button type="button" className="primary" disabled={busy || !base || !other || base === other} onClick={verify}>
             {busy ? "Checking…" : "Check"}</button>
         </div>
-        {base && base === other && <p className="small" style={{ color: "var(--warn)" }}>Choose two different documents.</p>}
+        {base && base === other && <p className="small note">Choose two different documents.</p>}
       </div>
       {error && <div className="errbox" role="alert">{error}</div>}
-      {run && (
+      {busy && <>{[0, 1, 2].map((i) => <Skeleton key={i} label={i === 0 ? "Checking the documents…" : ""} />)}</>}
+      {!busy && run && (
         <section aria-labelledby="res-h">
           <h2 id="res-h" tabIndex={-1} ref={out}>Findings: {title(run.base_document_id)} vs {title(run.other_document_id)}</h2>
-          <p>{order.filter((k) => run.summary[k]).map((k) => (
-            <span key={k} style={{ marginRight: 8 }}><Badge tone={VERDICT[k].tone} icon={VERDICT[k].icon}>{VERDICT[k].label}: {run.summary[k]}</Badge></span>))}</p>
-          <label style={{ fontWeight: 400, display: "flex", gap: 8, alignItems: "center" }}>
-            <input type="checkbox" style={{ width: 20, minHeight: 20 }} checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
+          <p className="badges">{order.filter((k) => run.summary[k]).map((k) => (
+            <span key={k}><Badge tone={VERDICT[k].tone} icon={VERDICT[k].icon}>{VERDICT[k].label}: {run.summary[k]}</Badge></span>))}</p>
+          <label className="check">
+            <input type="checkbox" checked={showAll} onChange={(e) => setShowAll(e.target.checked)} />
             Also show unchanged and matching items ({findings.length - important.length})</label>
-          {shown.map((f) => {
+          {shown.map((f, i) => {
             const v = VERDICT[f.verdict];
             return (
-              <article className="card" key={f.id} aria-labelledby={`f-${f.id}`}>
+              <article className="card stagger" style={{ "--i": i } as React.CSSProperties} key={f.id} aria-labelledby={`f-${f.id}`}>
                 <h3 id={`f-${f.id}`}><Badge tone={v.tone} icon={v.icon}>{v.label}</Badge>{" "}
                   <span className="small muted">Importance: {f.severity}</span></h3>
                 <p><strong>What was checked:</strong></p>

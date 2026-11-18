@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api } from "./api";
 import { Badge } from "./components";
 import { DOC_TYPE_LABEL, DOC_TYPES } from "./labels";
+import { Skeleton } from "./motion";
 import type { Doc } from "./types";
 
 export function Library({ go }: { go: (hash: string) => void }) {
@@ -66,7 +67,7 @@ export function Library({ go }: { go: (hash: string) => void }) {
     <>
       <h1>Your documents</h1>
       <section aria-labelledby="up-h" className="card">
-        <h2 id="up-h" style={{ marginTop: 0 }}>Add a document</h2>
+        <h2 id="up-h" className="flush">Add a document</h2>
         <p className="muted">PDF (with selectable text), Word (.docx), Markdown or plain text. Files stay on this computer
           unless you have turned on an external AI service.</p>
         <div className="row">
@@ -90,27 +91,28 @@ export function Library({ go }: { go: (hash: string) => void }) {
           onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
           onDrop={(e) => { e.preventDefault(); setOver(false); upload(e.dataTransfer.files); }}>
           <p>Drag files here, or</p>
-          <button className="primary" onClick={() => fileRef.current?.click()}>Choose files</button>
+          <button type="button" className="primary" onClick={() => fileRef.current?.click()}>Choose files</button>
           <input ref={fileRef} type="file" multiple accept=".pdf,.docx,.md,.markdown,.txt" className="sr"
             aria-label="Choose files to upload" onChange={(e) => upload(e.target.files)} />
         </div>
-        <div role="status" aria-live="polite" style={{ marginTop: 12 }}>{status}</div>
+        <div role="status" aria-live="polite" className="status-line">{status}</div>
         {error && <div className="errbox" role="alert">{error}</div>}
       </section>
 
+      {docs === null && !error && <Skeleton label="Loading your documents…" lines={["w-30", "w-95", "w-95", "w-95"]} />}
       {docs && docs.length === 0 && (
         <section className="card">
-          <h2 style={{ marginTop: 0 }}>Nothing here yet</h2>
+          <h2 className="flush">Nothing here yet</h2>
           <p>Try the bundled example: a fictional contract, an amendment that changes three terms, an audit report and a
             delivery record.</p>
-          <button className="primary" onClick={loadSamples}>Load sample documents</button>
+          <button type="button" className="primary" onClick={loadSamples}>Load sample documents</button>
         </section>
       )}
 
       {docs && docs.length > 0 && (
         <section aria-labelledby="lib-h">
           <h2 id="lib-h">Library</h2>
-          <table>
+          <div className="table-wrap"><table>
             <caption className="sr">Uploaded documents</caption>
             <thead><tr><th scope="col">Document</th><th scope="col">Kind</th><th scope="col">Version</th>
               <th scope="col">Status</th><th scope="col"><span className="sr">Actions</span></th></tr></thead>
@@ -121,21 +123,21 @@ export function Library({ go }: { go: (hash: string) => void }) {
                     <a href={`#/doc/${d.id}`}>{d.title}</a>
                     {d.amends_document_id && <div className="small muted">Amends “{docs.find((x) => x.id === d.amends_document_id)?.title ?? "another document"}”</div>}
                     {d.warnings.filter((w) => /^(SCANNED|INJECTION)/.test(w)).map((w) => (
-                      <div key={w} className="small" style={{ color: "var(--warn)" }}>Warning: {w.replace(/^\w+: /, "")}</div>))}
+                      <div key={w} className="small note">Warning: {w.replace(/^\w+: /, "")}</div>))}
                   </td>
                   <td>{DOC_TYPE_LABEL[d.doc_type] ?? d.doc_type}</td>
                   <td>{d.version_label}</td>
                   <td>{d.status === "analyzed" ? <Badge tone="ok" icon="check">Ready</Badge>
                     : d.status === "failed" ? <Badge tone="bad" icon="cross">Failed</Badge>
                     : <Badge tone="info">{d.status === "parsed" ? "Not analysed yet" : "Working…"}</Badge>}</td>
-                  <td style={{ whiteSpace: "nowrap" }}>
-                    {d.status === "parsed" && <button onClick={async () => { const { poll } = await api.analyze(d.id); await pollRun(poll); load(); }}>Analyse</button>}{" "}
-                    <button className="danger" onClick={() => remove(d)} aria-label={`Delete ${d.title}`}>Delete</button>
+                  <td className="actions">
+                    {d.status === "parsed" && <button type="button" onClick={async () => { const { poll } = await api.analyze(d.id); await pollRun(poll); load(); }}>Analyse</button>}{" "}
+                    <button type="button" className="danger" onClick={() => remove(d)} aria-label={`Delete ${d.title}`}>Delete</button>
                   </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
           <p className="small muted">Next: open a document to see its commitments, <a href="#/ask" onClick={() => go("#/ask")}>ask a question</a>, or <a href="#/verify">check two documents against each other</a>.</p>
         </section>
       )}
