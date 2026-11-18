@@ -40,3 +40,10 @@ Run the UI with `make serve`. For frontend work, `cd apps/web && npm run dev` pr
 Maintainers aim to triage new issues within one week and review PRs within two. Security reports follow
 [SECURITY.md](../SECURITY.md). Releases follow semantic versioning; during 0.x the API may change between
 minor versions and changes are listed in [CHANGELOG.md](../CHANGELOG.md).
+
+## Dependencies (v0.2)
+
+Runtime dependencies are pinned with hashes in `requirements.lock`. After changing
+`[project.dependencies]` in `pyproject.toml`, run `make lock` (needs `pip install pip-tools`) and commit the
+result; CI fails when the lockfile and `pyproject.toml` disagree, and `pip-audit` on the lockfile is a
+blocking check (`make audit` runs it locally).

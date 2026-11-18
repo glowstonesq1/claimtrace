@@ -32,7 +32,7 @@ Out of scope for v0.1: multi-tenant isolation, authenticated multi-user access c
 | Network exposure | Binds `127.0.0.1` by default; refuses to start on another address without `CLAIMTRACE_API_TOKEN`; Compose publishes on `127.0.0.1` only; container runs as non-root, read-only root FS, all capabilities dropped | `create_app`, `docker-compose.yml` | `test_non_loopback_without_token_refuses_to_start`, `test_token_auth` |
 | Abuse / runaway clients | Per-client token-bucket rate limit (default 120/min); retries with backoff for LLM calls | middleware, `integrations/llm.py` | `test_rate_limit` |
 | Secrets and content in logs | JSON logs with IDs, counts and durations only; validation errors never echo values; 500s return a generic message; API key never returned by `/health` | `apps/api/main.py` | `test_no_outbound_network_and_no_content_in_logs`, `test_structured_errors` |
-| Supply chain | Pinned web dependencies (lockfile); CI licence gate (no GPL/AGPL at runtime); `pip-audit` advisory; no model weights are loaded (no pickle); the parser stack avoids AGPL PyMuPDF | `ci.yml` | CI |
+| Supply chain | Pinned web dependencies (lockfile); **hash-pinned Python runtime lockfile** `requirements.lock` (pip-compile `--generate-hashes`), installed with `pip install --require-hashes` in CI and Docker, and CI fails if it drifts from `pyproject.toml`; **blocking** `pip-audit --strict` on the lockfile; CI licence gate (no GPL/AGPL at runtime); no model weights are loaded (no pickle); the parser stack avoids AGPL PyMuPDF | `requirements.lock`, `ci.yml`, `Dockerfile`, `make lock` / `make audit` | CI |
 
 ## Known gaps (tracked on the roadmap)
 
@@ -40,7 +40,9 @@ Out of scope for v0.1: multi-tenant isolation, authenticated multi-user access c
   coloured background, clipping paths, or DOCX text hidden through a paragraph or character *style* (only
   direct run formatting is read). White text on a dark background is flagged although it is visible.
 - The injection detector is a pattern list; it will miss paraphrased or encoded instructions.
-- No hash-pinned Python lockfile yet; `pip-audit` is advisory.
+- Dev and test tools (pytest, ruff, mypy, reportlab, pip-audit) are version-ranged, not hash-pinned; only the
+  runtime dependency set is locked. The optional `[ocr]` extra is not in the lockfile.
 - The rate limiter is per process and in memory.
-- The bearer token is a single shared secret; there are no user accounts.
+- The bearer token is a single shared secret; there are no user accounts. The review trail is hash-chained
+  (tamper-evident) but reviewer names are self-declared.
 - Docker image build is in CI but was not exercised in the v0.1 release environment (no Docker daemon).

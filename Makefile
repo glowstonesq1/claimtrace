@@ -33,6 +33,13 @@ e2e:            ## needs a running server on :8765 and Playwright
 eval:
 	.venv/bin/claimtrace eval run --suite core --model rules
 
+lock:           ## regenerate the hash-pinned runtime lockfile (needs pip-tools)
+	.venv/bin/pip-compile --quiet --generate-hashes --strip-extras --allow-unsafe --no-emit-index-url \
+		--output-file requirements.lock pyproject.toml
+
+audit:          ## vulnerability audit of the lockfile (needs pip-audit; queries PyPI's advisory data)
+	.venv/bin/pip-audit -r requirements.lock --require-hashes --disable-pip --strict
+
 docker:
 	docker compose up --build
 
