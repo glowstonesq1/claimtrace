@@ -1,0 +1,264 @@
+{
+  "commitment_precision": {
+    "value": 0.961,
+    "ci95": [
+      0.894,
+      1.0
+    ],
+    "n": 30,
+    "micro": 0.986
+  },
+  "commitment_recall": {
+    "value": 0.96,
+    "ci95": [
+      0.921,
+      0.989
+    ],
+    "n": 29,
+    "micro": 0.954
+  },
+  "party_attribution_accuracy": {
+    "value": 0.973,
+    "n": 146
+  },
+  "commitment_type_accuracy": {
+    "value": 0.918,
+    "n": 146
+  },
+  "review_burden": {
+    "value": 0.093,
+    "n": 151,
+    "note": "share of extracted commitments flagged for human review"
+  },
+  "calibration_extraction": {
+    "high": {
+      "value": 0.992,
+      "ci95": [
+        0.975,
+        1.0
+      ],
+      "n": 118
+    },
+    "low": {
+      "value": 1.0,
+      "ci95": [
+        1.0,
+        1.0
+      ],
+      "n": 8
+    },
+    "medium": {
+      "value": 0.955,
+      "ci95": [
+        0.864,
+        1.0
+      ],
+      "n": 22
+    }
+  },
+  "deadline_accuracy": {
+    "value": 0.8,
+    "ci95": [
+      0.6,
+      0.95
+    ],
+    "n": 20
+  },
+  "deadline_kind_accuracy": {
+    "value": 0.9,
+    "ci95": [
+      0.75,
+      1.0
+    ],
+    "n": 20
+  },
+  "condition_detection_accuracy": {
+    "value": 0.85,
+    "ci95": [
+      0.7,
+      1.0
+    ],
+    "n": 20
+  },
+  "exception_detection_accuracy": {
+    "value": 0.9,
+    "ci95": [
+      0.75,
+      1.0
+    ],
+    "n": 20
+  },
+  "verification_accuracy_consistency": {
+    "value": 0.744,
+    "ci95": [
+      0.605,
+      0.86
+    ],
+    "n": 43
+  },
+  "verification_accuracy_contradiction": {
+    "value": 0.645,
+    "ci95": [
+      0.484,
+      0.806
+    ],
+    "n": 31
+  },
+  "verification_accuracy_evidence_gap": {
+    "value": 0.727,
+    "ci95": [
+      0.545,
+      0.909
+    ],
+    "n": 22
+  },
+  "verification_accuracy_amendment": {
+    "value": 1.0,
+    "ci95": [
+      1.0,
+      1.0
+    ],
+    "n": 28
+  },
+  "amendment_effect_accuracy": {
+    "value": 0.968,
+    "ci95": [
+      0.903,
+      1.0
+    ],
+    "n": 31
+  },
+  "verification_accuracy_all": {
+    "value": 0.774,
+    "ci95": [
+      0.702,
+      0.847
+    ],
+    "n": 124
+  },
+  "contradiction_detection": {
+    "precision": 0.885,
+    "recall": 0.742,
+    "n_gold_contradictions": 31
+  },
+  "false_clear_rate": {
+    "value": 0.081,
+    "n": 124,
+    "note": "predicted consistent when gold was contradicted/partially_supported"
+  },
+  "qa_status_accuracy": {
+    "value": 0.6,
+    "ci95": [
+      0.35,
+      0.8
+    ],
+    "n": 20
+  },
+  "citation_recall": {
+    "value": 0.385,
+    "ci95": [
+      0.154,
+      0.615
+    ],
+    "n": 13
+  },
+  "citation_precision": {
+    "value": 0.385,
+    "ci95": [
+      0.154,
+      0.615
+    ],
+    "n": 13
+  },
+  "not_found_recall": {
+    "value": 1.0,
+    "ci95": [
+      1.0,
+      1.0
+    ],
+    "n": 7
+  },
+  "not_found_precision": {
+    "value": 0.467,
+    "ci95": [
+      0.2,
+      0.733
+    ],
+    "n": 15
+  },
+  "hallucination_rate": {
+    "value": 0.0,
+    "ci95": [
+      0.0,
+      0.0
+    ],
+    "n": 20
+  },
+  "calibration_qa": {
+    "high": {
+      "value": 1.0,
+      "ci95": [
+        1.0,
+        1.0
+      ],
+      "n": 3
+    },
+    "low": {
+      "value": 1.0,
+      "ci95": [
+        1.0,
+        1.0
+      ],
+      "n": 1
+    },
+    "medium": {
+      "value": 1.0,
+      "ci95": [
+        1.0,
+        1.0
+      ],
+      "n": 1
+    },
+    "unknown": {
+      "value": 0.467,
+      "ci95": [
+        0.2,
+        0.733
+      ],
+      "n": 15
+    }
+  },
+  "ambiguity_flag_accuracy": {
+    "value": 1.0,
+    "ci95": [
+      1.0,
+      1.0
+    ],
+    "n": 10
+  },
+  "latency_ms": {
+    "p50": 4.6,
+    "p95": 7.1,
+    "n": 140
+  },
+  "errors": {
+    "extraction": 0,
+    "deadline": 0,
+    "consistency": 0,
+    "contradiction": 0,
+    "qa": 0,
+    "evidence_gap": 0,
+    "amendment": 0,
+    "ambiguous": 0
+  },
+  "cases": {
+    "extraction": 30,
+    "deadline": 20,
+    "consistency": 20,
+    "contradiction": 20,
+    "qa": 20,
+    "evidence_gap": 10,
+    "amendment": 10,
+    "ambiguous": 10
+  }
+}

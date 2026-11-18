@@ -3,6 +3,31 @@
 ClaimTrace publishes its numbers, including the bad ones. This page defines every metric, describes how
 the benchmark was built and protected from the people who wrote the system, and reports the v0.1 baseline.
 
+## v0.2 results (2026-11-18, rules engine, no language model)
+
+Protocol: a new amendment-only set (`evals/datasets/amendments-v2`, 50 cases) was written by a blind agent
+that never saw the code, committed with a SHA-256 manifest **before** the v0.2 engine was scored, and scored
+exactly once. The v0.2 engine was tuned only on the core set and its own unit fixtures; nobody tuning it
+opened the sealed sets. The v0.1 engine (tag point `main@5e23b12`) was run on the same new set as a baseline.
+
+| Metric | v0.1 on amendments-v2 | **v0.2 on amendments-v2** | keyword floor | v0.1 holdout | **v0.2 holdout** |
+|---|---|---|---|---|---|
+| Amendment verdict accuracy | 0.47 (0.37–0.57) | **0.60 (0.51–0.70)** n=105 | 0.06 | 0.61 n=13 | **0.69** n=13 |
+| Amendment effect accuracy | 0.57 (0.47–0.67) | **0.71 (0.62–0.80)** n=91 | – | 0.50 n=14 | **0.57** n=14 |
+| Contradiction precision / recall | 0.67 / 0.06 | **0.83 / 0.43** (35 gold) | – / 0.00 | 0.82 / 0.64 | **0.83 / 0.71** |
+| False-clear rate | 0.00 | **0.00** | 0.35 | 0.03 | **0.03** |
+| Hallucination rate (holdout QA) | – | – | – | 0.00 | **0.00** |
+
+On the core (tuning) set amendment verdict/effect went 0.89/0.87 → 1.00/0.97; that shows no regression,
+not generalisation. All other core and holdout metrics are unchanged.
+
+**What this means.** v0.2 is measurably better at amendments on unseen drafting (+13 points verdict,
++14 points effect, contradiction recall 0.06 → 0.43) and still never gave a false all-clear. It is **not good
+enough to trust unreviewed**: four in ten amendment verdicts on unseen wording are wrong, mostly by
+returning "needs review"/"not addressed" where a change was real. The sealed set is now spent for
+tuning purposes; v0.3 needs another fresh one. Runs: `evals/runs/published/v2-*` and
+`v1-amendments-v2-rules`.
+
 ## TL;DR (v0.1.0, rules baseline, no language model)
 
 - **Grounding holds**: 0.00 hallucination rate and 1.00 "not found" recall on both sets; every quote is

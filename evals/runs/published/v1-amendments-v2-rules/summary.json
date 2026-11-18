@@ -1,0 +1,47 @@
+{
+  "verification_accuracy_amendment": {
+    "value": 0.467,
+    "ci95": [
+      0.371,
+      0.571
+    ],
+    "n": 105
+  },
+  "amendment_effect_accuracy": {
+    "value": 0.571,
+    "ci95": [
+      0.473,
+      0.67
+    ],
+    "n": 91
+  },
+  "verification_accuracy_all": {
+    "value": 0.467,
+    "ci95": [
+      0.371,
+      0.571
+    ],
+    "n": 105
+  },
+  "contradiction_detection": {
+    "precision": 0.667,
+    "recall": 0.057,
+    "n_gold_contradictions": 35
+  },
+  "false_clear_rate": {
+    "value": 0.0,
+    "n": 105,
+    "note": "predicted consistent when gold was contradicted/partially_supported"
+  },
+  "latency_ms": {
+    "p50": 3.4,
+    "p95": 4.9,
+    "n": 50
+  },
+  "errors": {
+    "amendment": 0
+  },
+  "cases": {
+    "amendment": 50
+  }
+}

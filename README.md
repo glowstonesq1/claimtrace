@@ -148,9 +148,9 @@ One Python distribution (`claimtrace`); the directories under `packages/` are it
 [docs/architecture.md](docs/architecture.md), [data model](docs/data-model.md),
 [commitment model](docs/commitment-model.md) and [question answering](docs/question-answering.md).
 
-## Evaluation (v0.1.0, rules engine, no model)
+## Evaluation (v0.2, rules engine, no model)
 
-Benchmark: 140 core cases plus 46 sealed holdout cases. Both sets are synthetic and were written by isolated
+Benchmark: 140 core cases, 46 sealed holdout cases and 50 sealed amendment cases (added in v0.2, scored once). Both sets are synthetic and were written by isolated
 agents that did not see the code. The holdout set was never opened before scoring. Full protocol, definitions
 and every number: [docs/evaluation.md](docs/evaluation.md).
 
@@ -158,18 +158,18 @@ and every number: [docs/evaluation.md](docs/evaluation.md).
 |---|---|---|
 | Hallucination rate (lower is better) | **0.00** | 0.50 |
 | False-clear rate (said "consistent" when it was not) | **0.03** | 0.29 |
-| Contradiction detection, precision / recall | **0.82 / 0.64** | – / 0.00 |
+| Contradiction detection, precision / recall | **0.83 / 0.71** | – / 0.00 |
 | "Not found" recall | **1.00** | 0.00 |
 | QA status accuracy | **0.88** (0.62–1.00) | 0.50 |
 | Party attribution | **0.97** | 0.69 |
 | Deadline accuracy | **0.83** (0.50–1.00) | 0.00 |
 | Commitment recall | 0.88 (0.72–1.00) | 0.87 |
-| Amendment verification accuracy | **0.61** (0.31–0.85) | 0.00 |
-| Amendment effect accuracy | **0.50** (0.21–0.71) | – |
+| Amendment verdict accuracy, sealed amendment set (n=105) | **0.60** (0.51–0.70); v0.1 was 0.47 | 0.06 |
+| Amendment effect accuracy, sealed amendment set (n=91) | **0.71** (0.62–0.80); v0.1 was 0.57 | – |
 
 **Read this before trusting it:**
-- Amendment handling scored 0.89 on the set used for error analysis but **0.61 on the holdout**. The
-  instruction patterns are overfitted to the drafting styles seen during development. Check amendments
+- Amendments improved on unseen drafting (0.47 → 0.60 verdict accuracy on a fresh blind set) but **four in
+  ten amendment verdicts are still wrong**, usually "needs review" where a change was real. Check amendments
   yourself.
 - On consistency checks the rules don't beat a constant "consistent" guess. The value is in catching
   contradictions and not giving false all-clears.
