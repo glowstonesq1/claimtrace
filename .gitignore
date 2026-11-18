@@ -16,3 +16,8 @@ evals/runs/*
 *.egg-info/
 apps/web/node_modules/
 apps/api/static/
+
+# promo film (apps/promo)
+apps/promo/node_modules/
+apps/promo/out/
+apps/promo/public/audio/
