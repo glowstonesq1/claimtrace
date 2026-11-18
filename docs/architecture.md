@@ -180,6 +180,21 @@ Checks inside the parsers (D12):
 - PDF: rejects `/JavaScript`, `/JS`, `/Launch`, `/EmbeddedFile`, `/RichMedia`, `/XFA`
   byte markers, encrypted files, Names-tree JavaScript or embedded files, and more than 500
   pages. Fewer than 40 text characters per page adds a `SCANNED:` warning.
+- PDF hidden text (v0.2): while extracting each page, text drawn white or near-white, in
+  render mode 3, under 2 pt, or outside the media box is recorded on the block and later on the
+  passage (`hidden_text`); DOCX runs with `w:vanish`, white colour or under 2 pt likewise. See
+  [security.md](security.md).
+- OCR (v0.2, optional extra `pip install 'claimtrace[ocr]'` plus the `tesseract` binary): pages
+  with fewer than 40 text characters are rendered with pypdfium2 at 300 dpi and read with
+  Tesseract (`ingestion/ocr.py`). OCR text replaces a page's text only if it is longer. Each OCR
+  passage stores the page's mean word confidence (`Passage.ocr_confidence`); the document gets an
+  `OCR:` warning listing pages and confidences, and items from pages under 70/100 are capped at
+  medium confidence, need review and carry a caveat. Without the binary or packages, or with
+  `CLAIMTRACE_OCR=off`, scanned PDFs get exactly the v0.1 `SCANNED:` warning; an OCR failure keeps
+  the text layer and adds a warning. The engine is a seam (`OcrFunc(pdf_bytes, pages) ->
+  {page: (text, confidence)}`) passed as `IngestOptions(ocr=...)` for in-process parsing; the
+  sandbox worker uses the installed engine and its CPU/memory limits apply to OCR too, so very
+  long scans may hit the 30 s CPU limit.
 - After parsing, `pipeline.ingest_bytes` adds an `INJECTION:` warning listing sections whose
   text matches `looks_like_injection`, and a `SCANNED:` warning if no passages were found.
 

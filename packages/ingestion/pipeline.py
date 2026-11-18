@@ -10,6 +10,7 @@ from claimtrace.core.models import DocType, Document, Passage
 from claimtrace.core.store import Store
 from claimtrace.core.text import NORMALIZER_VERSION, normalize, sha256_bytes, sha256_text
 
+from .ocr import OcrFunc
 from .parsers import IngestError, RawDoc, detect_kind
 from .sandbox import parse_sandboxed
 
@@ -31,6 +32,7 @@ class IngestOptions:
     tags: list[str] | None = None
     allow_external_llm: bool = False
     sandbox: bool = True
+    ocr: OcrFunc | None = None  # in-process parsing only; the sandbox uses the installed engine (ocr.default_ocr)
 
 
 def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
@@ -87,6 +89,7 @@ def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
                 char_end=offset,
                 text=text,
                 hidden_text=block.hidden,
+                ocr_confidence=block.ocr_confidence,
             )
         )
     return "\n\n".join(parts), passages
@@ -132,7 +135,7 @@ def ingest_bytes(store: Store, filename: str, data: bytes, opts: IngestOptions |
     else:
         from .parsers import parse
 
-        raw = parse(kind, data)
+        raw = parse(kind, data, opts.ocr)
     doc_id = "doc_" + uuid.uuid4().hex[:12]
     text, passages = segment(raw, doc_id)
     warnings = list(raw.warnings)

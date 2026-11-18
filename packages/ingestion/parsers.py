@@ -11,6 +11,10 @@ import re
 import zipfile
 from dataclasses import asdict, dataclass, field
 
+from claimtrace.core.models import OCR_LOW_CONFIDENCE
+
+from .ocr import OcrFunc, default_ocr
+
 
 class IngestError(Exception):
     def __init__(self, code: str, message: str) -> None:
@@ -317,7 +321,8 @@ def _hidden_reason(para: str, hidden: list[tuple[str, str]]) -> str | None:
 _PDF_DANGEROUS = (b"/JavaScript", b"/JS ", b"/JS(", b"/Launch", b"/EmbeddedFile", b"/RichMedia", b"/XFA")
 
 
-def parse_pdf(data: bytes) -> RawDoc:
+def parse_pdf(data: bytes, ocr: OcrFunc | None = None) -> RawDoc:
+    """`ocr` reads pages without a text layer; None means the installed engine, if any (see ocr.py)."""
     from pypdf import PdfReader
     from pypdf.errors import PdfReadError
 
@@ -340,13 +345,33 @@ def parse_pdf(data: bytes) -> RawDoc:
     if n > MAX_PDF_PAGES:
         raise IngestError("too_many_pages", f"PDF has {n} pages; the limit is {MAX_PDF_PAGES}.")
     blocks: list[Block] = []
+    warnings: list[str] = []
+    pages = [_pdf_page_text(page) for page in reader.pages]
+    thin = [i for i, (txt, _) in enumerate(pages, start=1) if len(txt.strip()) < 40]
+    engine = ocr if ocr is not None else default_ocr()
+    read: dict[int, tuple[str, float]] = {}
+    if thin and engine is not None:
+        try:
+            read = engine(data, thin)
+        except Exception:  # noqa: BLE001 - an OCR failure must not lose the text layer
+            warnings.append("OCR failed on this file; pages without a text layer were not read.")
     chars = 0
-    for i, page in enumerate(reader.pages, start=1):
-        txt, hidden = _pdf_page_text(page)
+    used: dict[int, float] = {}
+    for i, (txt, hidden) in enumerate(pages, start=1):
+        o_text, o_conf = read.get(i, ("", 0.0))
+        if i in thin and len(o_text.strip()) > len(txt.strip()):
+            used[i] = o_conf
+            chars += len(o_text.strip())
+            for para in _pdf_paragraphs(o_text):
+                blocks.append(Block(text=para, page=i, heading=_looks_like_heading(para), ocr_confidence=o_conf))
+            continue
         chars += len(txt.strip())
         for para in _pdf_paragraphs(txt):
             blocks.append(Block(text=para, page=i, heading=_looks_like_heading(para), hidden=_hidden_reason(para, hidden)))
-    warnings: list[str] = []
+    if used:
+        detail = ", ".join(f"page {p} {c:.0f}/100" + (" (low)" if c < OCR_LOW_CONFIDENCE else "") for p, c in used.items())
+        warnings.append(f"OCR: {len(used)} page(s) without a text layer were read by OCR (mean word confidence: {detail}). "
+                        "OCR can misread words and numbers; check quotes against the original.")
     if chars < 40 * max(n, 1):
         warnings.append(
             "SCANNED: This PDF has little or no text layer (it may be a scanned image). "
@@ -393,9 +418,9 @@ def _pdf_paragraphs(txt: str) -> list[str]:
     return paras
 
 
-def parse(kind: str, data: bytes) -> RawDoc:
+def parse(kind: str, data: bytes, ocr: OcrFunc | None = None) -> RawDoc:
     if kind == "pdf":
-        return parse_pdf(data)
+        return parse_pdf(data, ocr)
     if kind == "docx":
         return parse_docx(data)
     return parse_text(data, markdown=(kind == "md"))

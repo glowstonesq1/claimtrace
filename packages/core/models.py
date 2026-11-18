@@ -221,6 +221,10 @@ class Passage(_Model):
     char_end: int
     text: str
     hidden_text: str | None = None  # why (part of) this passage is invisible to a reader; excluded from model prompts
+    ocr_confidence: float | None = None  # mean OCR word confidence (0-100) of the page, when the text came from OCR
+
+
+OCR_LOW_CONFIDENCE = 70.0  # below this, items from an OCR page carry a caveat and need review
 
 
 def excluded_from_llm(p: Passage) -> bool:

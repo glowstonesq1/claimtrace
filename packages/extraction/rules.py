@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 
 from claimtrace.core.models import (
     EVIDENCE_TYPES,
+    OCR_LOW_CONFIDENCE,
     AmendmentInstruction,
     Claim,
     Commitment,
@@ -565,6 +566,11 @@ def _build_commitment(
     if looks_like_injection(p.text):
         confidence = Confidence.low
         reasons.append("The passage contains instruction-like text aimed at AI tools; read it yourself.")
+    if p.ocr_confidence is not None and p.ocr_confidence < OCR_LOW_CONFIDENCE:
+        confidence = cap_confidence(confidence, Confidence.medium)
+        reasons.append(f"Text was read by OCR with low confidence ({p.ocr_confidence:.0f}/100).")
+        caveats.append(f"Read by OCR with low confidence ({p.ocr_confidence:.0f}/100) on page {p.page or '?'}; "
+                       "check the quote against the original.")
     if p.hidden_text:
         confidence = Confidence.low
         reasons.append(f"The passage contains hidden text ({p.hidden_text}); check the original document.")
