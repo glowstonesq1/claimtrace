@@ -1,0 +1,18 @@
+name: Feature request
+description: Suggest an improvement
+labels: [enhancement]
+body:
+  - type: textarea
+    id: job
+    attributes: { label: What are you trying to get done?, description: "Describe the task, not the solution." }
+    validations: { required: true }
+  - type: textarea
+    id: idea
+    attributes: { label: Proposed change }
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This is not a request for legal advice, risk scoring, or automated actions (see non-goals in README).
+          required: true

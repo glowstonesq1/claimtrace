@@ -1,0 +1,15 @@
+{
+  "claimtrace_version": "0.1.0",
+  "system": "rules",
+  "suite": "holdout",
+  "dataset_sha256": "0290659bc35d879d049e4916f312b88c345de71cd1c1f8b08cbe5de43f9692e9",
+  "git_commit": "1899c3c0ba62f0ad758e3f2ecc35dfec823de784",
+  "timestamp": "20261118T153250Z",
+  "extractor_version": "rules-0.1.0",
+  "normalizer_version": "norm-1",
+  "extract_prompt_version": null,
+  "answer_prompt_version": null,
+  "model": null,
+  "repeats": 1,
+  "python": "3.13.18"
+}

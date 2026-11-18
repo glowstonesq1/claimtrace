@@ -1,0 +1,212 @@
+{
+  "commitment_precision": {
+    "value": 1.0,
+    "ci95": [
+      1.0,
+      1.0
+    ],
+    "n": 8,
+    "micro": 1.0
+  },
+  "commitment_recall": {
+    "value": 0.867,
+    "ci95": [
+      0.7,
+      0.975
+    ],
+    "n": 8,
+    "micro": 0.854
+  },
+  "party_attribution_accuracy": {
+    "value": 0.686,
+    "n": 35
+  },
+  "commitment_type_accuracy": {
+    "value": 0.8,
+    "n": 35
+  },
+  "review_burden": {
+    "value": 0.0,
+    "n": 35,
+    "note": "share of extracted commitments flagged for human review"
+  },
+  "calibration_extraction": {
+    "medium": {
+      "value": 1.0,
+      "ci95": [
+        1.0,
+        1.0
+      ],
+      "n": 35
+    }
+  },
+  "deadline_accuracy": {
+    "value": 0.0,
+    "ci95": [
+      0.0,
+      0.0
+    ],
+    "n": 6
+  },
+  "deadline_kind_accuracy": {
+    "value": 0.0,
+    "ci95": [
+      0.0,
+      0.0
+    ],
+    "n": 6
+  },
+  "condition_detection_accuracy": {
+    "value": 0.833,
+    "ci95": [
+      0.5,
+      1.0
+    ],
+    "n": 6
+  },
+  "exception_detection_accuracy": {
+    "value": 0.833,
+    "ci95": [
+      0.5,
+      1.0
+    ],
+    "n": 6
+  },
+  "verification_accuracy_consistency": {
+    "value": 0.762,
+    "ci95": [
+      0.571,
+      0.905
+    ],
+    "n": 21
+  },
+  "verification_accuracy_contradiction": {
+    "value": 0.389,
+    "ci95": [
+      0.167,
+      0.611
+    ],
+    "n": 18
+  },
+  "verification_accuracy_evidence_gap": {
+    "value": 0.364,
+    "ci95": [
+      0.091,
+      0.636
+    ],
+    "n": 11
+  },
+  "verification_accuracy_amendment": {
+    "value": 0.0,
+    "ci95": [
+      0.0,
+      0.0
+    ],
+    "n": 13
+  },
+  "verification_accuracy_all": {
+    "value": 0.429,
+    "ci95": [
+      0.302,
+      0.556
+    ],
+    "n": 63
+  },
+  "contradiction_detection": {
+    "precision": null,
+    "recall": 0.0,
+    "n_gold_contradictions": 14
+  },
+  "false_clear_rate": {
+    "value": 0.286,
+    "n": 63,
+    "note": "predicted consistent when gold was contradicted/partially_supported"
+  },
+  "qa_status_accuracy": {
+    "value": 0.5,
+    "ci95": [
+      0.125,
+      0.875
+    ],
+    "n": 8
+  },
+  "citation_recall": {
+    "value": 0.0,
+    "ci95": [
+      0.0,
+      0.0
+    ],
+    "n": 8
+  },
+  "citation_precision": {
+    "value": 0.0,
+    "ci95": [
+      0.0,
+      0.0
+    ],
+    "n": 8
+  },
+  "not_found_recall": {
+    "value": 0.0,
+    "ci95": [
+      0.0,
+      0.0
+    ],
+    "n": 4
+  },
+  "not_found_precision": {
+    "value": null,
+    "n": 0
+  },
+  "hallucination_rate": {
+    "value": 0.5,
+    "ci95": [
+      0.125,
+      0.875
+    ],
+    "n": 8
+  },
+  "calibration_qa": {
+    "medium": {
+      "value": 0.5,
+      "ci95": [
+        0.125,
+        0.875
+      ],
+      "n": 8
+    }
+  },
+  "ambiguity_flag_accuracy": {
+    "value": 0.0,
+    "ci95": [
+      0.0,
+      0.0
+    ],
+    "n": 4
+  },
+  "latency_ms": {
+    "p50": 0.0,
+    "p95": 1.8,
+    "n": 46
+  },
+  "errors": {
+    "extraction": 0,
+    "deadline": 0,
+    "consistency": 0,
+    "contradiction": 0,
+    "qa": 0,
+    "evidence_gap": 0,
+    "amendment": 0,
+    "ambiguous": 0
+  },
+  "cases": {
+    "extraction": 8,
+    "deadline": 6,
+    "consistency": 6,
+    "contradiction": 6,
+    "qa": 8,
+    "evidence_gap": 4,
+    "amendment": 4,
+    "ambiguous": 4
+  }
+}

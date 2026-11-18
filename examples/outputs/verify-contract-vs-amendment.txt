@@ -1,0 +1,9 @@
+mode: amendment  summary: {'consistent': 0, 'contradicted': 4, 'partially_supported': 0, 'not_addressed': 15, 'ambiguous': 0, 'needs_human_review': 0}
+- [contradicted · high] The Vendor shall deliver the Phase 1 System no later than March 31, 2026.
+    Changed by the amendment (§2.1). Date differs: 31 Mar 2026 vs 15 May 2026.
+- [contradicted · high] The Customer shall pay each undisputed invoice within 30 days of receipt.
+    Changed by the amendment (§3.2). Period differs: 30 vs 45 days.
+- [contradicted · high] The Vendor shall notify the Customer of any personal data breach within 48 hours of becomi
+    Changed by the amendment (§5.3). Period differs: 48 vs 72 hours.
+- [contradicted · high] The Customer shall pay the Vendor a fixed fee of GBP 120,000 for the Phase 1 System.
+    Changed by the amendment (§2.1). Amount differs: 120,000 vs 110,000.

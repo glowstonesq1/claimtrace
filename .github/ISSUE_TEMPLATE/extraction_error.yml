@@ -1,0 +1,16 @@
+name: Wrong or missed commitment / answer
+description: ClaimTrace extracted, answered or verified something incorrectly
+labels: [accuracy]
+body:
+  - type: textarea
+    id: clause
+    attributes: { label: Clause or passages (synthetic or anonymised), render: markdown }
+    validations: { required: true }
+  - type: textarea
+    id: got
+    attributes: { label: What ClaimTrace produced }
+    validations: { required: true }
+  - type: textarea
+    id: want
+    attributes: { label: What it should produce, description: "If you can, express it as an eval case (see evals/SCHEMA.md)." }
+    validations: { required: true }

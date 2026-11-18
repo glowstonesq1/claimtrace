@@ -1,0 +1,25 @@
+name: Bug report
+description: Something ClaimTrace did wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Please do not attach real confidential documents. A short synthetic snippet that reproduces the problem is best. Security issues: see SECURITY.md instead."
+  - type: textarea
+    id: what
+    attributes: { label: What happened, description: "Include the command or UI steps." }
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes: { label: What you expected }
+    validations: { required: true }
+  - type: textarea
+    id: snippet
+    attributes: { label: Minimal document text that reproduces it, render: markdown }
+  - type: input
+    id: version
+    attributes: { label: Version / commit, placeholder: "0.1.0 or git sha" }
+    validations: { required: true }
+  - type: dropdown
+    id: provider
+    attributes: { label: Model provider, options: ["rules (default)", "ollama", "openai-compatible"] }

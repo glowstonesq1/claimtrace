@@ -1,0 +1,29 @@
+mode: evidence  summary: {'consistent': 1, 'contradicted': 2, 'partially_supported': 1, 'not_addressed': 9, 'ambiguous': 0, 'needs_human_review': 1}
+- [not_addressed · low] The Vendor shall provide weekly written progress reports to the Customer until Acceptance.
+    No matching text found in the evidence document. This does not mean the commitment was missed.
+- [not_addressed · low] The Customer shall provide the Vendor with access to its test environment within 10 Busine
+    No matching text found in the evidence document. This does not mean the commitment was missed.
+- [not_addressed · low] The Customer shall pay the Vendor a fixed fee of GBP 120,000 for the Phase 1 System.
+    No matching text found in the evidence document. This does not mean the commitment was missed.
+- [contradicted · high] The Vendor shall ensure the Phase 1 System is available 99.5% of the time in each calendar
+    Measured 99.1% is below the committed 99.5%.
+- [consistent · info] The Vendor shall encrypt all Customer data at rest using AES-256 or stronger.
+    Matching text was located in the other document.
+- [contradicted · high] The Vendor shall not transfer Customer data outside the United Kingdom without the Custome
+    Location differs: commitment refers to United Kingdom; other document says Ireland.
+- [partially_supported · medium] The Vendor shall maintain multi-factor authentication for all administrative access to sys
+    Part of the commitment is supported, but the other document also reports an exception or gap: "However, two shared break-glass accounts were found without multi-factor authentication."
+- [not_addressed · low] Each party must keep the other party's confidential information secret and must not disclo
+    No matching text found in the evidence document. This does not mean the commitment was missed.
+- [not_addressed · low] Each party must keep the other party's confidential information secret and must not disclo
+    No matching text found in the evidence document. This does not mean the commitment was missed.
+- [not_addressed · low] The Vendor shall deliver the Phase 1 System no later than May 15, 2026.
+    No matching text found in the evidence document. This does not mean the commitment was missed.
+- [not_addressed · low] The Customer shall pay each undisputed invoice within 45 days of receipt.
+    No matching text found in the evidence document. This does not mean the commitment was missed.
+- [needs_human_review · medium] The Vendor shall notify the Customer of any personal data breach within 72 hours of becomi
+    Same period (72 hours) but a different starting point: "becoming aware of it" vs "confirming a breach". The clock may start later.
+- [not_addressed · low] The Vendor shall complete an independent penetration test of the Phase 1 System before go-
+    The other document says this was not examined, so it neither supports nor contradicts the commitment.
+- [not_addressed · low] In consideration of the revised delivery date, the Vendor shall reduce the fixed fee in cl
+    No matching text found in the evidence document. This does not mean the commitment was missed.
