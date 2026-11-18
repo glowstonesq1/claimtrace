@@ -288,9 +288,19 @@ class Claim(_Model):
 class AmendmentInstruction(_Model):
     id: str
     document_id: str
+    # a clause number ("4.2"), a schedule ("Schedule 2"), a heading ("title:Confidentiality"),
+    # "*" for an amended-and-restated document, or "after 4.3"/"before 4.1" for an unnumbered insert
     target_section: str
-    action: str  # replace | delete | insert | modify
+    action: str  # replace | delete | insert | modify | renumber | restate
     new_text: str | None
+    old_text: str | None = None  # modify: the words being changed
+    anchor_section: str | None = None  # insert: the clause it goes after/before
+    position: str | None = None  # insert: "after" | "before"
+    renumber_to: str | None = None  # renumber: the new clause number
+    # set by apply_amendments once the target is looked up in the amended document
+    resolved_section: str | None = None
+    needs_review: bool = False
+    review_reasons: list[str] = Field(default_factory=list)
     provenance: Provenance
 
 

@@ -1,0 +1,19 @@
+=== base ===
+# Translation Services Agreement
+
+This Agreement is made between Polyglot Bridge Ltd (the "Supplier") and Cairnbrook Medical Devices Ltd (the "Customer").
+
+## 5. Turnaround
+5.1 The Supplier shall return each translated document within 5 working days.
+5.2 The Supplier shall use a qualified medical translator for every document.
+=== amendment ===
+# Variation
+
+This Variation is made on 7 December 2027 between Polyglot Bridge Ltd (the "Supplier") and Cairnbrook Medical Devices Ltd (the "Customer").
+
+1. In clause 5.1, the words "10 working days" are replaced by "3 working days".
+=== expected ===
+{"effects": {"5.1": "in_force", "5.2": "in_force"},
+ "actions": ["modify"],
+ "unresolved": 1,
+ "verdicts": [{"subject_contains": "within 5 working days", "verdict": "needs_human_review"}]}

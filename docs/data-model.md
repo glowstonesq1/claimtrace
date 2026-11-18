@@ -43,7 +43,7 @@ All models forbid extra fields (`extra="forbid"`).
 | source_document_id, document_version | Origin document. |
 | span | The exact text the object was extracted from. |
 | extraction_method | `rules`, `llm`, or `rules+llm` (rules item the model independently found with the same party). |
-| extractor_version | `EXTRACTOR_VERSION` (`rules-0.1.0`), also on LLM items. |
+| extractor_version | `EXTRACTOR_VERSION` (`rules-0.2.0`), also on LLM items. |
 | model, endpoint_host, prompt_version | Set for LLM items (`extract-commitments-v1`). |
 | extracted_at | UTC time. |
 | confidence | Copy of the object's confidence at creation. |

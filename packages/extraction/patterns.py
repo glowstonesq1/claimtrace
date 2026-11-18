@@ -251,16 +251,26 @@ def find_dates(text: str) -> list[FoundDate]:
     return sorted(out, key=lambda f: f.start)
 
 
-_NUMWORDS = {
-    w: i
-    for i, w in enumerate(
-        "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
-        "seventeen eighteen nineteen twenty".split()
-    )
-}
-_NUMWORDS.update(
-    {"thirty": 30, "forty": 40, "forty-five": 45, "fifty": 50, "sixty": 60, "ninety": 90, "hundred": 100, "a": 1, "an": 1}
-)
+_ONES = (
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
+    "seventeen eighteen nineteen"
+).split()
+_TENS = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
+
+
+def number_words(n: int) -> str | None:
+    """0..99 as English words ("forty-five"); None outside that range."""
+    if 0 <= n < 20:
+        return _ONES[n]
+    if 20 <= n < 100:
+        tens = next(w for w, v in _TENS.items() if v == n - n % 10)
+        return tens if n % 10 == 0 else f"{tens}-{_ONES[n % 10]}"
+    return None
+
+
+NUMBER_WORDS: dict[str, int] = {w: n for n in range(100) if (w := number_words(n))}
+_NUMWORDS = dict(NUMBER_WORDS)
+_NUMWORDS.update({"hundred": 100, "a": 1, "an": 1})
 _NUM = r"(?:\d+|" + "|".join(sorted((re.escape(k) for k in _NUMWORDS), key=len, reverse=True)) + r")"
 RELATIVE_RE = re.compile(
     rf"\b(?:within|no\s+later\s+than|not\s+later\s+than|not\s+more\s+than|at\s+least|before\s+the\s+expiry\s+of|"

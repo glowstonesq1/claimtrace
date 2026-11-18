@@ -16,7 +16,8 @@ from .sandbox import parse_sandboxed
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
 _NUM = re.compile(r"^(?P<num>(?:\d+(?:\.\d+)*\.?|[A-Z]\.\d+(?:\.\d+)*|\([a-z]{1,3}\)|[a-z]\)))\s+")
-_HEADING_NUM = re.compile(r"^(?:(?:Section|Clause|Article|Schedule)\s+)?(\d+(?:\.\d+)*|[A-Z])\.?\s+(.+)$")
+_HEADING_NUM = re.compile(r"^(?:(?:Section|Clause|Article)\s+)?(\d+(?:\.\d+)*|[A-Z])\.?\s+(.+)$")
+_SCHEDULE_HEADING = re.compile(r"^(Schedule|Annex|Appendix|Exhibit)\s+(\d+|[A-Z])\b[.:]?(?:\s*[-:]?\s*(.*))?$", re.I)
 
 
 @dataclass
@@ -40,15 +41,24 @@ def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
     section_title: str | None = None
     heading_num: str | None = None
     parent_num: str | None = None
+    schedule: str | None = None  # "Schedule 2": numbers inside it become "Schedule 2/1.1"
     for block in raw.blocks:
         text = normalize(block.text)
         if not text:
             continue
-        if block.heading:
-            m = _HEADING_NUM.match(text)
-            heading_num, section_title = (m.group(1), m.group(2)) if m else (None, text)
+        sm = _SCHEDULE_HEADING.match(text)
+        if sm and (block.heading or (len(text) < 90 and not text.endswith((".", ";", ",")))):
+            schedule = f"{sm.group(1).title()} {sm.group(2).upper() if sm.group(2).isalpha() else sm.group(2)}"
+            heading_num, section_title = schedule, (sm.group(3) or "").strip(" -:.") or text
             parent_num = heading_num
             number: str | None = heading_num
+        elif block.heading:
+            m = _HEADING_NUM.match(text)
+            heading_num, section_title = (m.group(1), m.group(2)) if m else (None, text)
+            if schedule and heading_num:  # schedules come last: a numbered heading stays inside it
+                heading_num = f"{schedule}/{heading_num}"
+            parent_num = heading_num if (m or not schedule) else schedule
+            number = heading_num if m else parent_num
         else:
             m = _NUM.match(text)
             if m:
@@ -56,8 +66,8 @@ def segment(raw: RawDoc, doc_id: str) -> tuple[str, list[Passage]]:
                 if raw_num.startswith("(") or raw_num.endswith(")"):
                     number = f"{parent_num}{raw_num if raw_num.startswith('(') else '(' + raw_num}" if parent_num else raw_num
                 else:
-                    number = raw_num
-                    parent_num = raw_num
+                    number = f"{schedule}/{raw_num}" if schedule else raw_num
+                    parent_num = number
             else:
                 number = parent_num or heading_num
         if parts:

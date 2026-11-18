@@ -35,9 +35,9 @@ from claimtrace.core.models import (
 from claimtrace.core.text import find_quote, looks_like_injection, sentences_with_offsets
 
 from . import patterns as P
-from .amendments import parse_instructions
+from .amendments import find_restatement, parse_instructions
 
-EXTRACTOR_VERSION = "rules-0.1.0"
+EXTRACTOR_VERSION = "rules-0.2.0"
 
 _REMEDY = re.compile(
     r"\b(?:service\s+credits?|liquidated\s+damages|terminat\w*|refund|compensat\w*|penalt\w*|"
@@ -222,26 +222,11 @@ def extract_rules(doc: Document, passages: list[Passage]) -> ExtractionResult:
     # 2. amendment instructions (their quoted replacement text is extracted as amendment commitments)
     instruction_passages: set[str] = set()
     if doc.doc_type == DocType.amendment or doc.amends_document_id:
-        for p in passages:
-            for ins in parse_instructions(p.text):
-                span = make_span(doc, p, ins.start, ins.end)
-                res.instructions.append(
-                    AmendmentInstruction(
-                        id=_id("ins"),
-                        document_id=doc.id,
-                        target_section=ins.target,
-                        action=ins.action,
-                        new_text=ins.new_text,
-                        provenance=make_prov(doc, span, Confidence.high),
-                    )
-                )
-                instruction_passages.add(p.id)
-                if ins.new_text and ins.new_start is not None:
-                    for c in _commitments_in(doc, p, resolver, ref_date, ins.new_start, ins.new_end):
-                        c.amends_section = ins.target
-                        c.section_number = ins.target
-                        c.status = derive_status(c)
-                        res.commitments.append(c)
+        restated = _restatement(doc, passages)
+        if restated is not None:
+            res.instructions.append(restated)  # the whole document is the new version; extract it normally
+        else:
+            _instructions(doc, passages, resolver, ref_date, res, instruction_passages)
 
     # 3. commitments and claims
     lead_in: tuple[str, str] | None = None  # (subject, modal phrase) from "The Supplier shall:"
@@ -335,6 +320,90 @@ def extract_rules(doc: Document, passages: list[Passage]) -> ExtractionResult:
                         target.caveats.append(f'Qualified by §{c.section_number}: "{c.text[:120]}"')
                         target.confidence = cap_confidence(target.confidence, Confidence.medium)
     return res
+
+
+_SCHEDULE_TARGET = re.compile(r"^(?:Schedule|Annex|Appendix|Exhibit) \w+$")
+
+
+def _restatement(doc: Document, passages: list[Passage]) -> AmendmentInstruction | None:
+    """An amended-and-restated document supersedes the whole earlier version (target "*")."""
+    for p in passages[:6]:
+        m = find_restatement(p.text)
+        if m:
+            span = make_span(doc, p, m.start(), m.end())
+            return AmendmentInstruction(id=_id("ins"), document_id=doc.id, target_section="*", action="restate",
+                                        new_text=None, provenance=make_prov(doc, span, Confidence.high))
+    return None
+
+
+def _following(passages: list[Passage], idx: int, target: str) -> list[Passage]:
+    """Passages after an instruction ending in ':' that hold its replacement text."""
+    out: list[Passage] = []
+    if _SCHEDULE_TARGET.match(target):
+        rx = re.compile(rf"\b{re.escape(target)}\b", re.I)
+        for q in passages[idx + 1 :]:
+            if q.section_title and rx.search(q.section_title) and not parse_instructions(q.text):
+                out.append(q)
+        return out
+    for q in passages[idx + 1 :]:
+        if parse_instructions(q.text):
+            break
+        sec = q.section_number or ""
+        if out and not (sec == target or sec.startswith((target + ".", target + "("))):
+            break
+        out.append(q)
+    return out
+
+
+def _instructions(
+    doc: Document,
+    passages: list[Passage],
+    resolver: PartyResolver,
+    ref_date: dt.date | None,
+    res: ExtractionResult,
+    instruction_passages: set[str],
+) -> None:
+    consumed: set[str] = set()
+    for idx, p in enumerate(passages):
+        if p.id in consumed:
+            continue
+        for ins in parse_instructions(p.text):
+            span = make_span(doc, p, ins.start, ins.end)
+            extra = _following(passages, idx, ins.target) if ins.follows and ins.new_text is None else []
+            new_text = ins.new_text if ins.new_text is not None else (" ".join(q.text for q in extra) or None)
+            res.instructions.append(
+                AmendmentInstruction(
+                    id=_id("ins"),
+                    document_id=doc.id,
+                    target_section=ins.target,
+                    action=ins.action,
+                    new_text=new_text,
+                    old_text=ins.old_text,
+                    anchor_section=ins.anchor,
+                    position=ins.position,
+                    renumber_to=ins.renumber_to,
+                    provenance=make_prov(doc, span, Confidence.high),
+                )
+            )
+            instruction_passages.add(p.id)
+            regions: list[tuple[Passage, int, int, str]] = []
+            if ins.new_text and ins.new_start is not None and ins.new_end is not None:
+                regions.append((p, ins.new_start, ins.new_end, ins.target))
+            for q in extra:
+                consumed.add(q.id)
+                instruction_passages.add(q.id)
+                sec = q.section_number or ""
+                if _SCHEDULE_TARGET.match(ins.target):
+                    label = f"{ins.target}/{sec.split('/')[-1]}" if sec else ins.target
+                else:
+                    label = sec if sec == ins.target or sec.startswith((ins.target + ".", ins.target + "(")) else ins.target
+                regions.append((q, 0, len(q.text), label))
+            for q, lo, hi, label in regions:
+                for c in _commitments_in(doc, q, resolver, ref_date, lo, hi):
+                    c.amends_section = ins.target
+                    c.section_number = label
+                    c.status = derive_status(c)
+                    res.commitments.append(c)
 
 
 def _commitments_in(
