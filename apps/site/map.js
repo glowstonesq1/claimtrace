@@ -73,12 +73,16 @@
       frag.appendChild(state);
       var file;
       if (c.withheld) {
-        file = el('p', 'map__file', 'Wording not shown here: it also appears in a sealed test case. Read it in ');
+        file = el('p', 'map__file', 'Wording not shown on this page. Read it on ');
+        var go = el('a', '', 'Try it');
+        go.href = 'try/';
+        file.appendChild(go);
+        file.appendChild(document.createTextNode(', where the full sample contract is loaded.'));
       } else {
         frag.appendChild(el('blockquote', 'map__quote', c.text));
         file = el('p', 'map__file', 'Verbatim from ');
+        file.appendChild(el('span', 'num', lane.file));
       }
-      file.appendChild(el('span', 'num', lane.file));
       frag.appendChild(file);
       frag.appendChild(el('h3', 'map__links-title', 'Links'));
       var ls = linksOf(id);

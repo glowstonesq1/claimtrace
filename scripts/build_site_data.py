@@ -621,9 +621,9 @@ def _changed(old_c: dict, new_c: dict) -> dict | None:
     return None
 
 
-# Clauses whose wording also occurs in sealed evaluation cases. The home page shows their section and heading but not
-# their text (or the engine's detail notes about them), so the sealing check in tests/test_site_data.py stays as strict
-# as it is: it never has to exempt public text. The wording stays in examples/documents and on /try.
+# Clauses whose wording is kept off the home page so the site-sealing check stays strict without exemptions. The map
+# shows their section and heading but not their text, or the engine's detail notes about them; the full wording is in
+# examples/documents and on /try.
 WITHHELD_CLIPS = frozenset({"msa-5.3", "audit-2.1"})
 
 
@@ -865,13 +865,18 @@ def render_panel(samples: dict, cid: str) -> str:
         links.append(f'<li class="map__link">{_status(lk["kind"])}<span class="map__link-text">{esc(verb)} '
                      f'<button type="button" class="cite" data-go="{other}">{esc(_cite(samples, other))}</button>'
                      f'{note}</span></li>')
+    if c.get("withheld"):  # the same words as map.js
+        quote = ('<p class="map__file">Wording not shown on this page. Read it on <a href="try/">Try it</a>, '
+                 "where the full sample contract is loaded.</p>")
+    else:
+        quote = (f'<blockquote class="map__quote">{esc(c["text"])}</blockquote>\n'
+                 f'<p class="map__file">Verbatim from <span class="num">{esc(lane["file"])}</span></p>')
     body = (f'<ul class="map__links">{"".join(links)}</ul>' if links
             else '<p class="map__none">Nothing in the other documents links to this clause.</p>')
     return f"""<p class="map__where"><span class="map__doc">{esc(lane["name"])}</span> <span class="num map__sec">§{esc(c["section"])}</span></p>
 <p class="map__heading">{esc(c["heading"] or "")}</p>
 <p class="map__state map__state--{c["effect"].replace("_", "-")}"><svg class="icon" aria-hidden="true"><use href="#{icon}"/></svg>{label}</p>
-<blockquote class="map__quote">{esc(c["text"])}</blockquote>
-<p class="map__file">Verbatim from <span class="num">{esc(lane["file"])}</span></p>
+{quote}
 <h3 class="map__links-title">Links</h3>
 {body}"""
 
