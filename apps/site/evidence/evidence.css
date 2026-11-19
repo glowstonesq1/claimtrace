@@ -1,10 +1,5 @@
-/* Hallmark · page: Evidence, a ledger (Cobalt: paper, hairlines, compact tables) on the site's Dusk ledger system (tokens.css, chrome.css; no second system) · genre: modern-minimal · job: verify · hero: compact head (h1, one sentence, two actions, the page's jump links) · shape: Stat-Led, then Workbench (small multiples, tables, case explorer) · signature: the amendment score, 0.60, set large in apricot beside "wrong 4 in 10" and its v0.1 to v0.2 interval bars · data: real, built by scripts/build_site_data.py from evals/runs/published · v2.0.0 */
-/* Hallmark · pre-emit critique: P4 H4 E4 S5 R4 V5 · weakest: E, the metric grid is long; the set switch shows one set at a time when scripting is on */
-/* Hallmark · dismissed 58 · page word count: a reference page whose job is the full metric tables and every case; each screen stays short */
-/* Hallmark · dismissed 82 · the interval bars are data (95% intervals on 0 to 1), drawn as on the home page's numbers table */
-/* Hallmark · waive 44c · .ev-hero holds h1, one sentence, two actions · a reference page: the hero stays short so the four answers start on the first screen */
-/* Hallmark · dismissed 3 · the three answer columns are equal-weight answers with figures, not icon tiles; the verdict rule on .cb__verdict carries pass or fail beside the word */
-/* Hallmark · motion: none; colour changes on hover only */
+/* Evidence page: metric tables, interval charts and the case explorer, on the shared tokens and chrome.
+   Data is built by scripts/build_site_data.py from evals/runs/published. */
 
 :root {
   --ev-surface: var(--color-sheet);

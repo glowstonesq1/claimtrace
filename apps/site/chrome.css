@@ -1,4 +1,4 @@
-/* Hallmark · shared chrome for every page (skip link, nav, buttons, links, copy control, footer) · theme: Dusk ledger (custom, by plan: Cobalt paper + Dusk glass + Ribbon type + Bloom clips) · nav: edge-aligned, four links and one primary · footer: slate mast · v2.0.0 */
+/* Shared chrome for every page: skip link, nav, buttons, links, copy control, footer. */
 /* Pages built outside styles.css (try/, evidence/) link fonts.css and chrome.css, add the <!-- nav --> and
    <!-- footer --> markers, and get the same chrome from scripts/inject_partials.py. */
 @import url("./tokens.css");

@@ -1,6 +1,6 @@
-/* Dusk ledger tokens (v0.4). Every colour and font on the site goes through these.
-   Reading pages: cool near-white paper, blue-grey ink, hairline rules (from Cobalt).
-   The hero band: a CSS evening sky over slate, the product in smoked glass with a lit top edge (from Dusk).
+/* Site tokens. Every colour and font on the site goes through these.
+   Reading pages: cool near-white paper, blue-grey ink, hairline rules.
+   The hero band: a CSS evening sky over slate, the product in smoked glass with a lit top edge.
    Signals: periwinkle/cobalt = supported or current, apricot = replaced or needs review, one muted red =
    contradiction. Status is never colour alone: every signal ships with a label and an icon. */
 :root {

@@ -1,12 +1,4 @@
-/* Hallmark · shape: Narrative Workflow (/) in four answers: what it does, how it decides, how to use it, how good it is; Index-First (/get/, /docs/) · genre: modern-minimal · theme: Dusk ledger (custom by plan 2026-11-19: Cobalt paper and hairlines, Dusk sky and glass, Ribbon type, Bloom clips on lanes) · job: try · redesign: full · hero: Stage, the engine's own result in glass on a CSS dusk · nav: edge-aligned, one primary · footer: slate mast · imagery: no screenshots on the home page; the hero panel and the map are real engine output; the film keeps a screenshot fallback · signature: clause 2.1, March 31, 2026 struck and May 15, 2026 from Amendment No. 1 §1.1, quoted · axes: light/grotesk/cool · posture: committed in the hero, restrained below · contrast: pass · fold: pass · v2.0.0 */
-/* Hallmark · pre-emit critique: P5 H5 E4 S4 R4 V4 · weakest: S, the film closes on an old capture until the new film lands */
-/* Hallmark · motion: GSAP staggers the hero rows in once; map wires draw in on selection; both off under reduced motion */
-/* Hallmark · dismissed 82 · the interval bars in the numbers table are data (each a 95% interval on 0 to 1), not counting marks */
-/* Hallmark · waive 49b · .index__label over .index__what on /docs/ and the 404 · each row is one link to one doc, a title over its one-line description */
-/* Hallmark · dismissed F1 · the straight quotes are inside verbatim quotes from the sample documents and must match them character for character */
-/* Hallmark · dismissed 29 · smoked glass with a lit top edge over the drawn sky is the plan's named Dusk material, one panel only */
-/* Hallmark · dismissed 3 · the quote rule marks verbatim source text and carries the clause state (apricot replaced, periwinkle in force) */
-/* Hallmark · dismissed 58 · most words are the engine's verbatim quotes and the folded list of links, data rather than copy */
+/* Home page styles. Shared chrome (nav, footer, buttons) is in chrome.css; tokens are in tokens.css. */
 @import url("./chrome.css");
 
 figcaption { font-size: var(--text-xs); color: var(--color-muted); max-width: 60ch; }

@@ -1,8 +1,4 @@
-/* Hallmark · pages: /get/ (three paths, as the home tabs), /docs/ and the 404, on the site's Dusk ledger system (tokens.css, chrome.css; no second system) · shape: Index-First · genre: modern-minimal · job: get it / find the right doc · signature: the three path cards, each saying what it needs and where your documents go, with a status word and icon · v2.0.0 */
-/* Hallmark · pre-emit critique: P4 H4 E5 S4 R4 V4 · weakest: S, reference pages carry no picture; the path cards and the sticky section heads carry the scan */
-/* Hallmark · waive 49b · .index__label over .index__what on /docs/ and the 404 · each row is one link to one doc, a title over its one-line description */
-/* Hallmark · dismissed 58 · /get/ is a page of exact steps and honest requirement statements; each section is one screen of steps */
-/* Hallmark · motion: none; colour and underline on hover only */
+/* /get/, /docs/ and the 404, on the shared tokens and chrome (tokens.css, chrome.css). */
 @import url("./chrome.css");
 
 /* Status: a word and an icon, never colour alone (as on the home page) */
