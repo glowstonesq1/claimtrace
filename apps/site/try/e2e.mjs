@@ -16,6 +16,12 @@
 // critical issues; no horizontal scroll at 390 px; with JavaScript off the page says it needs it; a call
 // past the watchdog limit, or a cancelled one, terminates the worker with a plain message and the next
 // action restarts it.
+//
+// The maps (../graph.js): after the samples load, the register's map shows every document as a lane with
+// connectors; the keyboard moves one tab stop along and between lanes and the status line follows; the party
+// filter dims the other clauses; the answer and check maps render, and "Show the finding" moves to its card.
+// At 1440 and 360 px with all three maps: axe finds no violations at all and the page does not scroll
+// sideways. GRAPH_SHOTS=<dir> writes graph-*-1440.png and graph-*-390.png at deviceScaleFactor 1.
 
 import { execFileSync, spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -34,6 +40,8 @@ const repo = resolve(site, '..', '..');
 const PY = process.env.PYTHON || 'python3';
 const SHOTS = process.env.SHOTS === '1';
 const SHOTS_DIR = resolve(process.env.SHOTS_DIR || join(repo, 'docs/img/frames/raw'));
+const GRAPH_SHOTS = process.env.GRAPH_SHOTS ? resolve(process.env.GRAPH_SHOTS) : null;
+if (GRAPH_SHOTS) mkdirSync(GRAPH_SHOTS, { recursive: true });
 if (SHOTS) mkdirSync(SHOTS_DIR, { recursive: true });
 const PORT = Number(process.env.PORT || 8790);
 let BASE = process.env.BASE;
@@ -92,16 +100,16 @@ async function shot(page, selector, file) {
   await page.screenshot({ path: join(SHOTS_DIR, file) });
 }
 
-async function axe(page, name) {
+async function axe(page, name, strict = false) {
   const before = consoleErrors.length;
   await page.evaluate(axeSource); // evaluated by the test harness, not by the page: the page's CSP still holds
   const res = await page.evaluate(async () => await window.axe.run(document, { resultTypes: ['violations'] }));
-  const bad = res.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+  const bad = strict ? res.violations : res.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
   for (const v of bad) console.log(`     axe ${v.impact}: ${v.id} (${v.nodes.length}) ${v.nodes.slice(0, 2).map((n) => n.target.join(' ')).join(' | ')}`);
   await page.waitForTimeout(200);
   for (const t of consoleErrors.slice(before)) axeNoise.add(t);
   report[`axe_${name}`] = { serious_or_critical: bad.length, all: res.violations.length };
-  check(bad.length === 0, `axe ${name}: 0 serious/critical (found ${bad.length})`);
+  check(bad.length === 0, `axe ${name}: 0 ${strict ? 'violations' : 'serious/critical'} (found ${bad.length})`);
 }
 
 function isLocal(url) {
@@ -194,6 +202,41 @@ async function main() {
     check(await show.evaluate((el) => el === document.activeElement), 'focus returns to the button');
     await shot(page, '#register', 'try-register.png');
 
+    // the register's map: every document a lane, connectors, one tab stop, arrows move it
+    await page.waitForSelector('#register-graph [data-clip]', { timeout: 60000 });
+    const lanes = await page.locator('#register-graph .lane').count();
+    check(lanes === 4, `map: one lane per document (${lanes})`);
+    const clipsN = await page.locator('#register-graph [data-clip]').count();
+    check(clipsN >= 20, `map: a clip per cited clause (${clipsN})`);
+    check(await page.locator('#register-graph .map__wires path.wire').count() > 0, 'map: connectors drawn');
+    check(await page.locator('#register-graph .legend__item').count() > 0, 'map: legend shown');
+    check(await page.locator('#register-graph [data-clip][tabindex="0"]').count() === 1, 'map: one tab stop');
+    const firstClip = page.locator('#register-graph [data-clip][tabindex="0"]');
+    const startId = await firstClip.getAttribute('data-clip');
+    await firstClip.focus();
+    await page.keyboard.press('Home');
+    const homeId = await page.evaluate(() => document.activeElement.dataset.clip);
+    await page.keyboard.press('ArrowRight');
+    const rightId = await page.evaluate(() => document.activeElement.dataset.clip);
+    check(rightId && rightId !== homeId, `map: ArrowRight moves along the lane (${homeId} -> ${rightId})`);
+    check(await page.locator(`#register-graph [data-clip="${rightId}"]`).getAttribute('aria-pressed') === 'true', 'map: the focused clause is pressed');
+    check(await page.locator('#register-graph [data-clip][tabindex="0"]').getAttribute('data-clip') === rightId, 'map: the tab stop follows');
+    await page.keyboard.press('ArrowDown');
+    const downId = await page.evaluate(() => document.activeElement.dataset.clip);
+    check(downId && downId.split('-')[0] !== rightId.split('-')[0], `map: ArrowDown moves to the next document (${downId})`);
+    await page.keyboard.press('End');
+    const status = await page.locator('#register-map-status').innerText();
+    check(/§/.test(status) && status.length < 120, `map: a short status line (${status})`);
+    check(startId !== null, 'map: opens on a clause');
+    await page.locator('#register-graph [data-clip]').first().click();
+    const quote = await page.locator('#register-graph .map__quote').innerText();
+    check(quote.includes('March 31, 2026'), 'map: the panel quotes clause 2.1 verbatim');
+    await page.selectOption('#party-filter', 'Customer');
+    const dimmed = await page.locator('#register-graph .clip.is-dim').count();
+    check(dimmed > 0 && dimmed < clipsN, `map: the party filter dims the other clauses (${dimmed})`);
+    await page.selectOption('#party-filter', '');
+    check(await page.locator('#register-graph .clip.is-dim').count() === 0, 'map: Everyone shows every clause');
+
     // 3. ask
     await page.getByLabel('Your question').fill('Did the vendor promise delivery by March 31?');
     await page.getByRole('button', { name: 'Ask', exact: true }).click();
@@ -204,6 +247,9 @@ async function main() {
     check(await verifiedQuote.count() > 0, 'answer shows a verified quote');
     check((await page.locator('#answer-status').innerText()).startsWith('Answer:'), 'answer announced (aria-live)');
     await shot(page, '#ask', 'try-answer.png');
+    check(await page.locator('#answer-graph [data-clip="answer"]').count() === 1, 'answer map: an answer node');
+    check(await page.locator('#answer-graph .map__wires path.wire').count() > 0, 'answer map: links to the cited clauses');
+    check((await page.locator('#answer-graph .map__links').innerText()).includes('replaced'), 'answer map: names a replaced clause');
 
     // 4. check contract vs delivery record
     await page.selectOption('#base-doc', { label: 'Master Services Agreement (Contract)' });
@@ -215,6 +261,12 @@ async function main() {
       'contract vs delivery record: a high-severity contradiction comes first');
     check((await first.innerText()).includes('late'), 'the explanation is shown');
     await shot(page, '#check', 'try-check.png');
+    check(await page.locator('#check-graph .lane').count() === 2, 'check map: two lanes');
+    check(await page.locator('#check-graph .map__wires path.wire').count() > 0, 'check map: findings as connectors');
+    await page.locator('#check-graph [data-clip].is-linked').first().click();
+    await page.locator('#check-graph .map__finding').first().click();
+    check(await page.evaluate(() => !!document.activeElement && document.activeElement.classList.contains('finding')),
+      'check map: "Show the finding" moves to its card');
     await axe(page, 'results');
 
     // 2. own files: a generated PDF and DOCX
@@ -255,6 +307,40 @@ async function main() {
 
     await ctx.close();
 
+    // ---- the maps at 1440 and 360 (axe, no sideways scroll) and 390 (screenshots) ----------------------
+    for (const [w, hgt] of [[1440, 900], [360, 780], [390, 844]]) {
+      const seenG = [];
+      const offG = [];
+      const gctx = await browser.newContext({ viewport: { width: w, height: hgt }, deviceScaleFactor: 1 });
+      await guard(gctx, seenG, offG);
+      const gp = await gctx.newPage();
+      await gp.goto(`${BASE}/try/`);
+      await gp.waitForSelector('body[data-engine="ready"]', { timeout: 180000 });
+      await gp.getByRole('button', { name: 'Load sample documents' }).click();
+      await gp.waitForSelector('#register-graph [data-clip]', { timeout: 120000 });
+      await gp.getByLabel('Your question').fill('Did the vendor promise delivery by March 31?');
+      await gp.getByRole('button', { name: 'Ask', exact: true }).click();
+      await gp.waitForSelector('#answer-graph [data-clip]');
+      await gp.selectOption('#other-doc', { label: 'Vendor Security Audit Report — Corvane Software Ltd. (Audit report)' });
+      await gp.getByRole('button', { name: 'Check', exact: true }).click();
+      await gp.waitForSelector('#check-graph [data-clip]');
+      await gp.waitForTimeout(300);
+      const swg = await gp.evaluate(() => document.documentElement.scrollWidth);
+      check(swg <= w, `${w} px with three maps: no horizontal scroll (scrollWidth ${swg})`);
+      if (w !== 390) await axe(gp, `maps ${w}`, true);
+      if (GRAPH_SHOTS && w !== 360) {
+        await gp.mouse.move(0, 0);
+        await gp.evaluate(() => { document.querySelector('.jump').style.position = 'static'; }); // the sticky nav would cover the top of each shot
+        for (const [name, sel] of [['register', '#register-map'], ['answer', '#answer-map'], ['check', '#check-map']]) {
+          await gp.locator(sel).evaluate((el) => el.scrollIntoView({ block: 'start' }));
+          await gp.waitForTimeout(250);
+          await gp.locator(sel).screenshot({ path: join(GRAPH_SHOTS, `graph-${name}-${w}.png`) });
+        }
+      }
+      check(offG.length === 0, `${w} px maps: no request left ${BASE} (${seenG.length} requests)`);
+      await gctx.close();
+    }
+
     // ---- second visit (HTTP cache) ---------------------------------------------------------------
     // Request routing turns Chromium's HTTP cache off, so this context only observes requests. It has a
     // profile on disk: a throwaway (incognito) context keeps its cache in memory and drops the 9.6 MB wasm.
@@ -284,6 +370,7 @@ async function main() {
     await mp.focus('#load-samples');
     await mp.keyboard.press('Enter');
     await mp.waitForSelector('.item', { timeout: 60000 });
+    await mp.waitForSelector('#register-graph [data-clip]', { timeout: 60000 }); // the map is drawn, the engine is free
     const sw = await mp.evaluate(() => document.documentElement.scrollWidth);
     check(sw <= 390, `390 px: no horizontal scroll (scrollWidth ${sw})`);
     await mp.getByLabel('Your question').fill('Is customer data kept in the UK?');
@@ -315,6 +402,7 @@ async function main() {
     const slow = { name: 'slow.txt', mimeType: 'text/plain', buffer: Buffer.from('the Vendor shall deliver the item within 30 days; '.repeat(16000)) };
     await sp.getByRole('button', { name: 'Load sample documents' }).click();
     await sp.waitForSelector('.item', { timeout: 60000 });
+    await sp.waitForSelector('#register-graph [data-clip]', { timeout: 60000 });
     await sp.setInputFiles('#file-input', slow);
     await sp.getByRole('button', { name: 'Cancel' }).waitFor({ timeout: 10000 });
     check(true, 'watchdog: Cancel shown while busy');
@@ -324,9 +412,11 @@ async function main() {
     check(await sp.locator('body[data-engine="stopped"]').count() === 1, 'watchdog: the worker was terminated');
     check(!(await sp.getByRole('button', { name: 'Cancel' }).isVisible()), 'watchdog: Cancel hidden again');
     check(await sp.locator('.item').count() === 0, 'watchdog: the stale register is cleared');
+    check(await sp.locator('#register-graph [data-clip]').count() === 0 && await sp.locator('#register-map').isHidden(), 'watchdog: the stale map is cleared');
     check(!(await sp.locator('#load-samples').isDisabled()), 'watchdog: actions are enabled again');
     await sp.getByRole('button', { name: 'Load sample documents' }).click();
     await sp.waitForSelector('.item', { timeout: 180000 });
+    await sp.waitForSelector('#register-graph [data-clip]', { timeout: 60000 });
     check(await sp.locator('body[data-engine="ready"]').count() === 1, 'watchdog: the next action restarts the engine and works');
 
     await sp.setInputFiles('#file-input', slow);

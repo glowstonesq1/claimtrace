@@ -153,6 +153,7 @@ function stopEngine(code, message) {
   docCache.clear();
   $('answer').replaceChildren();
   $('findings').replaceChildren();
+  clearGraphs();
   render();
   document.body.dataset.engine = 'stopped';
   showState();
@@ -236,8 +237,10 @@ async function addFiles(fileList, label) {
     const notes = [...refused, ...problems.map((w) => `${w.file}: ${w.message}`)];
     const n = register.added.length;
     status.textContent = `Read ${n} document${n === 1 ? '' : 's'}.` + (notes.length ? ` Not read: ${notes.join(' ')}` : '');
+    clearGraphs();
     render();
     $('register-title').focus();
+    await drawRegisterGraph();
   } catch (err) {
     status.textContent = failText('Something went wrong while reading', err);
   } finally {
@@ -489,8 +492,9 @@ async function ask(event) {
   setBusy(true);
   $('answer-status').textContent = 'Looking for an answer.';
   try {
-    const a = await request('ask', { question });
+    const a = await request('ask', { question, graph: true });
     renderAnswer(a);
+    drawAnswerGraph(a.graph);
     const n = a.citations.length;
     const ok = a.citations.every((c) => c.verified);
     $('answer-status').textContent = `Answer: ${LABEL.answer[a.status] || a.status}. ${a.answer_text} ` +
@@ -547,13 +551,15 @@ async function check(event) {
   if (base === other) {
     $('check-status').textContent = 'Choose two different documents.';
     $('findings').replaceChildren(h('p', { class: 'panel__lede', text: 'Choose two different documents.' }));
+    drawCheckGraph(null);
     return;
   }
   setBusy(true);
   $('check-status').textContent = 'Checking.';
   try {
-    const run = await request('verify', { base_id: base, other_id: other });
+    const run = await request('verify', { base_id: base, other_id: other, graph: true });
     renderFindings(run);
+    drawCheckGraph(run.graph);
     const main = run.findings.filter((f) => !f.routine);
     $('check-status').textContent = `${LABEL.mode[run.mode] || 'Check'} done: ${main.length} finding${main.length === 1 ? '' : 's'}.`;
   } catch (err) {
@@ -569,7 +575,7 @@ function renderFindings(run) {
   const routine = run.findings.filter((f) => f.routine);
   const counts = Object.entries(run.summary).filter(([, n]) => n > 0)
     .map(([v, n]) => `${n} ${(LABEL.verdict[v] || v).toLowerCase()}`).join(', ');
-  const finding = (f) => h('li', { class: `finding is-${f.severity} is-${f.verdict}` },
+  const finding = (f) => h('li', { class: `finding is-${f.severity} is-${f.verdict}`, id: `finding-${run.findings.indexOf(f)}`, tabindex: '-1' },
     h('p', { class: 'finding__head' },
       h('span', { class: 'finding__verdict' }, status({ consistent: 'supported', contradicted: 'contradicted', partially_supported: 'partly',
         ambiguous: 'review', needs_human_review: 'review' }[f.verdict] || 'none', LABEL.verdict[f.verdict] || f.verdict)),
@@ -597,6 +603,79 @@ function renderFindings(run) {
         : `${routine.length} commitments the other document does not mention` }),
       h('p', { class: 'panel__lede', text: run.mode === 'amendment' ? 'These stay as they were.' : 'No matching text was found. That does not mean they were missed.' }),
       h('ol', { class: 'findings__list' }, routine.map(finding))) : null);
+}
+
+// ---- maps: the evidence map (../graph.js) at the top of each result -------------------------------
+// The engine builds each map's model (claimtrace.browser.graph); graph.js draws it. The text results stay
+// below it: the map is a way into them, not a replacement.
+const graphs = { register: null, answer: null, check: null };
+const GRAPH_SLOT = { register: ['register-map', 'register-graph'], answer: ['answer-map', 'answer-graph'], check: ['check-map', 'check-graph'] };
+
+function mountGraph(which, data, options) {
+  const [block, slot] = GRAPH_SLOT[which];
+  if (graphs[which]) graphs[which].destroy();
+  graphs[which] = null;
+  $(slot).replaceChildren();
+  const lib = window.ClaimTraceGraph;
+  const empty = !data || !data.lanes.some((l) => l.clips.length);
+  $(block).hidden = empty || !lib;
+  if (empty || !lib) return null;
+  graphs[which] = lib.mount($(slot), data, { id: `${which}-map`, label: $(`${block}-title`).textContent, ...options });
+  return graphs[which];
+}
+
+function clearGraphs() {
+  for (const which of Object.keys(graphs)) mountGraph(which, null);
+  $('party-filter-wrap').hidden = true;
+  $('party-status').textContent = '';
+}
+
+async function drawRegisterGraph() {
+  $('add-status').textContent += ' Drawing the map.';
+  let data;
+  try {
+    data = await request('graph');
+  } catch (err) {
+    $('add-status').textContent = $('add-status').textContent.replace(' Drawing the map.', '') + ' ' +
+      (err.code === 'timeout' || err.code === 'cancelled' ? failText('', err).trim() : 'The map could not be drawn; the lists below are complete.');
+    return;
+  }
+  $('add-status').textContent = $('add-status').textContent.replace(' Drawing the map.', '');
+  mountGraph('register', data);
+  renderPartyFilter(data);
+}
+
+// Who must act: highlight the clauses where that party has a commitment, dim the rest.
+function renderPartyFilter(data) {
+  const parties = [...new Set(data.lanes.flatMap((l) => l.clips.flatMap((c) => c.parties || [])))].sort();
+  const sel = $('party-filter');
+  sel.replaceChildren(h('option', { value: '', text: 'Everyone' }), ...parties.map((p) => h('option', { value: p, text: p })));
+  $('party-filter-wrap').hidden = parties.length < 2;
+  sel.onchange = () => {
+    const p = sel.value;
+    const ids = p ? data.lanes.flatMap((l) => l.clips.filter((c) => (c.parties || []).includes(p)).map((c) => c.id)) : null;
+    if (graphs.register) graphs.register.update({ highlight: ids });
+    $('party-status').textContent = p
+      ? `${p} must act in ${ids.length} clause${ids.length === 1 ? '' : 's'}; the others are dimmed.`
+      : 'Showing every clause.';
+  };
+}
+
+function drawAnswerGraph(data) {
+  mountGraph('answer', data, { selected: 'answer' });
+}
+
+function drawCheckGraph(data) {
+  mountGraph('check', data, {
+    onLink: (link) => {
+      const card = $(`finding-${link.finding}`);
+      if (!card) return;
+      const fold = card.closest('details');
+      if (fold) fold.open = true;
+      card.scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+      card.focus({ preventScroll: true });
+    },
+  });
 }
 
 // ---- export and reset ---------------------------------------------------------------------------
@@ -627,6 +706,7 @@ async function reset() {
     docCache.clear();
     $('answer').replaceChildren();
     $('findings').replaceChildren();
+    clearGraphs();
     $('question').value = '';
     render();
     $('add-status').textContent = 'All documents removed from this tab.';

@@ -577,53 +577,19 @@ LANES = [
     ("audit_report", "audit", "Audit report"),
     ("evidence", "delivery", "Delivery record"),
 ]
-# link kind -> (label read from the target's side, label read from the source's side)
-LINK_KINDS = {
-    "replaces": ("Replaced by", "Replaces"),
-    "changes": ("Changed by", "Changes"),
-    "supports": ("Supported by", "Supports"),
-    "partly": ("Partly supported by", "Partly supports"),
-    "contradicts": ("Contradicted by", "Contradicts"),
-    "review": ("Needs review against", "Needs review against"),
-}
 SEVERITY_RANK = {"high": 0, "medium": 1, "low": 2, "info": 3}
-CLAUSE_NO = re.compile(r"^\s*\d+(?:\.\d+)*\.?\s+")
-MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October",
-          "November", "December"]
+# What samples.json keeps of the engine's graph: no engine ids (random per run), none of the try page's extras.
+LANE_FIELDS = ("key", "name", "title", "file")
+CLIP_FIELDS = ("id", "section", "heading", "text", "kinds", "effect")
 
 
 def _section_key(section: str | None) -> tuple:
     return tuple(int(x) for x in re.findall(r"\d+", section or "")) or (999,)
 
 
-def _long_date(iso: str) -> str:
-    y, m, d = (int(x) for x in iso.split("-"))
-    return f"{MONTHS[m - 1]} {d}, {y}"
-
-
-def _changed(old_c: dict, new_c: dict) -> dict | None:
-    """What an amendment changed in a clause, as the words to strike and the words that replace them: the
-    deadline dates when both have one, else the first run of differing words (with its unit, "30 days")."""
-    od, nd = old_c.get("deadline") or {}, new_c.get("deadline") or {}
-    if od.get("date") and nd.get("date") and od["date"] != nd["date"]:
-        return {"old": _long_date(od["date"]), "new": _long_date(nd["date"])}
-    import difflib
-
-    a, b = old_c["quote"]["quote"].split(), new_c["quote"]["quote"].split()
-    for tag, i1, i2, j1, j2 in difflib.SequenceMatcher(a=a, b=b, autojunk=False).get_opcodes():
-        if tag == "equal":
-            continue
-        old, new = a[i1:i2], b[j1:j2]
-        if old and new and all(re.fullmatch(r"[\d.,%]+", w) for w in old + new) and i2 < len(a) and j2 < len(b):
-            old, new = old + [a[i2]], new + [b[j2]]  # keep the unit: "30 days", "48 hours"
-        strip = ".,;:"
-        return {"old": " ".join(old).strip(strip), "new": " ".join(new).strip(strip)}
-    return None
-
-
 # Clauses whose wording is kept off the home page so the site-sealing check stays strict without exemptions. The map
 # shows their section and heading but not their text, or the engine's detail notes about them; the full wording is in
-# examples/documents and on /try.
+# examples/documents and on /try. A home-page step only: the engine's graph (claimtrace.browser.graph) never withholds.
 WITHHELD_CLIPS = frozenset({"msa-5.3", "audit-2.1"})
 
 
@@ -637,11 +603,9 @@ def _withhold(lanes: list[dict], link_list: list[dict]) -> None:
             lk["note"] = lk["note"].split(". ")[0].rstrip(".") + "."
 
 
-def build_samples() -> dict:
-    """Run the rules engine on examples/documents and reduce it to what the hero panel and the map show:
-    clips (one per cited section, verbatim passage text), links between them (from the register's supersede
-    edges and from checking the contract against each other document), and the hero rows."""
-    from claimtrace import __version__
+def sample_graph() -> tuple[dict, dict]:
+    """The rules engine on examples/documents, reduced to the evidence map by the same function the try page
+    runs (claimtrace.browser.graph), with the home page's lane keys and short names. Returns (register, graph)."""
     from claimtrace.browser import Session
 
     session = Session()
@@ -649,89 +613,35 @@ def build_samples() -> dict:
     reg = session.analyze([{"name": p.name, "bytes": p.read_bytes()} for p in paths])
     if reg["warnings"]:
         raise SystemExit(f"the engine warned on the samples: {[w['code'] for w in reg['warnings']]}")
-    docs = {d["type"]: d for d in reg["documents"]}
-    key_of = {docs[t]["id"]: k for t, k, _ in LANES}
-    name_of = {k: n for _, k, n in LANES}
-    texts = {d["id"]: session.document(d["id"]) for d in reg["documents"]}
-    by_cmt = {c["id"]: c for c in reg["commitments"]}
-
-    clips: dict[str, dict] = {}
-
-    def clip_for(span: dict, kind: str | None = None, effect: str | None = None) -> str:
-        key = key_of[span["document_id"]]
-        cid = f"{key}-{span['section']}"
-        if cid not in clips:
-            doc = texts[span["document_id"]]
-            psg = next(p for p in doc["passages"] if p["id"] == span["passage_id"])
-            passage = CLAUSE_NO.sub("", doc["text"][psg["char_start"] : psg["char_end"]]).strip()
-            clips[cid] = {"id": cid, "doc": key, "section": span["section"], "heading": psg["title"],
-                          "text": passage, "kinds": [], "effect": "evidence", "order": psg["char_start"]}
-        c = clips[cid]
-        if kind and kind not in c["kinds"]:
-            c["kinds"].append(kind)
-        if effect and c["effect"] != "replaced":
-            c["effect"] = effect
-        return cid
-
     for c in reg["commitments"]:
         if not c["quote"]["verified"]:
             raise SystemExit(f"unverified quote in the samples: {c['document']} {c['section']}")
-        clip_for(c["quote"], c["type"], c["document_effect"])
+    docs = {d["type"]: d for d in reg["documents"]}
+    g = session.graph(lanes=[(docs[t]["id"], k, n) for t, k, n in LANES])
+    if g["shown"]["clips"][0] != g["shown"]["clips"][1] or g["shown"]["documents"][0] != len(LANES):
+        raise SystemExit(f"the sample graph was capped: {g['shown']}")
+    return reg, g
 
-    links: dict[tuple[str, str], dict] = {}
-    changes: dict[str, dict] = {}
 
-    def link(kind: str, src: str, dst: str, note: str, severity: str) -> None:
-        if src == dst:
-            return
-        prev = links.get((src, dst))
-        if prev and list(LINK_KINDS).index(prev["kind"]) <= list(LINK_KINDS).index(kind):
-            return
-        links[(src, dst)] = {"kind": kind, "from": src, "to": dst, "note": note, "severity": severity}
-
-    for c in reg["commitments"]:  # the register: supersede edges, with what changed
-        for r in c["replaced_by"]:
-            new = by_cmt[r["id"]]
-            src, dst = clip_for(new["quote"]), clip_for(c["quote"])
-            diff = _changed(c, new)
-            if diff:
-                changes[dst] = {**diff, "by": src}
-            link("replaces", src, dst, "", "high")
-
-    contract = docs["contract"]["id"]
-    for t, _k, _n in LANES[1:]:
-        run = session.verify(contract, docs[t]["id"])
-        for f in run["findings"]:
-            if f["routine"] or not f["subject_span"]:
-                continue
-            dst = clip_for(f["subject_span"])
-            v = f["verdict"]
-            subject = by_cmt.get(f["subject_id"])
-            for sp in f["supporting"]:
-                if sp:
-                    link("supports" if v == "consistent" else "partly", clip_for(sp), dst, f["explanation"], f["severity"])
-            for sp in f["conflicting"]:
-                if not sp:
-                    continue
-                if t == "amendment":
-                    kind = "replaces" if subject and subject["document_effect"] == "replaced" else "changes"
-                else:
-                    kind = {"contradicted": "contradicts", "partially_supported": "partly"}.get(v, "review")
-                src = clip_for(sp)
-                prev = links.get((src, dst))
-                link(kind, src, dst, f["explanation"], f["severity"])
-                if prev and prev["kind"] == kind and not prev["note"]:
-                    links[(src, dst)]["note"] = f["explanation"]
-
-    lanes = []
-    for _t, k, n in LANES:
-        d = docs[_t]
-        cs = sorted((c for c in clips.values() if c["doc"] == k), key=lambda c: c["order"])
-        lanes.append({"key": k, "name": n, "title": d["title"], "file": d["filename"],
-                      "clips": [{x: c[x] for x in ("id", "section", "heading", "text", "kinds", "effect")} for c in cs]})
-    order = {c["id"]: i for i, c in enumerate(c for lane in lanes for c in lane["clips"])}
-    link_list = sorted(links.values(), key=lambda lk: (order[lk["to"]], order[lk["from"]]))
+def home_graph(g: dict) -> tuple[list[dict], list[dict]]:
+    """The engine's graph as samples.json keeps it: the listed fields only, then the home page's withholding."""
+    lanes = [{**{k: lane[k] for k in LANE_FIELDS}, "clips": [{k: c[k] for k in CLIP_FIELDS} for c in lane["clips"]]}
+             for lane in g["lanes"]]
+    link_list = [dict(lk) for lk in g["links"]]
     _withhold(lanes, link_list)
+    return lanes, link_list
+
+
+def build_samples() -> dict:
+    """Run the rules engine on examples/documents and reduce it to what the hero panel and the map show:
+    clips (one per cited section, verbatim passage text), links between them (from the register's supersede
+    edges and from checking the contract against each other document), and the hero rows."""
+    from claimtrace import __version__
+    from claimtrace.browser.graphs import LINK_KINDS
+
+    reg, g = sample_graph()
+    lanes, link_list = home_graph(g)
+    changes = g["changes"]
 
     # Hero rows: the contract's clauses that something links to, the gravest first; clause 2.1 leads.
     rows = []
@@ -755,7 +665,7 @@ def build_samples() -> dict:
         "and the links the engine found between them. Engine ids are random per run and are not kept.",
         "engine": {"name": "ClaimTrace", "version": __version__, "method": "rules", "network": False},
         "integrity": reg["integrity"],
-        "kinds": {k: {"in": a, "out": b} for k, (a, b) in LINK_KINDS.items()},
+        "kinds": g["kinds"],
         "lanes": lanes,
         "links": link_list,
         "hero": {"rows": rows},
@@ -851,7 +761,7 @@ CLIP_STATE = {"replaced": ("Replaced", "i-replaced"), "in_force": ("In force", "
 
 
 def render_panel(samples: dict, cid: str) -> str:
-    """The map's side panel for one clip. apps/site/map.js builds the same markup when another is chosen."""
+    """The map's side panel for one clip. apps/site/graph.js builds the same markup when another is chosen."""
     lane, c = _clip(samples, cid)
     label, icon = CLIP_STATE[c["effect"]]
     links = []
@@ -863,9 +773,9 @@ def render_panel(samples: dict, cid: str) -> str:
         verb = samples["kinds"][lk["kind"]]["in" if incoming else "out"]
         note = f'<span class="map__note">{esc(lk["note"])}</span>' if lk["note"] else ""
         links.append(f'<li class="map__link">{_status(lk["kind"])}<span class="map__link-text">{esc(verb)} '
-                     f'<button type="button" class="cite" data-go="{other}">{esc(_cite(samples, other))}</button>'
+                     f'<button type="button" class="map__cite" data-go="{other}">{esc(_cite(samples, other))}</button>'
                      f'{note}</span></li>')
-    if c.get("withheld"):  # the same words as map.js
+    if c.get("withheld"):  # the same words as graph.js
         quote = ('<p class="map__file">Wording not shown on this page. Read it on <a href="try/">Try it</a>, '
                  "where the full sample contract is loaded.</p>")
     else:
