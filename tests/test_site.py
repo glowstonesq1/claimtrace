@@ -100,8 +100,30 @@ def test_self_hosted_fonts_exist_and_are_licensed():
     for u in urls:
         assert not re.match(r"(?:https?:)?//", u) and (SITE / u).is_file(), u
     families = set(re.findall(r"font-family:\s*['\"]([^'\"]+)['\"]", css))
-    assert families == {"Bodoni Moda", "Geist", "Geist Mono"}
-    assert len(list((SITE / "fonts").glob("OFL-*.txt"))) == 3
+    assert families == {"Instrument Sans", "Figtree", "JetBrains Mono"}
+    licences = {p.name for p in (SITE / "fonts").glob("OFL-*.txt")}
+    assert licences == {"OFL-instrument-sans.txt", "OFL-figtree.txt", "OFL-jetbrains-mono.txt"}
+    for name in licences:
+        assert "SIL Open Font License" in (SITE / "fonts" / name).read_text(encoding="utf-8"), name
+    # every woff2 on disk is used, and both subsets of each face are present
+    files = {p.name for p in (SITE / "fonts").glob("*.woff2")}
+    assert files == {u.split("/")[-1] for u in urls}
+    assert all(f.replace("-latin-", "-latin-ext-") in files for f in files if "-latin-ext-" not in f)
+
+
+def test_old_fonts_are_gone_everywhere() -> None:
+    """v0.4 dropped Bodoni Moda and Geist: no file, preload or font-family may still name them."""
+    assert not list((SITE / "fonts").glob("bodoni*")) and not list((SITE / "fonts").glob("geist*"))
+    for p in SITE.rglob("*"):
+        if p.suffix in (".html", ".css", ".js", ".mjs") and "pyodide" not in p.parts and "vendor" not in p.parts:
+            text = p.read_text(encoding="utf-8").lower()
+            assert "bodoni" not in text and "geist" not in text, p.relative_to(SITE)
+
+
+def test_every_page_preloads_fonts_that_exist() -> None:
+    for page in [SITE / "index.html", *sorted(SITE.glob("*/index.html"))]:
+        for href in re.findall(r'<link rel="preload" href="([^"]+)" as="font"', page.read_text(encoding="utf-8")):
+            assert (page.parent / href).resolve().is_file(), (page.relative_to(SITE), href)
 
 
 def _plugin_zip_text(text: str) -> str:
