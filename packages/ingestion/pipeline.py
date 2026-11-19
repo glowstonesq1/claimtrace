@@ -12,7 +12,6 @@ from claimtrace.core.text import NORMALIZER_VERSION, normalize, sha256_bytes, sh
 
 from .ocr import OcrFunc
 from .parsers import IngestError, RawDoc, detect_kind
-from .sandbox import parse_sandboxed
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 
@@ -122,23 +121,41 @@ def _doc_type(value: str | None, filename: str) -> DocType:
     return DocType.other
 
 
-def ingest_bytes(store: Store, filename: str, data: bytes, opts: IngestOptions | None = None) -> Document:
-    opts = opts or IngestOptions()
+def check_upload(filename: str, data: bytes) -> str:
+    """Size and type checks shared by every ingest path; returns the parser kind."""
     if len(data) > MAX_UPLOAD_BYTES:
         raise IngestError("file_too_large", f"Files must be under {MAX_UPLOAD_BYTES // (1024 * 1024)} MB.")
     if not data:
         raise IngestError("empty_file", "The file is empty.")
-    kind = detect_kind(filename, data)
-    checksum = sha256_bytes(data)
-    existing = store.find_by_checksum(checksum)
+    return detect_kind(filename, data)
+
+
+def ingest_bytes(store: Store, filename: str, data: bytes, opts: IngestOptions | None = None) -> Document:
+    opts = opts or IngestOptions()
+    kind = check_upload(filename, data)
+    existing = store.find_by_checksum(sha256_bytes(data))
     if existing:
         return existing
     if opts.sandbox:
+        from .sandbox import parse_sandboxed  # subprocess-based; imported only on this path
+
         raw = parse_sandboxed(kind, data, opts.ocr)
     else:
         from .parsers import parse
 
         raw = parse(kind, data, opts.ocr)
+    return ingest_parsed(store, filename, data, raw, opts)
+
+
+def ingest_parsed(store: Store, filename: str, data: bytes, raw: RawDoc, opts: IngestOptions | None = None) -> Document:
+    """Store an already-parsed file. Seam for in-process callers that have no subprocesses (the browser
+    build, claimtrace.browser): they parse with parsers.parse themselves, e.g. to order amendments after
+    the documents they amend. The server path goes through ingest_bytes and the sandbox."""
+    opts = opts or IngestOptions()
+    checksum = sha256_bytes(data)
+    existing = store.find_by_checksum(checksum)
+    if existing:
+        return existing
     doc_id = "doc_" + uuid.uuid4().hex[:12]
     text, passages = segment(raw, doc_id)
     warnings = list(raw.warnings)
@@ -190,4 +207,4 @@ def ingest_file(store: Store, path: str, opts: IngestOptions | None = None) -> D
     return ingest_bytes(store, path.rsplit("/", 1)[-1], data, opts)
 
 
-__all__ = ["IngestError", "IngestOptions", "ingest_bytes", "ingest_file", "segment"]
+__all__ = ["IngestError", "IngestOptions", "check_upload", "ingest_bytes", "ingest_file", "ingest_parsed", "segment"]

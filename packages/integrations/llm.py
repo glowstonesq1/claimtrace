@@ -9,11 +9,12 @@ from __future__ import annotations
 import json
 import time
 from collections.abc import Callable
-from typing import Protocol
-
-import httpx
+from typing import TYPE_CHECKING, Protocol
 
 from claimtrace.core.config import Settings
+
+if TYPE_CHECKING:  # httpx is imported where a request is made, so rules-only paths (the browser build) never load it
+    import httpx
 
 
 class LLMError(Exception):
@@ -60,6 +61,8 @@ class OpenAICompatible:
             "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         }
         headers = {"Authorization": f"Bearer {self._key}"} if self._key else {}
+        import httpx
+
         last: Exception | None = None
         for attempt in range(self._retries + 1):
             try:
