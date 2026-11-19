@@ -278,9 +278,11 @@ function render() {
   const has = docs.length > 0;
   for (const id of ['register', 'ask', 'check', 'doc-tools', 'results-nav']) $(id).hidden = !has;
   $('results-empty').hidden = has;
+  document.querySelector('.bench').classList.toggle('has-results', has);
   renderDocs(docs);
   if (!has) {
-    for (const id of ['parties', 'deadlines', 'changes', 'suggestions']) $(id).replaceChildren();
+    for (const id of ['parties', 'deadlines', 'changes', 'problems', 'suggestions']) $(id).replaceChildren();
+    for (const id of ['fold-changes', 'fold-deadlines', 'fold-problems']) $(id).hidden = true;
     return;
   }
   renderRegister();
@@ -344,7 +346,6 @@ function renderChanges(items) {
   const changed = items.filter((c) => c.document_effect !== 'in_force');
   if (!changed.length) return '';
   return h('div', { class: 'changes' },
-    h('h3', { class: 'sub', text: 'Changed by an amendment' }),
     h('ol', { class: 'ledger' }, changed.map((c) => {
       const old = (c.quote && c.quote.quote) || c.text;
       const r = c.replaced_by[0];
@@ -360,7 +361,8 @@ function renderChanges(items) {
         r ? h('figure', { class: 'change__quote change__quote--new' },
           h('figcaption', { text: where(r.document, r.section) }),
           h('blockquote', {}, ...marked(r.text, d.b, d.pre, d.post, 'ins')))
-          : h('p', { class: 'change__note', text: c.caveats.find((cv) => /^(Replaced|Deleted|Changed) by /.test(cv)) || 'Removed by an amendment.' }));
+          : h('p', { class: 'change__note', text: c.caveats.find((cv) => /^(Replaced|Deleted|Changed) by /.test(cv)) || 'Removed by an amendment.' }),
+        mapButton(() => clipFor(c.document, c.section)));
     })));
 }
 
@@ -370,17 +372,21 @@ function renderRegister() {
   const flagged = items.filter((c) => c.needs_review).length;
   const { quotes, verified } = register.integrity;
   $('register-summary').textContent = [
-    `${items.length} commitments from ${register.documents.length} documents.`,
-    replaced ? `${replaced} replaced or removed by an amendment.` : '',
+    `${items.length} commitments in ${register.documents.length} document${register.documents.length === 1 ? '' : 's'}.`,
+    replaced ? `${replaced} changed by an amendment.` : '',
     flagged ? `${flagged} flagged for a person to check.` : '',
-    verified === quotes ? 'Every quote matches its document exactly.' : `${quotes - verified} quotes could not be matched to their document.`,
+    verified === quotes ? 'Every quote matches its document word for word.' : `${quotes - verified} quotes could not be matched to their document.`,
   ].filter(Boolean).join(' ');
 
+  const changed = items.filter((c) => c.document_effect !== 'in_force');
   $('changes').replaceChildren(renderChanges(items));
+  fold('changes', changed.length);
+  fold('parties', items.length);
 
   const dl = register.deadlines.filter((d) => d.date);
+  fold('deadlines', dl.length);
   $('deadlines').replaceChildren(dl.length ? h('div', { class: 'deadlines__wrap' },
-    h('h3', { class: 'sub', id: 'deadlines-title', text: 'Dated deadlines' }),
+    h('h3', { class: 'visually-hidden', id: 'deadlines-title', text: 'Dated deadlines' }),
     h('div', { class: 'table-wrap', role: 'region', tabindex: '0', 'aria-labelledby': 'deadlines-title' },
       h('table', { class: 'table' },
         h('thead', {}, h('tr', {}, ['Date', 'Who', 'What', 'Where'].map((t) => h('th', { scope: 'col', text: t })))),
@@ -453,6 +459,67 @@ function showButton(span) {
   return h('button', { class: 'linkbtn', type: 'button', onclick: (e) => showInDocument(span, e.currentTarget) }, 'Show in document');
 }
 
+// ---- folds and the map ------------------------------------------------------------------------
+// A fold is a short heading that opens to the detail; it hides when it would be empty.
+function fold(name, n) {
+  const el = $(`fold-${name}`);
+  el.hidden = n === 0;
+  $(`fold-${name}-n`).textContent = String(n);
+}
+
+// The map's clause for a document and section ("Master Services Agreement", "2.1" -> "msa-2.1").
+function clipFor(title, section) {
+  const data = registerGraph;
+  if (!data || !section) return null;
+  for (const lane of data.lanes) {
+    if (lane.title !== title) continue;
+    const c = lane.clips.find((x) => x.section === section);
+    if (c) return c.id;
+  }
+  return null;
+}
+
+// "Show on map": chooses the clause in the map and brings the map into view.
+function mapButton(idOf) {
+  return h('button', { class: 'linkbtn', type: 'button', onclick: () => {
+    const id = idOf();
+    if (!id || !graphs.register) return;
+    graphs.register.update({ view: 'all' });
+    graphs.register.select(id);
+    $('register-map').scrollIntoView({ block: 'start', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    setTimeout(() => $('register-graph').querySelector(`[data-clip="${CSS.escape(id)}"]`)?.focus({ preventScroll: true }), 300);
+  } }, 'Show on map');
+}
+
+const PROBLEM_KINDS = ['contradicts', 'partly', 'review'];
+const KIND_STATUS = { contradicts: ['contradicted', 'Contradicted'], partly: ['partly', 'Partly supported'], review: ['review', 'Needs review'] };
+
+// Problems the other documents raise against the main one, from the map's links.
+function renderProblems(data) {
+  const cite = (id) => {
+    for (const lane of data.lanes) {
+      const c = lane.clips.find((x) => x.id === id);
+      if (c) return { lane, c, text: `${lane.name}${c.section ? ` §${c.section}` : ''}` };
+    }
+    return null;
+  };
+  const rows = data.links.filter((l) => PROBLEM_KINDS.includes(l.kind))
+    .sort((a, b) => PROBLEM_KINDS.indexOf(a.kind) - PROBLEM_KINDS.indexOf(b.kind));
+  fold('problems', rows.length);
+  $('problems').replaceChildren(rows.length ? h('ol', { class: 'ledger problems' }, rows.map((l) => {
+    const to = cite(l.to);
+    const from = cite(l.from);
+    const [kind, word] = KIND_STATUS[l.kind];
+    return h('li', { class: 'problem' },
+      h('p', { class: 'change__line' },
+        h('span', { class: 'change__what', text: `${to ? to.text : l.to}: ${(data.kinds[l.kind] || {}).in || word} ${from ? from.text : l.from}` }),
+        status(kind, word)),
+      to && !to.c.withheld ? h('blockquote', { class: 'quote' }, h('p', { text: to.c.text })) : null,
+      l.note ? h('p', { class: 'change__note', text: l.note }) : null,
+      mapButton(() => l.to));
+  })) : '');
+}
+
 // ---- show in document ---------------------------------------------------------------------------
 let viewerReturn = null;
 
@@ -515,14 +582,15 @@ function renderAnswer(a) {
       LABEL.answer[a.status] || a.status),
     h('p', { class: 'answer__question', text: `You asked: ${a.question}` }),
     h('p', { class: 'answer__text', text: a.answer_text }),
-    a.citations.length ? h('ol', { class: 'cites' }, a.citations.map((c) => h('li', { class: `cite is-${c.role}` },
+    a.caveats.length ? h('ul', { class: 'notes', 'aria-label': 'Notes' }, a.caveats.map((t) => h('li', { text: t }))) : null);
+  $('answer').replaceChildren(card);
+  fold('quotes', a.citations.length);
+  $('quotes').replaceChildren(a.citations.length ? h('ol', { class: 'cites' }, a.citations.map((c) => h('li', { class: `cite is-${c.role}` },
       h('p', { class: 'cite__role' }, status({ supports: 'supported', conflicts: 'contradicted' }[c.role] || 'none', LABEL.role[c.role] || c.role)),
       h('blockquote', { class: 'quote' }, h('p', { text: c.span.quote })),
       h('p', { class: 'cite__src', text: source(c.span) }),
       c.note ? h('p', { class: 'cite__note', text: c.note }) : null,
-      h('p', { class: 'item__foot' }, verifiedTag(c.verified), showButton(c.span))))) : null,
-    a.caveats.length ? h('ul', { class: 'notes', 'aria-label': 'Notes' }, a.caveats.map((t) => h('li', { text: t }))) : null);
-  $('answer').replaceChildren(card);
+      h('p', { class: 'item__foot' }, verifiedTag(c.verified), showButton(c.span))))) : '');
 }
 
 function source(span) {
@@ -550,7 +618,8 @@ async function check(event) {
   const other = $('other-doc').value;
   if (base === other) {
     $('check-status').textContent = 'Choose two different documents.';
-    $('findings').replaceChildren(h('p', { class: 'panel__lede', text: 'Choose two different documents.' }));
+    $('findings').replaceChildren();
+    $('check-summary').textContent = 'Choose two different documents.';
     drawCheckGraph(null);
     return;
   }
@@ -592,12 +661,17 @@ function renderFindings(run) {
         h('p', { class: 'cite__src', text: source(s) }),
         h('p', { class: 'item__foot' }, verifiedTag(s.verified), showButton(s)))),
     null);
+  $('check-summary').textContent = `${LABEL.mode[run.mode] || 'Check'}, ${run.base_document} against ${run.other_document}: ` +
+    (counts ? `found ${counts}.` : 'nothing to compare.');
   $('findings').replaceChildren(
-    h('h3', { class: 'sub', text: `${LABEL.mode[run.mode] || 'Check'}: ${run.base_document} against ${run.other_document}` }),
-    h('p', { class: 'panel__lede', text: counts ? `Found ${counts}.` : 'Nothing to compare.' }),
-    main.length ? h('ol', { class: 'findings__list' }, main.map(finding))
+    main.length ? h('details', { class: 'fold', id: 'fold-findings' },
+      h('summary', { class: 'fold__sum' },
+        h('span', { class: 'fold__title' }, icon('i-review'), 'Every finding in full'),
+        h('span', { class: 'fold__n num', text: String(main.length) }),
+        h('span', { class: 'fold__hint', text: 'Both quotes, why it matters and what to do' })),
+      h('ol', { class: 'findings__list fold__body' }, main.map(finding)))
       : h('p', { class: 'panel__lede', text: 'No differences found. That is not proof the documents agree on everything; it checks dates, amounts, percentages, durations, places and obligation strength.' }),
-    routine.length ? h('details', { class: 'routine' },
+    routine.length ? h('details', { class: 'fold routine' },
       h('summary', { text: run.mode === 'amendment'
         ? `${routine.length} clauses the amendment does not touch`
         : `${routine.length} commitments the other document does not mention` }),
@@ -605,10 +679,11 @@ function renderFindings(run) {
       h('ol', { class: 'findings__list' }, routine.map(finding))) : null);
 }
 
-// ---- maps: the evidence map (../graph.js) at the top of each result -------------------------------
-// The engine builds each map's model (claimtrace.browser.graph); graph.js draws it. The text results stay
-// below it: the map is a way into them, not a replacement.
+// ---- maps: the evidence map (../vendor/flow/flow.js, React Flow) for each result --------------------
+// The engine builds each map's model (claimtrace.browser.graph); flow.js draws it. The text results stay in
+// the folds beside it: the map is a way into them, not a replacement.
 const graphs = { register: null, answer: null, check: null };
+let registerGraph = null;
 const GRAPH_SLOT = { register: ['register-map', 'register-graph'], answer: ['answer-map', 'answer-graph'], check: ['check-map', 'check-graph'] };
 
 function mountGraph(which, data, options) {
@@ -626,6 +701,9 @@ function mountGraph(which, data, options) {
 
 function clearGraphs() {
   for (const which of Object.keys(graphs)) mountGraph(which, null);
+  registerGraph = null;
+  $('problems').replaceChildren();
+  $('fold-problems').hidden = true;
   $('party-filter-wrap').hidden = true;
   $('party-status').textContent = '';
 }
@@ -641,8 +719,10 @@ async function drawRegisterGraph() {
     return;
   }
   $('add-status').textContent = $('add-status').textContent.replace(' Drawing the map.', '');
+  registerGraph = data;
   mountGraph('register', data);
   renderPartyFilter(data);
+  renderProblems(data);
 }
 
 // Who must act: highlight the clauses where that party has a commitment, dim the rest.
@@ -705,7 +785,10 @@ async function reset() {
     samplesLoaded = false;
     docCache.clear();
     $('answer').replaceChildren();
+    $('quotes').replaceChildren();
+    $('fold-quotes').hidden = true;
     $('findings').replaceChildren();
+    $('check-summary').textContent = '';
     clearGraphs();
     $('question').value = '';
     render();

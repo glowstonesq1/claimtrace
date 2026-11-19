@@ -761,7 +761,7 @@ CLIP_STATE = {"replaced": ("Replaced", "i-replaced"), "in_force": ("In force", "
 
 
 def render_panel(samples: dict, cid: str) -> str:
-    """The map's side panel for one clip. apps/site/graph.js builds the same markup when another is chosen."""
+    """The map's side panel for one clip. It is the no-script fallback: once the data loads, the live map (apps/web/src/flow) replaces it."""
     lane, c = _clip(samples, cid)
     label, icon = CLIP_STATE[c["effect"]]
     links = []
@@ -775,7 +775,7 @@ def render_panel(samples: dict, cid: str) -> str:
         links.append(f'<li class="map__link">{_status(lk["kind"])}<span class="map__link-text">{esc(verb)} '
                      f'<button type="button" class="map__cite" data-go="{other}">{esc(_cite(samples, other))}</button>'
                      f'{note}</span></li>')
-    if c.get("withheld"):  # the same words as graph.js
+    if c.get("withheld"):  # the same words as the live map (apps/web/src/flow/EvidenceFlow.tsx)
         quote = ('<p class="map__file">Wording not shown on this page. Read it on <a href="try/">Try it</a>, '
                  "where the full sample contract is loaded.</p>")
     else:

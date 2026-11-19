@@ -1,4 +1,4 @@
-/* Home page styles. Shared chrome (nav, footer, buttons) is in chrome.css; the evidence map is in graph.css;
+/* Home page styles. Shared chrome (nav, footer, buttons) is in chrome.css; the evidence map drawn at build time (the no-script fallback) is in graph.css, the live one in vendor/flow;
    tokens are in tokens.css. */
 @import url("./chrome.css");
 @import url("./graph.css");
@@ -210,3 +210,6 @@ figcaption { font-size: var(--text-xs); color: var(--color-muted); max-width: 60
 @media (prefers-reduced-motion: reduce) {
   .tabs__tab::after { transition: none; }
 }
+
+/* the live map (vendor/flow) replaces the build-time one once its data loads */
+.how .fx { margin-top: var(--space-xl); }

@@ -381,6 +381,12 @@ Code comments and other docs cite them as `design-review Dn` or just `Dn`.
 | D23 | Bundled sample documents (CC0, fictional) and a "Load sample documents" button, so the first run shows value with zero uploads. | Maintainer, end-user advocate. | Yes. |
 | D24 | Verify is a pipeline: pair candidates by clause number, party, type and lexical overlap, then compare normalised fields (date, amount, duration, percentage, modality, polarity). Weak pairings become `needs_human_review`, never `consistent`. | ML researcher. A false clear is worse than a false alarm. | Yes. |
 
+Later decisions:
+
+| ID | Decision | Rationale | Reversible? |
+|---|---|---|---|
+| D25 (v0.4) | Every graph (the site's evidence maps, the app's relationship graph) is drawn with **React Flow** (`@xyflow/react`, MIT). The site gets it as one self-hosted script and stylesheet built from `apps/web/src/flow` and committed under `apps/site/vendor/flow`; CI rebuilds it and fails on a diff. Pages call it through `ClaimTraceGraph.mount(el, data, options)`. | One library and one look for every map; pan, zoom and fit for big workspaces; no CDN (D16) and no inline script or style, so the site's CSP is unchanged. Cost: about 114 KB gzipped of script on pages with a map. | Yes: the `mount` interface is the seam. |
+
 ### Ideas considered and rejected (for now)
 
 | Idea | Why rejected (for now) |

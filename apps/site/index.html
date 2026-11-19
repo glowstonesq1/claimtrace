@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- Only this origin: no third-party script, style, font or request. No inline script or style: page
-     scripts live in files (head.js, graph.js, site.js); GSAP is self-hosted in vendor/gsap. -->
+     scripts live in files (head.js, site.js, and the map in vendor/flow); GSAP is self-hosted in vendor/gsap. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClaimTrace: check contracts and amendments with verified quotes</title>
@@ -21,6 +21,7 @@
 <link rel="preload" href="fonts/figtree-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="vendor/flow/style.css">
 <script src="head.js"></script>
 </head>
 <body class="home">
@@ -104,7 +105,7 @@
         <h2 id="how-title">Every finding points back to a clause</h2>
         <p class="lead">One lane per sample document. Choose a clause to read its words and see what replaces, supports or contradicts it.</p>
       </div>
-      <ul class="legend" aria-label="Kinds of link">
+      <ul class="legend" aria-label="Kinds of link" data-map-fallback>
         <li class="legend__item legend__item--replaces"><svg class="legend__wire" viewBox="0 0 32 8" aria-hidden="true"><path d="M0 4h32"/></svg>Replaces or changes</li>
         <li class="legend__item legend__item--supports"><svg class="legend__wire" viewBox="0 0 32 8" aria-hidden="true"><path d="M0 4h32"/></svg>Supports</li>
         <li class="legend__item legend__item--partly"><svg class="legend__wire" viewBox="0 0 32 8" aria-hidden="true"><path d="M0 4h32"/></svg>Partly supports</li>
@@ -267,7 +268,7 @@ docker compose up --build</code></pre></div>
      (GreenSock standard licence, header kept in the file), SRI-pinned. It only staggers
      the hero rows in once; without it (or with reduced motion) the page is already complete. -->
 <script src="vendor/gsap/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" defer></script>
-<script src="graph.js" defer></script>
+<script src="vendor/flow/flow.js" defer></script>
 <script src="site.js" defer></script>
 </body>
 </html>
