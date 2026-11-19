@@ -930,15 +930,18 @@ def render_map(samples: dict) -> str:
 
 
 def render_home_numbers(runs: list[dict]) -> str:
-    """The home page's compact numbers: the same headline measures as docs/evaluation.md, each with a 95% Wilson
-    score interval from the published value x n. (docs/evaluation.md shows the runner's bootstrap intervals where a
-    run published one; the home page uses one method throughout, and says so.)"""
+    """The home page's compact numbers: the same headline measures as docs/evaluation.md, with intervals."""
     def row(label: str, run: str, key: str, floor: str, weak: bool = False, extra: str = "") -> str:
         p = _get(runs, run, key)
         fl = _get(runs, run.replace("-rules", "-keyword"), key) if floor == "run" else None
         floor_txt = floor if floor != "run" else (fmt(fl["v"]) if fl and fl.get("v") is not None else "n/a")
-        lo, hi = wilson(p["x"] if "x" in p else round(p["v"] * p["n"]), p["n"])
-        title = f"{label}: {fmt(p['v'])}, 95% Wilson interval {_2dp(lo)} to {_2dp(hi)}, n={p['n']}"
+        if p["m"] == "bootstrap" and p["ci"] == [p["v"], p["v"]] and "x" not in p:
+            lo, hi = wilson(round(p["v"] * p["n"]), p["n"])  # a bootstrap over 0 events has no width
+            method = "Wilson"
+        else:
+            lo, hi = p["ci"]
+            method = "Wilson" if p["m"] == "wilson" else "bootstrap"
+        title = f"{label}: {fmt(p['v'])}, 95% {method} interval {_2dp(lo)} to {_2dp(hi)}, n={p['n']}"
         svg = (
             f'<svg class="iv" width="100%" height="18" role="img"><title>{esc(title)}</title>'
             f'<line class="iv__axis" x1="0" x2="100%" y1="9" y2="9"/>'
