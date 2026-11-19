@@ -1,5 +1,7 @@
-// Keyboard-accessible relationship graph (roadmap v1.0). Hand-rolled layered layout:
-// parties (who) -> commitments (what) -> documents (where it is written). No graph library.
+// Keyboard-accessible relationship graph. Layered layout: parties (who) -> commitments (what) -> documents
+// (where it is written), drawn with React Flow (@xyflow/react), the same library as the site's evidence map.
+import "@xyflow/react/dist/base.css";
+import { Handle, Position, ReactFlow, ReactFlowProvider, type Edge, type Node, type NodeProps } from "@xyflow/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "./api";
 import { EFFECT, TYPE } from "./labels";
@@ -22,7 +24,7 @@ const REL: Record<Rel, [string, string]> = {
   contains: ["Written in", "Contains"],
 };
 const COLS = [{ x: 8, w: 150, head: "Who" }, { x: 214, w: 336, head: "What was committed to" }, { x: 602, w: 176, head: "Where it is written" }];
-const W = 840, TOP = 40, ROW = 34, NODE_H = 26, MIN_GAP = 36;
+const TOP = 40, ROW = 34, NODE_H = 26, MIN_GAP = 36;
 
 const clip = (s: string, w: number) => { const n = Math.floor((w - 16) / 7); return s.length > n ? `${s.slice(0, n - 1)}…` : s; };
 const secKey = (s: string | null) => (s ?? "999").split(".").map((x) => x.padStart(4, "0")).join(".");
@@ -114,7 +116,7 @@ export function RelationshipGraph({ graph, docId, items, passages, onShow, onSel
   const [active, setActive] = useState<string | null>(null);
   const [focusable, setFocusable] = useState<string | null>(null);
   const [hint, setHint] = useState("");
-  const refs = useRef(new Map<string, SVGGElement>());
+  const refs = useRef(new Map<string, HTMLButtonElement>());
   const tabStop = focusable && byId.has(focusable) ? focusable : nodes[0]?.id;
 
   const links = (id: string) => edges.filter((e) => e.src === id || e.dst === id).map((e) => {
@@ -160,15 +162,6 @@ export function RelationshipGraph({ graph, docId, items, passages, onShow, onSel
     if (keys[e.key]) { e.preventDefault(); keys[e.key](); }
   };
 
-  const path = (a: GNode, b: GNode) => {
-    if (a.col === b.col) {  // same column: an arc bowing out to the right
-      const x = a.x + a.w, y1 = a.y + NODE_H / 2, y2 = b.y + NODE_H / 2, bow = 18 + Math.min(36, Math.abs(y2 - y1) / 5);
-      return `M${x} ${y1} C${x + bow} ${y1} ${x + bow} ${y2} ${x} ${y2}`;
-    }
-    const [l, r] = a.col < b.col ? [a, b] : [b, a];
-    const x1 = l.x + l.w, y1 = l.y + NODE_H / 2, x2 = r.x, y2 = r.y + NODE_H / 2, dx = (x2 - x1) / 2;
-    return `M${x1} ${y1} C${x1 + dx} ${y1} ${x2 - dx} ${y2} ${x2} ${y2}`;
-  };
   const cur = active ? byId.get(active) : null;
   if (!nodes.length) return <p className="muted">No relationships were found to draw.</p>;
 
@@ -177,28 +170,32 @@ export function RelationshipGraph({ graph, docId, items, passages, onShow, onSel
       <h2 id="graph-h">Map of who owes what</h2>
       <p className="kbd-help" id="graph-help">Select an item, then use <kbd>↑</kbd> <kbd>↓</kbd> to move within a column,{" "}
         <kbd>←</kbd> <kbd>→</kbd> to follow a link to a connected item, and <kbd>Enter</kbd> to show its source text.</p>
-      <div className="graph-wrap">
-        <svg className={`graph ${active ? "has-active" : ""}`} viewBox={`0 0 ${W} ${height}`} role="group"
-          aria-labelledby="graph-h" aria-describedby="graph-help">
-          {COLS.map((c) => <text key={c.head} className="col-head" x={c.x} y={18} aria-hidden="true">{c.head}</text>)}
-          <g aria-hidden="true">
-            {edges.map((e) => {
+      <div className="graph-wrap graph" style={{ height: Math.min(640, height + 24) }}>
+        <ReactFlowProvider>
+          <ReactFlow
+            nodes={[
+              ...COLS.map((c, i): Node => ({ id: `head-${i}`, type: "head", position: { x: c.x, y: 2 }, data: { text: c.head }, width: c.w, height: 20,
+                draggable: false, selectable: false, focusable: false })),
+              ...nodes.map((n): Node<RData> => ({ id: n.id, type: "rg", position: { x: n.x, y: n.y }, draggable: false,
+                selectable: false, focusable: false, width: n.w, height: NODE_H, // fixed: React Flow hides unsized nodes while it measures, which drops focus
+                data: { n, tab: n.id === tabStop, active: n.id === active, lit: lit.has(n.id), dim: !!active && !lit.has(n.id),
+                  register: (el) => { if (el) refs.current.set(n.id, el); else refs.current.delete(n.id); },
+                  onFocus: () => { setActive(n.id); setFocusable(n.id); }, onKey: (e) => onKey(e, n),
+                  onClick: () => focusNode(n.id), onOpen: () => open(n) } })),
+            ]}
+            edges={edges.map((e): Edge => {
               const a = byId.get(e.src)!, b = byId.get(e.dst)!;
+              const [sh, th] = a.col === b.col ? ["r", "rt"] : a.col < b.col ? ["r", "l"] : ["ls", "rt"];
               const cls = e.rel === "supersedes" ? "replaces" : e.rel === "qualifies" ? "limits" : "";
-              return <path key={e.id} d={path(a, b)} className={`edge ${cls} ${lit.has(e.id) ? "lit" : ""}`} />;
+              return { id: e.id, source: e.src, target: e.dst, sourceHandle: sh, targetHandle: th, focusable: false, selectable: false,
+                className: `edge ${cls} ${lit.has(e.id) ? "lit" : ""} ${active && !lit.has(e.id) ? "faded" : ""}` };
             })}
-          </g>
-          {nodes.map((n) => (
-            <g key={n.id} ref={(el) => { if (el) refs.current.set(n.id, el); else refs.current.delete(n.id); }}
-              className={`node ${n.kind} ${n.changed ? "changed" : ""} ${n.id === active ? "active" : ""} ${lit.has(n.id) ? "lit" : ""}`}
-              data-node={n.id} role="button" tabIndex={n.id === tabStop ? 0 : -1} aria-label={n.name}
-              transform={`translate(${n.x} ${n.y})`}
-              onFocus={() => { setActive(n.id); setFocusable(n.id); }} onKeyDown={(e) => onKey(e, n)}
-              onClick={() => focusNode(n.id)} onDoubleClick={() => open(n)}>
-              <rect width={n.w} height={NODE_H} rx={n.kind === "party" ? NODE_H / 2 : 5} />
-              <text x={10} y={NODE_H / 2 + 4.5}>{clip(n.label, n.w)}</text>
-            </g>))}
-        </svg>
+            nodeTypes={rgTypes} fitView fitViewOptions={{ padding: 0.04, maxZoom: 1 }} minZoom={0.4} maxZoom={1.6}
+            nodesDraggable={false} nodesConnectable={false} nodesFocusable={false} edgesFocusable={false} elementsSelectable={false}
+            disableKeyboardA11y deleteKeyCode={null} selectionKeyCode={null} multiSelectionKeyCode={null}
+            panActivationKeyCode={null} zoomActivationKeyCode={null} zoomOnScroll={false} preventScrolling={false}
+            zoomOnDoubleClick={false} proOptions={{ hideAttribution: true }} aria-labelledby="graph-h" aria-describedby="graph-help" />
+        </ReactFlowProvider>
       </div>
       <div className="graph-detail card">
         {!cur && <p className="muted">Select an item on the map to see what it is connected to.</p>}
@@ -221,6 +218,28 @@ export function RelationshipGraph({ graph, docId, items, passages, onShow, onSel
     </section>
   );
 }
+
+type RData = { n: GNode; tab: boolean; active: boolean; lit: boolean; dim: boolean;
+  register: (el: HTMLButtonElement | null) => void; onFocus: () => void; onKey: (e: React.KeyboardEvent) => void;
+  onClick: () => void; onOpen: () => void };
+
+function RNode({ data: d }: NodeProps<Node<RData>>) {
+  const n = d.n;
+  return (
+    <>
+      <Handle type="target" position={Position.Left} id="l" isConnectable={false} />
+      <Handle type="source" position={Position.Right} id="r" isConnectable={false} />
+      <Handle type="target" position={Position.Right} id="rt" isConnectable={false} />
+      <Handle type="source" position={Position.Left} id="ls" isConnectable={false} />
+      <button type="button" ref={d.register} data-node={n.id} tabIndex={d.tab ? 0 : -1} aria-label={n.name} aria-pressed={d.active}
+        className={`node ${n.kind} ${n.changed ? "changed" : ""} ${d.active ? "active" : ""} ${d.lit ? "lit" : ""} ${d.dim ? "faded" : ""}`}
+        onFocus={d.onFocus} onKeyDown={d.onKey} onClick={d.onClick} onDoubleClick={d.onOpen}>
+        {clip(n.label, n.w)}
+      </button>
+    </>
+  );
+}
+const rgTypes = { rg: RNode, head: ({ data }: NodeProps<Node<{ text: string }>>) => <span className="col-head" aria-hidden="true">{data.text}</span> };
 
 function firstSpan(passages: Passage[], docId: string): Span | null {
   const p = passages[0];

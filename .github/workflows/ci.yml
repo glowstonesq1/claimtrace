@@ -77,6 +77,10 @@ jobs:
       - name: Typecheck and build
         run: npm run build
         working-directory: apps/web
+      # the site's map script is committed so the site needs no build step; it must be what this source builds
+      - name: The site's map bundle (apps/site/vendor/flow) is built from this source
+        run: npm run build:site && git diff --exit-code -- ../site/vendor/flow
+        working-directory: apps/web
       - name: No dangerouslySetInnerHTML
         run: "! grep -rn dangerouslySetInnerHTML apps/web/src"
       - name: Browser end-to-end + accessibility (axe)

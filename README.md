@@ -24,7 +24,7 @@ system delivered by the date that now applies? It is local-first and open source
 
 All three run the same engine. The website compares them on its [Get it](https://glowstonesq1.github.io/claimtrace/get/) page.
 
-<img src="docs/img/readme-try.png" width="100%" alt="The /try workbench with the four sample documents loaded. Left: the engine is ready and four documents are read. Middle: who owes what, with three clauses changed by the amendment. In front: the contract checked against the delivery record, a high-severity contradiction: delivery was due by May 15, 2026 and happened on May 22, 2026, 7 days late.">
+<img src="docs/img/readme-try.png" width="100%" alt="Try it with the four sample documents loaded. A one-line summary (23 commitments in 4 documents, 3 changed by an amendment, every quote matches its document word for word), then the map, opened on the 18 problem clauses: the amendment on the left, the contract in the middle, the audit report and delivery record on the right, each clause a card that says its status in words (Replaced, Contradicted, Partly supported, Needs review). Contract §2.1 is chosen and quoted in the panel below the map. Under it, short headings that open: Problems to look at (6), Changed by an amendment (3), Dated deadlines (3).">
 
 ## How good it is
 
@@ -72,7 +72,7 @@ Every metric with its interval, and every case we can show, is on the
 
 ## Every finding points back to a clause
 
-<a href="https://glowstonesq1.github.io/claimtrace/#how"><img src="docs/img/readme-map.png" width="100%" alt="The evidence map: one lane per sample document (contract, Amendment No. 1, audit report, delivery record), with each clause as a block. Contract clause 2.1 is selected and linked to Amendment No. 1 §1.1. The side panel quotes it, The Vendor shall deliver the Phase 1 System no later than March 31, 2026, and says it was replaced: the date differs, 31 Mar 2026 against 15 May 2026."></a>
+<a href="https://glowstonesq1.github.io/claimtrace/#how"><img src="docs/img/readme-map.png" width="100%" alt="The evidence map on the home page: Amendment No. 1, the contract, the audit report and the delivery record as columns of clause cards, each with its status in words, and a line for every replacement, contradiction or partial support between them. Contract §2.1 is chosen; the panel quotes it, The Vendor shall deliver the Phase 1 System no later than March 31, 2026, and says it was replaced by Amendment No. 1 §1.1: the date differs, 31 Mar 2026 against 15 May 2026."></a>
 
 ClaimTrace is built around three rules:
 

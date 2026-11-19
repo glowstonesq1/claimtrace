@@ -3,7 +3,7 @@ and links between clips, built from engine output.
 
 One source for both pictures of it: the home page's map (scripts/build_site_data.py runs ``graph`` on the
 sample documents at build time) and the try page (the web worker runs it on whatever the person added).
-apps/site/graph.js draws the result.
+apps/web/src/flow (React Flow, built to apps/site/vendor/flow) draws the result.
 
 - ``graph(session)``: every document as a lane, its commitments as clips, the register's replacement links and
   the links found by checking the primary document (the contract, else the first added) against each other.

@@ -37,6 +37,20 @@ A redesign of the website, a new film and a rewritten README. The engine is unch
   full sample documents are loaded. This keeps the site-sealing test strict with no exemptions; it now scans
   every site page, the home page included.
 
+### Changed: simpler results, one graph library
+- **Every map is drawn with React Flow** (`@xyflow/react` 12.12.1, MIT): the home page, the three maps on Try
+  it, and the relationship graph in the self-hosted app. The site's map is one self-hosted script built from
+  `apps/web/src/flow` into `apps/site/vendor/flow` (the site still needs no build step; CI rebuilds it and
+  fails if the committed copy differs). It replaces the hand-drawn `graph.js`.
+- **The map shows problems first.** It opens on the clauses something disputes, replaces or only partly
+  supports ("All clauses" adds the rest); each clause is a card that says its status in words, and documents
+  are arranged so that links join neighbouring columns (on the samples: amendment, contract, then the reports).
+- **Try it is shorter.** After the samples load: a one-line summary, the map, then short headings that open
+  (Problems to look at, Changed by an amendment, Dated deadlines, Every commitment) instead of every list
+  written out; Ask comes next, then Compare. The page after loading the samples went from about 8,400 px to
+  about 4,000 at 1280 px wide. The quotes behind an answer and the findings of a comparison are folded the
+  same way, and on a phone the results come before the documents list.
+
 ### Removed
 - The old promo film (`apps/promo`), superseded by `apps/film`.
 - Unused `slots.js` and GSAP ScrollTrigger from the site.

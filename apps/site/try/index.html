@@ -16,7 +16,8 @@
 <link rel="stylesheet" href="../chrome.css">
 <link rel="stylesheet" href="try.css">
 <script src="../head.js"></script>
-<script src="../graph.js" defer></script>
+<link rel="stylesheet" href="../vendor/flow/style.css">
+<script src="../vendor/flow/flow.js" defer></script>
 <script type="module" src="try.js"></script>
 </head>
 <body class="try">
@@ -144,17 +145,17 @@
         </section>
 
         <nav class="jump" id="results-nav" aria-label="Results" hidden>
-          <a href="#register">Who owes what</a>
+          <a href="#register">What we found</a>
           <a href="#ask">Ask a question</a>
-          <a href="#check">Check two documents</a>
+          <a href="#check">Compare two documents</a>
         </nav>
 
+        <!-- 1. the map, problems first; 2. short headings that open; 3. ask; 4. compare -->
         <section class="panel register" aria-labelledby="register-title" id="register" hidden>
-          <h2 id="register-title" class="panel__head" tabindex="-1">Who owes what, by when</h2>
+          <h2 id="register-title" class="panel__head" tabindex="-1">What we found</h2>
           <p class="panel__lede" id="register-summary"></p>
           <div class="graph-block" id="register-map" hidden>
-            <h3 class="sub" id="register-map-title">Map of the documents</h3>
-            <p class="graph-block__lede">One lane per document, one button per clause. Choose a clause to read its words and see what replaces, supports or contradicts it.</p>
+            <h3 class="visually-hidden" id="register-map-title">Map of the documents</h3>
             <div class="graph-filter" id="party-filter-wrap" hidden>
               <label class="field__label" for="party-filter">Who must act</label>
               <select class="field" id="party-filter"></select>
@@ -162,16 +163,30 @@
             <p class="visually-hidden" id="party-status" role="status" aria-live="polite"></p>
             <div id="register-graph"></div>
           </div>
-          <div id="changes"></div>
-          <div class="deadlines" id="deadlines"></div>
-          <div id="parties"></div>
+          <div class="folds" id="folds">
+            <details class="fold" id="fold-problems" hidden>
+              <summary class="fold__sum"><span class="fold__title"><svg class="icon" aria-hidden="true"><use href="#i-contradicts"/></svg>Problems to look at</span><span class="fold__n num" id="fold-problems-n"></span><span class="fold__hint">Where another document disagrees with, or only partly backs, a clause</span></summary>
+              <div class="fold__body" id="problems"></div>
+            </details>
+            <details class="fold" id="fold-changes" hidden>
+              <summary class="fold__sum"><span class="fold__title"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Changed by an amendment</span><span class="fold__n num" id="fold-changes-n"></span><span class="fold__hint">The old words struck through, the new words beside them</span></summary>
+              <div class="fold__body" id="changes"></div>
+            </details>
+            <details class="fold" id="fold-deadlines" hidden>
+              <summary class="fold__sum"><span class="fold__title"><svg class="icon" aria-hidden="true"><use href="#i-inforce"/></svg>Dated deadlines</span><span class="fold__n num" id="fold-deadlines-n"></span><span class="fold__hint">Every date someone must act by, in order</span></summary>
+              <div class="fold__body deadlines" id="deadlines"></div>
+            </details>
+            <details class="fold" id="fold-parties">
+              <summary class="fold__sum"><span class="fold__title"><svg class="icon" aria-hidden="true"><use href="#i-evidence"/></svg>Every commitment, by who must act</span><span class="fold__n num" id="fold-parties-n"></span><span class="fold__hint">Each one quoted from its document</span></summary>
+              <div class="fold__body" id="parties"></div>
+            </details>
+          </div>
         </section>
 
         <section class="panel ask" aria-labelledby="ask-title" id="ask" hidden>
           <h2 id="ask-title" class="panel__head">Ask a question</h2>
-          <p class="panel__lede">Answers quote the documents. If nothing supports an answer, it says so.</p>
           <form class="ask__form" id="ask-form">
-            <label class="field__label" for="question">Your question</label>
+            <label class="field__label" for="question">Ask in plain words. Answers quote the documents; if nothing supports one, it says so.</label>
             <div class="ask__row">
               <input class="field" type="text" id="question" name="question" autocomplete="off" maxlength="500" required>
               <button class="btn" type="submit" id="ask-button">Ask</button>
@@ -179,15 +194,19 @@
           </form>
           <div class="chips" id="suggestions" role="group" aria-label="Example questions"></div>
           <p class="visually-hidden" id="answer-status" role="status" aria-live="polite"></p>
+          <div class="answer" id="answer"></div>
           <div class="graph-block" id="answer-map" hidden>
-            <h3 class="sub" id="answer-map-title">Map of the answer</h3>
+            <h3 class="sub" id="answer-map-title">Where the answer comes from</h3>
             <div id="answer-graph"></div>
           </div>
-          <div class="answer" id="answer"></div>
+          <details class="fold" id="fold-quotes" hidden>
+            <summary class="fold__sum"><span class="fold__title"><svg class="icon" aria-hidden="true"><use href="#i-evidence"/></svg>The quotes in full</span><span class="fold__n num" id="fold-quotes-n"></span><span class="fold__hint">Each with its source and a link into the document</span></summary>
+            <div class="fold__body" id="quotes"></div>
+          </details>
         </section>
 
         <section class="panel check" aria-labelledby="check-title" id="check" hidden>
-          <h2 id="check-title" class="panel__head">Check one document against another</h2>
+          <h2 id="check-title" class="panel__head">Compare two documents</h2>
           <p class="panel__lede">A contract against its amendment, an audit report or a delivery record.</p>
           <form class="check__form" id="check-form">
             <div class="check__field">
@@ -198,12 +217,12 @@
               <label class="field__label" for="other-doc">against</label>
               <select class="field" id="other-doc"></select>
             </div>
-            <button class="btn" type="submit" id="check-button">Check</button>
+            <button class="btn" type="submit" id="check-button">Compare</button>
           </form>
           <p class="visually-hidden" id="check-status" role="status" aria-live="polite"></p>
+          <p class="panel__lede check__summary" id="check-summary"></p>
           <div class="graph-block" id="check-map" hidden>
-            <h3 class="sub" id="check-map-title">Map of the check</h3>
-            <p class="graph-block__lede">Each connector is a finding. Choose a clause, then &ldquo;Show the finding&rdquo; to read it in full below.</p>
+            <h3 class="visually-hidden" id="check-map-title">Map of the comparison</h3>
             <div id="check-graph"></div>
           </div>
           <div class="findings" id="findings"></div>

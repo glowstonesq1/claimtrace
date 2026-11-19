@@ -230,24 +230,23 @@ mark { background: var(--mark); color: var(--ink); outline: 2px solid var(--mark
 .path li::after { content: " \2192"; color: var(--muted); }
 .path li:last-child::after { content: ""; }
 
-/* ------------------------------------------------------------------ relationship graph */
-.graph-wrap { border: 1px solid var(--rule); border-radius: var(--radius-card); background: var(--surface); color: var(--ink); overflow-x: auto; }
-.graph { display: block; width: 100%; min-width: 600px; height: auto; font-family: var(--font-sans); }
-.graph .col-head { fill: var(--muted); font-size: 13px; font-weight: 600; }
-.graph .edge { fill: none; stroke: var(--field-edge); stroke-width: 1.25; transition: opacity var(--dur-short) var(--ease-out); }
-.graph .edge.replaces { stroke: var(--bad); stroke-dasharray: 4 3; }
-.graph .edge.limits { stroke: var(--warn); stroke-dasharray: 2 3; }
-.graph .node { cursor: pointer; transition: opacity var(--dur-short) var(--ease-out); }
-.graph .node rect { fill: var(--surface); stroke: var(--field-edge); stroke-width: 1; }
-.graph .node.party rect { fill: var(--info-bg); stroke: var(--info); }
-.graph .node.document rect { fill: var(--paper-2); }
-.graph .node.changed rect { stroke-dasharray: 4 3; }
-.graph .node text { fill: var(--ink); font-size: 13px; }
-.graph .node.changed text { fill: var(--muted); }
-.graph .node:focus { outline: none; }
-.graph .node:focus-visible rect, .graph .node.active rect { stroke: var(--focus); stroke-width: 3; }
-.graph.has-active .edge:not(.lit), .graph.has-active .node:not(.lit):not(.active) { opacity: 0.5; }
-.graph .edge.lit { stroke: var(--accent); stroke-width: 2; }
+/* ------------------------------------------------------------------ relationship graph (React Flow) */
+.graph-wrap { border: 1px solid var(--rule); border-radius: var(--radius-card); background: var(--surface); color: var(--ink); min-height: 220px; }
+.graph-wrap .col-head { color: var(--muted); font-size: 13px; font-weight: 600; white-space: nowrap; }
+.graph-wrap .react-flow__handle { opacity: 0; pointer-events: none; width: 1px; height: 1px; min-width: 0; min-height: 0; border: 0; }
+.graph-wrap .react-flow__edge-path { fill: none; stroke: var(--field-edge); stroke-width: 1.25; transition: opacity var(--dur-short) var(--ease-out); }
+.graph-wrap .edge.replaces .react-flow__edge-path { stroke: var(--bad); stroke-dasharray: 4 3; }
+.graph-wrap .edge.limits .react-flow__edge-path { stroke: var(--warn); stroke-dasharray: 2 3; }
+.graph-wrap .edge.lit .react-flow__edge-path { stroke: var(--accent); stroke-width: 2; }
+.graph-wrap .edge.faded { opacity: 0.5; }
+.graph-wrap .node { all: unset; pointer-events: auto; box-sizing: border-box; width: 100%; height: 100%; display: flex; align-items: center; padding: 0 10px; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--field-edge); border-radius: 5px; color: var(--ink); font: 13px/1 var(--font-sans);
+  white-space: nowrap; overflow: hidden; transition: opacity var(--dur-short) var(--ease-out); }
+.graph-wrap .node.party { background: var(--info-bg); border-color: var(--info); border-radius: 999px; }
+.graph-wrap .node.document { background: var(--paper-2); }
+.graph-wrap .node.changed { border-style: dashed; color: var(--muted); }
+.graph-wrap .node:focus-visible, .graph-wrap .node.active { outline: none; box-shadow: 0 0 0 3px var(--focus); }
+.graph-wrap .node.faded { opacity: 0.5; }
 .graph-detail { margin-top: var(--space-sm); min-height: 7.5rem; }
 .graph-detail h3 { margin-bottom: var(--space-2xs); }
 .graph-detail ul { display: flex; flex-wrap: wrap; gap: var(--space-xs); }

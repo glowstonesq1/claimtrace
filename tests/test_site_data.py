@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+FLOW_SOURCE = Path(__file__).resolve().parents[1] / "apps" / "web" / "src" / "flow" / "EvidenceFlow.tsx"
 SITE = ROOT / "apps" / "site"
 HOLDOUT = ROOT / "evals" / "datasets" / "holdout"
 OPEN_SETS = [ROOT / "evals" / "datasets" / "core", ROOT / "evals" / "datasets" / "amendments-v2"]
@@ -328,29 +329,34 @@ def test_withheld_clauses_point_to_try_and_say_nothing_about_test_cases() -> Non
     """A withheld clause's panel says only that the wording is on Try it, with a link; no word about evaluation."""
     builder = _load_builder()
     samples = builder.build_samples()
-    script = (SITE / "graph.js").read_text(encoding="utf-8")
+    source = FLOW_SOURCE.read_text(encoding="utf-8")
+    bundle = (SITE / "vendor" / "flow" / "flow.js").read_text(encoding="utf-8")
     words = "Wording not shown on this page. Read it on "
     tail = ", where the full sample contract is loaded."
     for cid in builder.WITHHELD_CLIPS:
         panel = builder.render_panel(samples, cid)
         assert f'{words}<a href="try/">Try it</a>{tail}' in panel, cid
-    assert words in script and tail in script and "go.href = 'try/'" in script
-    for text in (script, (SITE / "index.html").read_text(encoding="utf-8")):
+    assert f'{words}<a href="try/">Try it</a>{tail}' in source
+    assert words in bundle and tail in bundle and '"try/"' in bundle
+    # the card on the map shows no wording either, only where to read it
+    assert '"Wording on Try it"' in source
+    for text in (source, bundle, (SITE / "index.html").read_text(encoding="utf-8")):
         assert not re.search(r"sealed test|test case|evaluation case", text, re.I)
 
 
 def test_map_announces_a_short_status_not_the_whole_panel() -> None:
     """The panel is not a live region (it re-read the whole clause on every move); a short visually hidden status
-    ("Contract §4.1, contradicted") is, and graph.js updates it when a clause is chosen, never on hover."""
+    ("Contract §4.1, contradicted") is, and the live map (apps/web/src/flow) updates it when a clause is chosen,
+    by pointer or keys, never on hover."""
     page = (SITE / "index.html").read_text(encoding="utf-8")
     panel = re.search(r'<div class="map__panel" id="map-panel"[^>]*>', page)
     assert panel and "aria-live" not in panel.group(0)
     status = re.search(r'<p [^>]*id="map-status"[^>]*>', page)
     assert status and 'role="status"' in status.group(0) and "visually-hidden" in status.group(0)
-    script = (SITE / "graph.js").read_text(encoding="utf-8")
-    pin = script.split("function pin(id, animate) {")[1].split("\n    }\n")[0]
-    show = script.split("function show(id, animate) {")[1].split("\n    }\n")[0]
-    assert "announce(id)" in pin and "announce" not in show
-    assert "addEventListener('pointerover', onOver)" in script
-    hover = script.split("function onOver(e) {")[1].split("\n    }\n")[0]
-    assert "announce" not in hover and "pin(" not in hover
+    source = FLOW_SOURCE.read_text(encoding="utf-8")
+    choose = source.split("const choose = useCallback(")[1].split("\n  }, [")[0]
+    assert "setSaid(" in choose and source.count("setSaid(") == 1
+    assert not re.search(r"onMouse(Enter|Over|Move)|onPointer(Enter|Over|Move)|pointerover|mouseover", source)
+    assert re.search(r'<p className="fx-sr" role="status" aria-live="polite">\{said\}</p>', source)
+    panel_tag = re.search(r'<div className="fx-panel"[^>]*>', source)
+    assert panel_tag and "aria-live" not in panel_tag.group(0) and 'role="status"' not in panel_tag.group(0)

@@ -17,9 +17,12 @@
 // past the watchdog limit, or a cancelled one, terminates the worker with a plain message and the next
 // action restarts it.
 //
-// The maps (../graph.js): after the samples load, the register's map shows every document as a lane with
-// connectors; the keyboard moves one tab stop along and between lanes and the status line follows; the party
-// filter dims the other clauses; the answer and check maps render, and "Show the finding" moves to its card.
+// Layout: after the samples load the page is short: a one-line summary, the map, then folds (short headings
+// that open) that start closed. The maps (../vendor/flow, React Flow): the register's map opens on the
+// problem clauses, every document a column with links drawn; "All clauses" adds the rest; the keyboard moves
+// one tab stop along and between documents and the status line follows; the party filter dims the other
+// clauses; "Show on map" in the Problems fold chooses its clause; the answer and check maps render, and "Show
+// the finding" moves to its card.
 // At 1440 and 360 px with all three maps: axe finds no violations at all and the page does not scroll
 // sideways. GRAPH_SHOTS=<dir> writes graph-*-1440.png and graph-*-390.png at deviceScaleFactor 1.
 
@@ -179,15 +182,23 @@ async function main() {
 
     // 1. samples -> register
     await page.getByRole('button', { name: 'Load sample documents' }).click();
-    await page.waitForSelector('.item', { timeout: 60000 });
+    await page.waitForSelector('.item', { state: 'attached', timeout: 60000 });
     const items = await page.locator('.item').count();
     check(items >= 20, `register shows commitments (${items})`);
+    check(await page.evaluate(() => document.activeElement && document.activeElement.id) === 'register-title', 'focus moves to the register');
+    await page.waitForSelector('#register-graph [data-clip]', { timeout: 60000 });
+    const folds = await page.locator('#folds > details:not([hidden])').count();
+    check(folds === 4 && await page.locator('#folds > details[open]').count() === 0, `the detail starts as ${folds} closed folds`);
+    const tall = await page.evaluate(() => document.documentElement.scrollHeight);
+    check(tall < 5000, `after the samples load the page is short (${tall} px at 1280 wide, was about 8,400)`);
+    report.page_height_after_load = tall;
+    check((await page.locator('#fold-changes-n').innerText()) === '3', 'the Changed fold counts three clauses');
+    await page.locator('#fold-parties > summary').click();
     check(await page.locator('.party__head', { hasText: 'Vendor' }).count() > 0, 'register grouped by party');
     const replaced = page.locator('.item.is-replaced', { hasText: 'March 31, 2026' }).first();
     check(await replaced.isVisible(), 'clause 2.1 shown as replaced');
     check((await replaced.innerText()).includes('May 15, 2026'), 'replacement wording shown');
     check(await page.locator('.item .check-bad').count() === 0, 'every register quote matches its document');
-    check(await page.evaluate(() => document.activeElement && document.activeElement.id) === 'register-title', 'focus moves to the register');
     report.register_summary = await page.locator('#register-summary').innerText();
 
     // show in document, then focus returns
@@ -202,69 +213,88 @@ async function main() {
     check(await show.evaluate((el) => el === document.activeElement), 'focus returns to the button');
     await shot(page, '#register', 'try-register.png');
 
-    // the register's map: every document a lane, connectors, one tab stop, arrows move it
-    await page.waitForSelector('#register-graph [data-clip]', { timeout: 60000 });
-    const lanes = await page.locator('#register-graph .lane').count();
-    check(lanes === 4, `map: one lane per document (${lanes})`);
+    // the register's map: problems first, every document a column, links drawn, one tab stop, arrows move it
+    const lanes = await page.locator('#register-graph .fx-lane').count();
+    check(lanes === 4, `map: a column for each document (${lanes})`);
+    const problemN = await page.locator('#register-graph [data-clip]').count();
+    check(problemN >= 10 && problemN < 23, `map: opens on the problem clauses (${problemN})`);
+    check(await page.locator('#register-graph .react-flow__edge').count() >= 10, 'map: links drawn');
+    check(await page.locator('#register-graph .fx-legend__item').count() > 0, 'map: legend shown');
+    check(await page.locator('#register-graph .fx-clip .fx-badge').count() === problemN, 'map: every clause says its status in words');
+    await page.getByRole('button', { name: /^All clauses/ }).click();
     const clipsN = await page.locator('#register-graph [data-clip]').count();
-    check(clipsN >= 20, `map: a clip per cited clause (${clipsN})`);
-    check(await page.locator('#register-graph .map__wires path.wire').count() > 0, 'map: connectors drawn');
-    check(await page.locator('#register-graph .legend__item').count() > 0, 'map: legend shown');
+    check(clipsN >= 20 && clipsN > problemN, `map: "All clauses" shows every cited clause (${clipsN})`);
+    await page.getByRole('button', { name: /^Problem clauses/ }).click();
     check(await page.locator('#register-graph [data-clip][tabindex="0"]').count() === 1, 'map: one tab stop');
     const firstClip = page.locator('#register-graph [data-clip][tabindex="0"]');
     const startId = await firstClip.getAttribute('data-clip');
+    const contract = await page.locator('#register-graph .fx-lane', { has: page.locator('.fx-lane__name', { hasText: /^Master Services Agreement$/ }) }).getAttribute('data-lane');
+    check(startId === `${contract}-2.1`, `map: opens on the first problem, contract clause 2.1 (${startId})`);
     await firstClip.focus();
+    // the clause that has focus, once it is not `from` (focus moves within a frame or two of the key press)
+    const focused = (from = '') => page.locator(`#register-graph [data-clip]:focus${from ? `:not([data-clip="${from}"])` : ''}`)
+      .getAttribute('data-clip', { timeout: 5000 }).catch(() => null);
     await page.keyboard.press('Home');
-    const homeId = await page.evaluate(() => document.activeElement.dataset.clip);
-    await page.keyboard.press('ArrowRight');
-    const rightId = await page.evaluate(() => document.activeElement.dataset.clip);
-    check(rightId && rightId !== homeId, `map: ArrowRight moves along the lane (${homeId} -> ${rightId})`);
-    check(await page.locator(`#register-graph [data-clip="${rightId}"]`).getAttribute('aria-pressed') === 'true', 'map: the focused clause is pressed');
-    check(await page.locator('#register-graph [data-clip][tabindex="0"]').getAttribute('data-clip') === rightId, 'map: the tab stop follows');
+    const homeId = await focused();
     await page.keyboard.press('ArrowDown');
-    const downId = await page.evaluate(() => document.activeElement.dataset.clip);
-    check(downId && downId.split('-')[0] !== rightId.split('-')[0], `map: ArrowDown moves to the next document (${downId})`);
-    await page.keyboard.press('End');
-    const status = await page.locator('#register-map-status').innerText();
+    const downId = await focused(homeId);
+    check(downId && downId !== homeId && downId.split('-')[0] === homeId.split('-')[0], `map: ArrowDown moves along the document (${homeId} -> ${downId})`);
+    check(await page.locator(`#register-graph [data-clip="${downId}"]`).getAttribute('aria-pressed') === 'true', 'map: the focused clause is pressed');
+    check(await page.locator('#register-graph [data-clip][tabindex="0"]').getAttribute('data-clip') === downId, 'map: the tab stop follows');
+    await page.keyboard.press('ArrowRight');
+    const rightId = await focused(downId);
+    check(rightId && rightId.split('-')[0] !== downId.split('-')[0], `map: ArrowRight moves to the next document (${rightId})`);
+    const status = await page.locator('#register-graph [role="status"]').innerText();
     check(/§/.test(status) && status.length < 120, `map: a short status line (${status})`);
-    check(startId !== null, 'map: opens on a clause');
-    await page.locator('#register-graph [data-clip]').first().click();
-    const quote = await page.locator('#register-graph .map__quote').innerText();
+    await page.locator(`#register-graph [data-clip="${contract}-2.1"]`).click();
+    const quote = await page.locator('#register-graph .fx-panel__quote').innerText();
     check(quote.includes('March 31, 2026'), 'map: the panel quotes clause 2.1 verbatim');
     await page.selectOption('#party-filter', 'Customer');
-    const dimmed = await page.locator('#register-graph .clip.is-dim').count();
-    check(dimmed > 0 && dimmed < clipsN, `map: the party filter dims the other clauses (${dimmed})`);
+    const dimmed = await page.locator('#register-graph .fx-clip.is-dim').count();
+    check(dimmed > 0 && dimmed < problemN, `map: the party filter dims the other clauses (${dimmed})`);
     await page.selectOption('#party-filter', '');
-    check(await page.locator('#register-graph .clip.is-dim').count() === 0, 'map: Everyone shows every clause');
+    check(await page.locator('#register-graph .fx-clip.is-dim').count() === 0, 'map: Everyone shows every clause');
+
+    // the Problems fold: what the other documents dispute, and "Show on map" chooses that clause
+    await page.locator('#fold-problems > summary').click();
+    const problems = await page.locator('#problems .problem').count();
+    check(problems >= 4, `Problems fold lists the disputed clauses (${problems})`);
+    check((await page.locator('#problems').innerText()).includes('Contradicted'), 'Problems fold names a contradiction');
+    await page.locator('#problems .problem', { hasText: '§4.1' }).getByRole('button', { name: 'Show on map' }).click();
+    await page.waitForTimeout(400);
+    check(await page.locator(`#register-graph [data-clip="${contract}-4.1"]`).getAttribute('aria-pressed') === 'true', '"Show on map" chooses its clause');
 
     // 3. ask
-    await page.getByLabel('Your question').fill('Did the vendor promise delivery by March 31?');
+    await page.locator('#question').fill('Did the vendor promise delivery by March 31?');
     await page.getByRole('button', { name: 'Ask', exact: true }).click();
     await page.waitForSelector('.answer__card');
     const answer = await page.locator('.answer__card').innerText();
     check(answer.includes('Found in the documents'), 'answer status shown');
     const verifiedQuote = page.locator('.cite', { hasText: 'March 31, 2026' }).locator('.check-ok');
     check(await verifiedQuote.count() > 0, 'answer shows a verified quote');
+    check(!(await page.locator('#fold-quotes').evaluate((el) => el.open)), 'the quotes start folded under the answer');
     check((await page.locator('#answer-status').innerText()).startsWith('Answer:'), 'answer announced (aria-live)');
     await shot(page, '#ask', 'try-answer.png');
     check(await page.locator('#answer-graph [data-clip="answer"]').count() === 1, 'answer map: an answer node');
-    check(await page.locator('#answer-graph .map__wires path.wire').count() > 0, 'answer map: links to the cited clauses');
-    check((await page.locator('#answer-graph .map__links').innerText()).includes('replaced'), 'answer map: names a replaced clause');
+    check(await page.locator('#answer-graph .react-flow__edge').count() > 0, 'answer map: links to the cited clauses');
+    check((await page.locator('#answer-graph .fx-list').textContent()).toLowerCase().includes('replaced'), 'answer map: names a replaced clause');
 
     // 4. check contract vs delivery record
     await page.selectOption('#base-doc', { label: 'Master Services Agreement (Contract)' });
     await page.selectOption('#other-doc', { label: 'Phase 1 Delivery and Acceptance Record (Record)' });
-    await page.getByRole('button', { name: 'Check', exact: true }).click();
-    await page.waitForSelector('.finding');
+    await page.getByRole('button', { name: 'Compare', exact: true }).click();
+    await page.waitForSelector('.finding', { state: 'attached' });
+    check((await page.locator('#check-summary').innerText()).includes('contradicted'), 'the comparison is summed up in one line');
+    await page.locator('#fold-findings > summary').click();
     const first = page.locator('.findings__list').first().locator('.finding').first();
     check(await first.evaluate((el) => el.classList.contains('is-contradicted') && el.classList.contains('is-high')),
       'contract vs delivery record: a high-severity contradiction comes first');
     check((await first.innerText()).includes('late'), 'the explanation is shown');
     await shot(page, '#check', 'try-check.png');
-    check(await page.locator('#check-graph .lane').count() === 2, 'check map: two lanes');
-    check(await page.locator('#check-graph .map__wires path.wire').count() > 0, 'check map: findings as connectors');
-    await page.locator('#check-graph [data-clip].is-linked').first().click();
-    await page.locator('#check-graph .map__finding').first().click();
+    check(await page.locator('#check-graph .fx-lane').count() === 2, 'check map: two columns');
+    check(await page.locator('#check-graph .react-flow__edge').count() > 0, 'check map: findings as links');
+    await page.locator('#fold-findings > summary').click(); // closed again: "Show the finding" must open it
+    await page.locator('#check-graph .fx-panel__finding').first().click();
     check(await page.evaluate(() => !!document.activeElement && document.activeElement.classList.contains('finding')),
       'check map: "Show the finding" moves to its card');
     await axe(page, 'results');
@@ -318,11 +348,11 @@ async function main() {
       await gp.waitForSelector('body[data-engine="ready"]', { timeout: 180000 });
       await gp.getByRole('button', { name: 'Load sample documents' }).click();
       await gp.waitForSelector('#register-graph [data-clip]', { timeout: 120000 });
-      await gp.getByLabel('Your question').fill('Did the vendor promise delivery by March 31?');
+      await gp.locator('#question').fill('Did the vendor promise delivery by March 31?');
       await gp.getByRole('button', { name: 'Ask', exact: true }).click();
       await gp.waitForSelector('#answer-graph [data-clip]');
       await gp.selectOption('#other-doc', { label: 'Vendor Security Audit Report — Corvane Software Ltd. (Audit report)' });
-      await gp.getByRole('button', { name: 'Check', exact: true }).click();
+      await gp.getByRole('button', { name: 'Compare', exact: true }).click();
       await gp.waitForSelector('#check-graph [data-clip]');
       await gp.waitForTimeout(300);
       const swg = await gp.evaluate(() => document.documentElement.scrollWidth);
@@ -369,17 +399,17 @@ async function main() {
     if (SHOTS) await mp.screenshot({ path: join(SHOTS_DIR, 'try-mobile-start.png') });
     await mp.focus('#load-samples');
     await mp.keyboard.press('Enter');
-    await mp.waitForSelector('.item', { timeout: 60000 });
+    await mp.waitForSelector('.item', { state: 'attached', timeout: 60000 });
     await mp.waitForSelector('#register-graph [data-clip]', { timeout: 60000 }); // the map is drawn, the engine is free
     const sw = await mp.evaluate(() => document.documentElement.scrollWidth);
     check(sw <= 390, `390 px: no horizontal scroll (scrollWidth ${sw})`);
-    await mp.getByLabel('Your question').fill('Is customer data kept in the UK?');
+    await mp.locator('#question').fill('Is customer data kept in the UK?');
     await mp.keyboard.press('Enter');
     await mp.waitForSelector('.answer__card');
     const sw2 = await mp.evaluate(() => document.documentElement.scrollWidth);
     check(sw2 <= 390, `390 px with an answer: no horizontal scroll (scrollWidth ${sw2})`);
     if (SHOTS) {
-      await mp.locator('.party').first().scrollIntoViewIfNeeded();
+      await mp.locator('#register-map').scrollIntoViewIfNeeded();
       await mp.screenshot({ path: join(SHOTS_DIR, 'try-mobile.png') });
     }
     await axe(mp, 'mobile');
@@ -401,7 +431,7 @@ async function main() {
     await sp.waitForSelector('body[data-engine="ready"]', { timeout: 180000 });
     const slow = { name: 'slow.txt', mimeType: 'text/plain', buffer: Buffer.from('the Vendor shall deliver the item within 30 days; '.repeat(16000)) };
     await sp.getByRole('button', { name: 'Load sample documents' }).click();
-    await sp.waitForSelector('.item', { timeout: 60000 });
+    await sp.waitForSelector('.item', { state: 'attached', timeout: 60000 });
     await sp.waitForSelector('#register-graph [data-clip]', { timeout: 60000 });
     await sp.setInputFiles('#file-input', slow);
     await sp.getByRole('button', { name: 'Cancel' }).waitFor({ timeout: 10000 });
@@ -415,7 +445,7 @@ async function main() {
     check(await sp.locator('#register-graph [data-clip]').count() === 0 && await sp.locator('#register-map').isHidden(), 'watchdog: the stale map is cleared');
     check(!(await sp.locator('#load-samples').isDisabled()), 'watchdog: actions are enabled again');
     await sp.getByRole('button', { name: 'Load sample documents' }).click();
-    await sp.waitForSelector('.item', { timeout: 180000 });
+    await sp.waitForSelector('.item', { state: 'attached', timeout: 180000 });
     await sp.waitForSelector('#register-graph [data-clip]', { timeout: 60000 });
     check(await sp.locator('body[data-engine="ready"]').count() === 1, 'watchdog: the next action restarts the engine and works');
 
@@ -425,7 +455,7 @@ async function main() {
     check(await sp.locator('body[data-engine="stopped"]').count() === 1, 'cancel: the worker was terminated');
     check(await sp.locator('.item').count() === 0, 'cancel: the register is cleared');
     await sp.getByRole('button', { name: 'Load sample documents' }).click();
-    await sp.waitForSelector('.item', { timeout: 180000 });
+    await sp.waitForSelector('.item', { state: 'attached', timeout: 180000 });
     check(await sp.locator('.item').count() >= 20, 'cancel: the next action restarts the engine and works');
     check(slowErrors.length === 0, `watchdog and cancel: no page errors${slowErrors.length ? ': ' + slowErrors.join(' | ') : ''}`);
     check(offS.length === 0, `watchdog and cancel: no request left ${BASE} (${seenS.length} requests)`);
