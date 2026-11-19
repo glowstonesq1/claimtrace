@@ -1,5 +1,5 @@
-"""Static project site (apps/site): third-party scripts are pinned with SRI, and a CSP limits the page
-to its own origin plus cdnjs for scripts (code review: GSAP loaded from cdnjs without integrity)."""
+"""Static project site (apps/site): no third-party scripts (GSAP is self-hosted, still SRI-pinned), and a
+CSP limits the page to its own origin."""
 
 from __future__ import annotations
 
@@ -8,7 +8,6 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 SITE = Path(__file__).resolve().parents[1] / "apps" / "site"
-CDN = "https://cdnjs.cloudflare.com/"
 
 
 class _Page(HTMLParser):
@@ -61,20 +60,24 @@ def _csp() -> dict[str, list[str]]:
     return out
 
 
-def test_every_external_script_is_pinned_with_sri():
-    external = [s for s in _page().scripts if re.match(r"(?:https?:)?//", s.get("src") or "")]
-    assert external, "expected the GSAP scripts from cdnjs"
-    for s in external:
-        assert (s["src"] or "").startswith(CDN), s
-        assert re.fullmatch(r"sha384-[A-Za-z0-9+/]{64}", s.get("integrity") or ""), s
-        assert s.get("crossorigin") == "anonymous", s
-        assert re.search(r"/\d+\.\d+\.\d+/", s["src"] or ""), "CDN scripts must name an exact version"
+def test_no_third_party_scripts_and_vendored_gsap_matches_its_sri():
+    import base64
+    import hashlib
+
+    scripts = [s for s in _page().scripts if s.get("src")]
+    assert not [s for s in scripts if re.match(r"(?:https?:)?//", s["src"] or "")], "no third-party scripts"
+    gsap = [s for s in scripts if "vendor/gsap/" in (s["src"] or "")]
+    assert len(gsap) == 2
+    for s in gsap:
+        body = (SITE / (s["src"] or "")).read_bytes()
+        digest = "sha384-" + base64.b64encode(hashlib.sha384(body).digest()).decode()
+        assert s.get("integrity") == digest, s
 
 
-def test_csp_allows_only_self_and_cdnjs_scripts():
+def test_csp_allows_only_self():
     csp = _csp()
     assert csp["default-src"] == ["'self'"]
-    assert set(csp["script-src"]) == {"'self'", CDN.rstrip("/")}
+    assert csp["script-src"] == ["'self'"]
     assert set(csp["font-src"]) == {"'self'"}  # fonts are self-hosted
     assert csp["object-src"] == ["'none'"]
     assert csp["base-uri"] == ["'self'"]
