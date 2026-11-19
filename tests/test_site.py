@@ -164,3 +164,12 @@ def test_no_scored_once_claims() -> None:
     claim = re.compile(r"(?<!re-)scored\s+(?:exactly\s+)?once|\bone\s+scoring\b|\bonly\s+scored\s+once", re.I)
     found = [f"{p.relative_to(root)}: {m.group(0)}" for p in files for m in claim.finditer(p.read_text(encoding="utf-8"))]
     assert not found, found
+
+
+def test_home_limits_say_scans_need_the_ocr_extra_and_the_browser_flags_them() -> None:
+    page = (SITE / "index.html").read_text(encoding="utf-8")
+    limits = page.split('<div class="limits">')[1].split("</dl>")[0]
+    row = next(r for r in re.findall(r'<div class="row[^"]*">(.*?)</div>', limits) if "scanned" in r.lower())
+    text = re.sub(r"<[^>]+>", " ", row)
+    assert "OCR extra" in text and "self-host" in text.lower(), text
+    assert "browser" in text.lower() and "flag" in text.lower(), text
