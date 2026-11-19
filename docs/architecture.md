@@ -192,7 +192,7 @@ Checks inside the parsers (D12):
   follow. The rules extractor reads each cell as its own region, so quotes never cross a cell
   boundary and still verify; a commitment with no timing of its own takes a date or relative
   deadline from another cell in the same row, with a caveat saying so.
-- OCR (v0.2, optional extra `pip install 'claimtrace[ocr]'` plus the `tesseract` binary): pages
+- OCR (v0.2, optional extra: `.venv/bin/pip install -e '.[ocr]'` from a clone, plus the `tesseract` binary): pages
   with fewer than 40 text characters are rendered with pypdfium2 at 300 dpi and read with
   Tesseract (`ingestion/ocr.py`). OCR text replaces a page's text only if it is longer. Each OCR
   passage stores the page's mean word confidence (`Passage.ocr_confidence`); the document gets an

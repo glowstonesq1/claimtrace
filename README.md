@@ -156,7 +156,8 @@ validation and verbatim quote checks, or it is discarded. Hosted providers (`CLA
 `CLAIMTRACE_LLM_BASE_URL`, `CLAIMTRACE_LLM_API_KEY`) also require each document to be approved for sending
 (`allow_external_llm`). Every send is logged at `/privacy/egress`.
 
-**Scanned PDFs (optional):** `pip install 'claimtrace[ocr]'` and install Tesseract. Each OCR page carries a
+**Scanned PDFs (optional):** after the clone and `make dev` above, run `.venv/bin/pip install -e '.[ocr]'` and
+install the Tesseract binary from your system's packages (e.g. `apt install tesseract-ocr`). Each OCR page carries a
 confidence, and low-confidence pages get a warning.
 
 ### Example
@@ -231,6 +232,10 @@ version runs the same package under Pyodide. See [docs/architecture.md](docs/arc
   enforceability).
 - Scanned PDFs (no text layer) are flagged but not read unless the optional OCR extra is installed. The browser
   version has no OCR.
+- Business-day deadlines become dates only when anchored to the agreement's date ("10 Business Days of the
+  Effective Date"); weekends are skipped, and holidays only if you set `CLAIMTRACE_HOLIDAYS`.
+- Text a reader would not see (white, under 2 pt, invisible or off-page in PDFs; hidden, white or tiny runs in DOCX)
+  is detected, and items from those passages are flagged for review with a warning.
 - PDF tables and complex layouts are flattened to text; DOCX table rows are kept as passages. DOCX automatic
   numbering is not visible, so clause numbers may be missing.
 - Paraphrased questions often get "not found" from the rules engine. The engine prefers abstaining to
