@@ -210,3 +210,14 @@ def test_film_fallback_is_hidden_until_the_film_is_missing() -> None:
     script = (SITE / "site.js").read_text(encoding="utf-8")
     missing = script.split("var missing = function () {")[1].split("};")[0]
     assert "dataset.alt" in missing and "removeAttribute('aria-hidden')" in missing
+
+
+def test_command_code_is_not_shrunk_below_14px() -> None:
+    """.cmd pre is set at --text-xs (0.875rem = 14px); code inside a pre must inherit that size, not take the
+    0.9em that inline code gets (which made /get's commands 12.6px)."""
+    base = (SITE / "base.css").read_text(encoding="utf-8")
+    chrome = (SITE / "chrome.css").read_text(encoding="utf-8")
+    tokens = (SITE / "tokens.css").read_text(encoding="utf-8")
+    assert re.search(r"--text-xs:\s*0\.875rem", tokens)
+    assert re.search(r"\.cmd pre \{[^}]*font: 400 var\(--text-xs\)", chrome)
+    assert re.search(r"(?m)^pre code \{[^}]*font-size: inherit;", base)

@@ -17,6 +17,7 @@ svg { display: block; }
 [hidden] { display: none !important; }
 button, input, select, textarea { font: inherit; color: inherit; }
 code, kbd, samp, pre { font-family: var(--font-mono); font-size: 0.9em; }
+pre code { font-size: inherit; } /* a pre sets its own size; 0.9em of 0.9em was 12.6px on /get */
 blockquote { margin: 0; }
 .container { width: 100%; max-width: var(--container); margin-inline: auto; padding-inline: var(--gutter); }
 .num, .figure, td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: 0; }
