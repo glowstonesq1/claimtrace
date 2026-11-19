@@ -182,3 +182,18 @@ def test_unused_scripts_are_gone() -> None:
         if "pyodide" not in p.parts:
             text = p.read_text(encoding="utf-8")
             assert "slots.js" not in text and "ScrollTrigger" not in text, p.relative_to(SITE)
+
+
+def test_og_image_alt_describes_the_film_poster() -> None:
+    """Pages that share the film poster describe it with the same words as the film's fallback image."""
+    home = (SITE / "index.html").read_text(encoding="utf-8")
+    poster_alt = re.search(r'<img class="film__fallback"[^>]*?\s(?:data-)?alt="([^"]+)"', home, re.S)
+    assert poster_alt, "the film fallback image needs its alt text in the markup"
+    pages = 0
+    for page in [SITE / "index.html", *sorted(SITE.glob("*/index.html"))]:
+        text = page.read_text(encoding="utf-8")
+        if "claimtrace-film-poster.jpg" in (re.search(r'og:image" content="([^"]+)"', text) or [""])[0]:
+            pages += 1
+            alt = re.search(r'og:image:alt" content="([^"]+)"', text)
+            assert alt and alt.group(1) == poster_alt.group(1), page.relative_to(SITE)
+    assert pages >= 3
