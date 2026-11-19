@@ -110,6 +110,17 @@ jobs:
           npm i --no-save --no-audit --no-fund --prefix /tmp/try-e2e playwright@1.49.1 axe-core@4.10.2
           NODE_PATH=/tmp/try-e2e/node_modules PYTHON=python node apps/site/try/e2e.mjs
 
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Inject the shared nav and footer, as the Pages workflow does
+        run: python scripts/inject_partials.py
+      - name: Every internal link resolves (try/ and evidence/ are skipped while absent)
+        run: python scripts/check_links.py
+
   docker:
     runs-on: ubuntu-latest
     steps:

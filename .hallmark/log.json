@@ -1,5 +1,37 @@
 [
  {
+  "mode": "redesign",
+  "depth": "full",
+  "scope": "site",
+  "shape": "Narrative Workflow (/), Index-First (/get/, /docs/)",
+  "theme": "specimen",
+  "axes": "light/high-contrast-serif/cool",
+  "hero": "Settled (/), Index (/get/, /docs/)",
+  "nav": "edge-aligned",
+  "footer": "mast",
+  "imagery": "screenshots 3, promo film with screenshot fallback",
+  "photos": [],
+  "entry": "none (GSAP word scrub, sticky walk, self-hosted)",
+  "fingerprint": "light/high-contrast-serif/cool/Settled/edge-aligned/mast",
+  "sections": [
+   "hero",
+   "limits",
+   "pinned",
+   "table",
+   "showcase",
+   "band",
+   "footer"
+  ],
+  "signature": "the replaced delivery date struck through in the real register",
+  "waived": [
+   "44c",
+   "79",
+   "49b"
+  ],
+  "prompt": "ClaimTrace site restructured around jobs: try in browser, use with Claude, install; evidence and docs",
+  "date": "2026-11-19"
+ },
+ {
   "shape": "Bento Grid",
   "theme": "specimen",
   "axes": "light/high-contrast-serif/cool",
