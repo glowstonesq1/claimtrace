@@ -45,6 +45,23 @@ function h(tag, props, ...kids) {
   return el;
 }
 
+// A status is a word and an icon, never colour alone (the symbols live in index.html).
+const SVG = 'http://www.w3.org/2000/svg';
+function icon(id) {
+  const s = document.createElementNS(SVG, 'svg');
+  s.setAttribute('class', 'icon');
+  s.setAttribute('aria-hidden', 'true');
+  const u = document.createElementNS(SVG, 'use');
+  u.setAttribute('href', `#${id}`);
+  s.append(u);
+  return s;
+}
+function status(kind, text) {
+  const ICON = { replaced: 'i-replaced', contradicted: 'i-contradicts', supported: 'i-supports', partly: 'i-partly',
+    review: 'i-review', inforce: 'i-inforce', none: 'i-none', new: 'i-inforce' };
+  return h('span', { class: `status status--${kind}` }, icon(ICON[kind] || 'i-none'), text);
+}
+
 // ---- engine -------------------------------------------------------------------------------------
 // Watchdog: a call that runs longer than this is stopped by terminating the worker (Python cannot be
 // interrupted from outside any other way). The next action starts a fresh worker. The e2e test shortens it
@@ -64,8 +81,20 @@ let lastAnnounced = -1;
 let engineReady = null; // resolves when the current worker reports "ready"
 let markReady = () => {};
 
+// The engine card's one-word state: Loading, Ready, Working, Stopped or Could not start. CSS picks the icon
+// from body[data-engine] and body[data-busy]; the word is real text so it reads without colour or icons.
+const STATE_WORD = { loading: 'Loading', ready: 'Ready', stopped: 'Stopped', failed: 'Could not start' };
+function showState() {
+  const busy = document.body.dataset.busy === 'true';
+  $('engine-state-text').textContent = busy ? 'Working' : (STATE_WORD[document.body.dataset.engine] || 'Loading');
+}
+
 function startEngine() {
   started = performance.now();
+  document.body.dataset.engine = 'loading';
+  $('engine-progress').hidden = false;
+  $('engine-progress').value = 0;
+  showState();
   engineReady = new Promise((resolve) => { markReady = resolve; });
   // A blob: worker inherits this page's Content-Security-Policy (connect-src 'self'), so the engine
   // cannot reach another origin. It only imports the real worker script from this site.
@@ -126,6 +155,7 @@ function stopEngine(code, message) {
   $('findings').replaceChildren();
   render();
   document.body.dataset.engine = 'stopped';
+  showState();
   $('engine-status').textContent = `${message} The engine starts again when you next add documents.`;
   $('engine-note').textContent = CLEARED;
   $('engine-live').textContent = message;
@@ -163,6 +193,7 @@ function onProgress(m) {
       : `Downloaded ${mb(m.transferred)} MB from this site. Your browser keeps a copy, so next time is faster.`;
     $('engine-live').textContent = 'Engine ready. You can add documents.';
     document.body.dataset.engine = 'ready';
+    showState();
     markReady();
     for (const id of ['load-samples', 'file-input']) $(id).disabled = false;
   } else if (m.phase === 'failed') {
@@ -175,6 +206,7 @@ function engineFailed(text) {
   $('engine-live').textContent = text;
   $('engine-progress').hidden = true;
   document.body.dataset.engine = 'failed';
+  showState();
 }
 
 // ---- state --------------------------------------------------------------------------------------
@@ -233,16 +265,19 @@ function setBusy(busy) {
     if (el) el.disabled = busy;
   }
   $('load-samples').setAttribute('aria-busy', busy ? 'true' : 'false');
+  document.body.dataset.busy = busy ? 'true' : 'false';
+  showState();
 }
 
 // ---- rendering: documents and register ------------------------------------------------------------
 function render() {
   const docs = register ? register.documents : [];
   const has = docs.length > 0;
-  for (const id of ['register', 'ask', 'check', 'doc-tools']) $(id).hidden = !has;
+  for (const id of ['register', 'ask', 'check', 'doc-tools', 'results-nav']) $(id).hidden = !has;
+  $('results-empty').hidden = has;
   renderDocs(docs);
   if (!has) {
-    for (const id of ['parties', 'deadlines', 'suggestions']) $(id).replaceChildren();
+    for (const id of ['parties', 'deadlines', 'changes', 'suggestions']) $(id).replaceChildren();
     return;
   }
   renderRegister();
@@ -253,12 +288,14 @@ function render() {
 function renderDocs(docs) {
   const titles = Object.fromEntries(docs.map((d) => [d.id, d.title]));
   $('doc-list').replaceChildren(...docs.map((d) => h('li', { class: 'doc' },
-    h('span', { class: 'doc__title', text: d.title }),
-    h('span', { class: 'doc__meta' },
-      h('span', { text: LABEL.doc[d.type] || 'Document' }),
-      d.amends_document_id ? h('span', { text: `amends ${titles[d.amends_document_id] || 'another document'}` }) : null,
-      h('span', { text: d.filename || '' })),
-    ...d.warnings.map((w) => h('p', { class: 'doc__warn', text: plainWarning(w) })))));
+    icon('i-doc'),
+    h('span', { class: 'doc__body' },
+      h('span', { class: 'doc__title', text: d.title }),
+      h('span', { class: 'doc__meta' },
+        h('span', { class: 'doc__type', text: LABEL.doc[d.type] || 'Document' }),
+        d.amends_document_id ? h('span', { text: `amends ${titles[d.amends_document_id] || 'another document'}` }) : null,
+        h('span', { class: 'doc__file', text: d.filename || '' })),
+      ...d.warnings.map((w) => h('span', { class: 'doc__warn', text: plainWarning(w) }))))));
 }
 
 function plainWarning(w) {
@@ -278,6 +315,52 @@ function deadlineText(d) {
   return d.raw ? `When: ${d.raw}` : null;
 }
 
+// The words two versions share, and the part that differs, so a change reads as struck and inserted text.
+function diffWords(a, b) {
+  const split = (t) => t.split(/(\s+|[.,;:()"“”])/).filter((x) => x !== '');
+  const x = split(a);
+  const y = split(b);
+  let i = 0;
+  while (i < x.length && i < y.length && x[i] === y[i]) i++;
+  let j = 0;
+  while (j < x.length - i && j < y.length - i && x[x.length - 1 - j] === y[y.length - 1 - j]) j++;
+  // keep a date whole: "March 31, 2026" against "May 15, 2026" marks the full dates, not "March 31" alone
+  if (j >= 3 && x[x.length - j] === ',' && /^\s+$/.test(x[x.length - j + 1]) && /^\d{4}$/.test(x[x.length - j + 2])) j -= 3;
+  return { pre: x.slice(0, i).join(''), a: x.slice(i, x.length - j).join(''), b: y.slice(i, y.length - j).join(''),
+    post: x.slice(x.length - j).join('') };
+}
+
+function marked(text, mid, pre, post, tag) {
+  if (!mid.trim() || pre.length + post.length < 12) return [text];
+  return [text.slice(0, pre.length), h(tag, { text: mid }), text.slice(pre.length + mid.length)];
+}
+
+const where = (doc, section) => `${doc}${section ? ` §${section}` : ''}`;
+
+function renderChanges(items) {
+  const changed = items.filter((c) => c.document_effect !== 'in_force');
+  if (!changed.length) return '';
+  return h('div', { class: 'changes' },
+    h('h3', { class: 'sub', text: 'Changed by an amendment' }),
+    h('ol', { class: 'ledger' }, changed.map((c) => {
+      const old = (c.quote && c.quote.quote) || c.text;
+      const r = c.replaced_by[0];
+      const d = r ? diffWords(old, r.text) : null;
+      return h('li', { class: 'change' },
+        h('p', { class: 'change__line' },
+          h('span', { class: 'num change__sec', text: c.section || '' }),
+          h('span', { class: 'change__what', text: c.action || '' }),
+          status('replaced', c.document_effect === 'deleted' ? 'Removed' : 'Replaced')),
+        h('figure', { class: 'change__quote change__quote--old' },
+          h('figcaption', { text: where(c.document, c.section) }),
+          h('blockquote', {}, ...(d ? marked(old, d.a, d.pre, d.post, 'del') : [h('del', { text: old })]))),
+        r ? h('figure', { class: 'change__quote change__quote--new' },
+          h('figcaption', { text: where(r.document, r.section) }),
+          h('blockquote', {}, ...marked(r.text, d.b, d.pre, d.post, 'ins')))
+          : h('p', { class: 'change__note', text: c.caveats.find((cv) => /^(Replaced|Deleted|Changed) by /.test(cv)) || 'Removed by an amendment.' }));
+    })));
+}
+
 function renderRegister() {
   const items = register.commitments;
   const replaced = items.filter((c) => c.document_effect !== 'in_force').length;
@@ -290,19 +373,23 @@ function renderRegister() {
     verified === quotes ? 'Every quote matches its document exactly.' : `${quotes - verified} quotes could not be matched to their document.`,
   ].filter(Boolean).join(' ');
 
+  $('changes').replaceChildren(renderChanges(items));
+
   const dl = register.deadlines.filter((d) => d.date);
   $('deadlines').replaceChildren(dl.length ? h('div', { class: 'deadlines__wrap' },
-    h('h3', { class: 'sub', text: 'Dated deadlines' }),
-    h('table', { class: 'table' },
-      h('thead', {}, h('tr', {}, ['Date', 'Who', 'What', 'Where'].map((t) => h('th', { scope: 'col', text: t })))),
-      h('tbody', {}, dl.map((d) => {
-        const c = items.find((i) => i.id === d.commitment_id);
-        return h('tr', { class: d.in_force ? null : 'is-replaced' },
-          h('td', { class: 'num' }, fmtDate.format(new Date(d.date + 'T00:00:00Z')), d.in_force ? null : h('span', { class: 'tag', text: 'replaced' })),
-          h('td', { text: d.party || 'No party named' }),
-          h('td', { text: c ? c.action : '' }),
-          h('td', { text: `${d.document}${d.section ? `, §${d.section}` : ''}` }));
-      })))) : '');
+    h('h3', { class: 'sub', id: 'deadlines-title', text: 'Dated deadlines' }),
+    h('div', { class: 'table-wrap', role: 'region', tabindex: '0', 'aria-labelledby': 'deadlines-title' },
+      h('table', { class: 'table' },
+        h('thead', {}, h('tr', {}, ['Date', 'Who', 'What', 'Where'].map((t) => h('th', { scope: 'col', text: t })))),
+        h('tbody', {}, dl.map((d) => {
+          const c = items.find((i) => i.id === d.commitment_id);
+          return h('tr', { class: d.in_force ? null : 'is-replaced' },
+            h('td', { class: 'num' }, h('span', { class: 'table__date', text: fmtDate.format(new Date(d.date + 'T00:00:00Z')) }),
+              d.in_force ? null : status('replaced', 'Replaced')),
+            h('td', { text: d.party || 'No party named' }),
+            h('td', { text: c ? c.action : '' }),
+            h('td', { text: `${d.document}${d.section ? `, §${d.section}` : ''}` }));
+        }))))) : '');
 
   const names = partyNames();
   const groups = new Map();
@@ -313,38 +400,49 @@ function renderRegister() {
   }
   const ordered = [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
   $('parties').replaceChildren(...ordered.map(([party, list]) => h('section', { class: 'party', 'aria-label': party },
-    h('h3', { class: 'party__head' }, party, names[party] ? h('span', { class: 'party__legal', text: names[party] }) : null,
-      h('span', { class: 'party__count', text: `${list.length}` })),
+    h('h3', { class: 'party__head' }, h('span', { class: 'party__name', text: party }),
+      names[party] ? h('span', { class: 'party__legal', text: names[party] }) : null,
+      h('span', { class: 'party__count', text: `${list.length} commitment${list.length === 1 ? '' : 's'}` })),
     h('ol', { class: 'items' }, list.map(renderItem)))));
+}
+
+function itemStatus(c) {
+  if (c.document_effect !== 'in_force') return status('replaced', c.document_effect === 'deleted' ? 'Removed' : 'Replaced');
+  if (c.needs_review) return status('review', 'Check this');
+  if (c.amends_section) return status('new', 'New wording');
+  return status('inforce', 'In force');
 }
 
 function renderItem(c) {
   const replaced = c.document_effect !== 'in_force';
   const q = c.quote || {};
   return h('li', { class: `item${replaced ? ' is-replaced' : ''}${c.needs_review ? ' is-flagged' : ''}`, 'data-id': c.id },
-    h('p', { class: 'item__meta' },
-      h('span', { class: 'item__sec', text: c.section ? `§${c.section}` : 'No clause number' }),
-      h('span', { text: c.document }),
-      h('span', { class: 'tag', text: LABEL.type[c.type] || c.type }),
-      deadlineText(c.deadline) ? h('span', { text: deadlineText(c.deadline) }) : null),
-    h('blockquote', { class: 'quote' }, h('p', { text: q.quote || c.text })),
-    replaced ? h('p', { class: 'item__state' },
-      h('strong', { text: c.document_effect === 'deleted' ? 'Removed by amendment.' : 'Replaced by amendment.' }), ' ',
-      c.replaced_by.length
-        ? c.replaced_by.map((r) => `Now: "${r.text}" (${r.document}${r.section ? `, §${r.section}` : ''})`).join(' ')
-        : (c.caveats.find((cv) => /^(Replaced|Deleted|Changed) by /.test(cv)) || '')) : null,
-    c.amends_section ? h('p', { class: 'item__state', text: `New wording from an amendment, for clause ${c.amends_section}.` }) : null,
-    c.needs_review ? h('p', { class: 'item__flag' }, h('strong', { text: 'Check this.' }), ' ',
-      c.review_reasons.join(' ') || 'The engine was not confident about this one.') : null,
-    h('p', { class: 'item__foot' },
-      verifiedTag(q.verified),
-      showButton(q)));
+    h('span', { class: 'num item__sec', text: c.section || '' }),
+    h('div', { class: 'item__body' },
+      h('p', { class: 'item__meta' },
+        h('span', { class: 'visually-hidden', text: c.section ? `Clause ${c.section}, ` : 'No clause number, ' }),
+        h('span', { text: c.document }),
+        h('span', { class: 'tag', text: LABEL.type[c.type] || c.type }),
+        deadlineText(c.deadline) ? h('span', { class: 'item__due', text: deadlineText(c.deadline) }) : null),
+      h('blockquote', { class: 'quote' }, h('p', { text: q.quote || c.text })),
+      replaced ? h('p', { class: 'item__state' },
+        h('strong', { text: c.document_effect === 'deleted' ? 'Removed by amendment.' : 'Replaced by amendment.' }), ' ',
+        c.replaced_by.length
+          ? c.replaced_by.map((r) => `Now: "${r.text}" (${r.document}${r.section ? `, §${r.section}` : ''})`).join(' ')
+          : (c.caveats.find((cv) => /^(Replaced|Deleted|Changed) by /.test(cv)) || '')) : null,
+      c.amends_section ? h('p', { class: 'item__state', text: `New wording from an amendment, for clause ${c.amends_section}.` }) : null,
+      c.needs_review ? h('p', { class: 'item__flag' }, h('strong', { text: 'Check this.' }), ' ',
+        c.review_reasons.join(' ') || 'The engine was not confident about this one.') : null,
+      h('p', { class: 'item__foot' },
+        verifiedTag(q.verified),
+        showButton(q))),
+    itemStatus(c));
 }
 
 function verifiedTag(ok) {
   return ok
-    ? h('span', { class: 'check-ok', text: 'Quote matches the document' })
-    : h('span', { class: 'check-bad', text: 'Quote could not be matched' });
+    ? h('span', { class: 'check-ok' }, icon('i-supports'), 'Quote matches the document')
+    : h('span', { class: 'check-bad' }, icon('i-review'), 'Quote could not be matched');
 }
 
 function showButton(span) {
@@ -406,12 +504,15 @@ async function ask(event) {
 }
 
 function renderAnswer(a) {
+  const kind = { stated: 'supported', implied: 'partly', contradicted: 'contradicted', not_addressed: 'none',
+    ambiguous: 'review', needs_human_review: 'review' }[a.status] || 'none';
   const card = h('article', { class: `answer__card is-${a.status}` },
-    h('h3', { class: 'answer__status', text: LABEL.answer[a.status] || a.status }),
+    h('h3', { class: `answer__status status--${kind}` }, icon(`i-${{ supported: 'supports', partly: 'partly', contradicted: 'contradicts', review: 'review', none: 'none' }[kind]}`),
+      LABEL.answer[a.status] || a.status),
     h('p', { class: 'answer__question', text: `You asked: ${a.question}` }),
     h('p', { class: 'answer__text', text: a.answer_text }),
     a.citations.length ? h('ol', { class: 'cites' }, a.citations.map((c) => h('li', { class: `cite is-${c.role}` },
-      h('p', { class: 'cite__role', text: LABEL.role[c.role] || c.role }),
+      h('p', { class: 'cite__role' }, status({ supports: 'supported', conflicts: 'contradicted' }[c.role] || 'none', LABEL.role[c.role] || c.role)),
       h('blockquote', { class: 'quote' }, h('p', { text: c.span.quote })),
       h('p', { class: 'cite__src', text: source(c.span) }),
       c.note ? h('p', { class: 'cite__note', text: c.note }) : null,
@@ -470,8 +571,9 @@ function renderFindings(run) {
     .map(([v, n]) => `${n} ${(LABEL.verdict[v] || v).toLowerCase()}`).join(', ');
   const finding = (f) => h('li', { class: `finding is-${f.severity} is-${f.verdict}` },
     h('p', { class: 'finding__head' },
-      h('span', { class: 'sev', text: `${LABEL.severity[f.severity] || f.severity} severity` }),
-      h('span', { class: 'finding__verdict', text: LABEL.verdict[f.verdict] || f.verdict })),
+      h('span', { class: 'finding__verdict' }, status({ consistent: 'supported', contradicted: 'contradicted', partially_supported: 'partly',
+        ambiguous: 'review', needs_human_review: 'review' }[f.verdict] || 'none', LABEL.verdict[f.verdict] || f.verdict)),
+      h('span', { class: 'sev', text: `${LABEL.severity[f.severity] || f.severity} severity` })),
     h('blockquote', { class: 'quote' }, h('p', { text: f.subject_span ? f.subject_span.quote : f.subject_text })),
     f.subject_span ? h('p', { class: 'cite__src', text: source(f.subject_span) }) : null,
     f.subject_span ? h('p', { class: 'item__foot' }, verifiedTag(f.subject_span.verified), showButton(f.subject_span)) : null,
@@ -479,7 +581,7 @@ function renderFindings(run) {
     h('p', { class: 'finding__action' }, h('strong', { text: 'What to do: ' }), f.recommended_action),
     ...[...f.conflicting.map((s) => ['Conflicting text', s]), ...f.supporting.map((s) => ['Matching text', s])].map(([role, s]) =>
       h('div', { class: 'finding__other' },
-        h('p', { class: 'cite__role', text: role }),
+        h('p', { class: 'cite__role' }, status(role === 'Conflicting text' ? 'contradicted' : 'supported', role)),
         h('blockquote', { class: 'quote' }, h('p', { text: s.quote })),
         h('p', { class: 'cite__src', text: source(s) }),
         h('p', { class: 'item__foot' }, verifiedTag(s.verified), showButton(s)))),
