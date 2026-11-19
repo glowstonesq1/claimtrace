@@ -1,6 +1,6 @@
 # Roadmap
 
-Priorities come from the [v0.1 evaluation](evaluation.md) and the [design review](design-review.md). Dates
+Priorities come from the [v0.1 evaluation](evaluation.md) and the [design decisions](architecture.md#9-design-decisions). Dates
 are intentionally absent: this is a volunteer project and items ship when they pass their eval gate.
 
 ## v0.2 — "Read more, generalise better"
@@ -17,7 +17,7 @@ Status key: **[x]** implemented on the v0.2 branch (pending its eval gate where 
    are done and score 1.00 / 0.97 on core (development set); the model-assisted fallback is not built; the
    sealed `amendments-v2` score is pending.
 2. [ ] **External held-out benchmark**: CUAD-derived cases (CC BY 4.0) for extraction, so no number depends
-   only on agent-written data.
+   only on synthetic data.
 3. [ ] **LLM baselines**: publish `ollama:` and `openai:` runs with `--repeats 3` and variance.
 4. [x] **OCR** for scanned PDFs (Tesseract, optional extra) with per-page confidence.
 5. [x] **Hidden-text detection** in PDFs (white or tiny text, off-page) and DOCX hidden runs (red-team finding).
@@ -30,7 +30,7 @@ Status key: **[x]** implemented on the v0.2 branch (pending its eval gate where 
 
 ## v0.3 — "Usable without installing" (version 0.3.0)
 
-Plan: [plans/2026-11-19-v0.3.md](plans/2026-11-19-v0.3.md). Engine accuracy was out of scope: amendment verdicts
+Engine accuracy was out of scope: amendment verdicts
 stay at 0.60 on unseen wording, and the site says so.
 
 1. [x] **Try it in the browser**: the real engine in the tab (Pyodide), samples or your own files, nothing

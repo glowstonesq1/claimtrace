@@ -4,8 +4,8 @@ Describes commit 1899c3c.
 
 How `POST /ask` (`packages/verification/ask.py`) and `POST /verify`
 (`packages/verification/verify.py`, `compare.py`) produce answers and findings. Retrieval is
-in `packages/retrieval/__init__.py`. Differences from `docs/design-review.md` and
-`docs/product-spec.md` are noted. Answers cover only the uploaded documents and are not
+in `packages/retrieval/__init__.py`. Differences from the [design decisions](architecture.md#9-design-decisions)
+and `docs/product-spec.md` are noted. Answers cover only the uploaded documents and are not
 legal advice.
 
 ## 1. Answer pipeline

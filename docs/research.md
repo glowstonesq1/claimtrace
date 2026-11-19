@@ -5,7 +5,7 @@ Scope: the evidence behind ClaimTrace's design. ClaimTrace is a privacy-first, l
 
 How to read this brief:
 - "Accessed 2026-11-18 (search)" means the source was seen and its content checked through web search results on that date. "(fetched)" means the page itself was opened.
-- "(not re-verified)" marks claims that rest on prior knowledge and were not confirmed this session.
+- "(not re-verified)" marks claims that rest on prior knowledge and were not confirmed when this brief was written.
 - Vendor marketing figures (accuracy, time savings, user counts) are reported as claims, not facts.
 - Some hosts could not be reached from the research environment: genai.owasp.org and pymupdf.readthedocs.io. Claims about those pages rest on search results and mirrors.
 

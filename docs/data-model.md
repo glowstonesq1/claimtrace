@@ -4,7 +4,7 @@ Describes commit 1899c3c.
 
 Source files: `packages/core/models.py`, `packages/core/store.py`,
 `packages/core/migrations/001_init.sql`, `packages/core/text.py`. Where the code differs from
-`docs/product-spec.md` or `docs/design-review.md`, the difference is noted.
+`docs/product-spec.md` or the [design decisions](architecture.md#9-design-decisions), the difference is noted.
 
 ## 1. Enums
 
