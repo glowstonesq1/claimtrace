@@ -8,8 +8,10 @@ JSON-in/JSON-out API, on an in-memory SQLite store. Differences from the server,
 - No language model and no network: rules only. Nothing in this module imports fastapi, uvicorn or httpx.
 - No OCR: a scanned PDF is kept with the SCANNED warning, as on a server without Tesseract.
 
-Use ``Session`` directly, or the module-level ``analyze``/``ask``/``verify``/``document``/``export``/``reset``
-functions, which share one session. ``call(json)`` is the single entry point the web worker uses.
+Use ``Session`` directly, or the module-level ``analyze``/``ask``/``verify``/``document``/``export``/``reset``/
+``graph`` functions, which share one session. ``call(json)`` is the single entry point the web worker uses.
+``graph`` (in graphs.py) is the evidence map's model: the try page draws it, and the site build runs the same
+function on the sample documents for the home page.
 """
 
 from __future__ import annotations
@@ -35,6 +37,9 @@ from claimtrace.ingestion.pipeline import IngestOptions, check_upload, ingest_pa
 from claimtrace.verification import answer_question, verify_documents
 from claimtrace.verification.report import DISCLAIMER, build_report, render_markdown
 
+from .graphs import answer_graph, check_graph
+from .graphs import graph as _graph
+
 MAX_FILE_BYTES = 10 * 1024 * 1024  # the try page's cap; below the server's 20 MB
 # The browser runs the engine on one thread, about 2-3x slower than CPython. Past these sizes a document is
 # refused with a reason rather than left running for minutes (analysis time is linear in both).
@@ -42,8 +47,8 @@ MAX_TEXT_CHARS = 1_000_000  # roughly 400 pages
 MAX_PASSAGES = 20_000
 SEVERITY_ORDER = {Severity.high.value: 0, Severity.medium.value: 1, Severity.low.value: 2, Severity.info.value: 3}
 
-__all__ = ["MAX_FILE_BYTES", "MAX_PASSAGES", "MAX_TEXT_CHARS", "Session", "analyze", "ask", "call", "document",
-           "export", "reset", "verify"]
+__all__ = ["MAX_FILE_BYTES", "MAX_PASSAGES", "MAX_TEXT_CHARS", "Session", "analyze", "answer_graph", "ask", "call",
+           "check_graph", "document", "export", "graph", "reset", "verify"]
 
 
 def _span_verified(store: Store, span: Span | None, texts: dict[str, str | None] | None = None) -> bool:
@@ -229,6 +234,11 @@ class Session:
         out["findings"] = findings
         return out
 
+    # ---- the evidence map ---------------------------------------------------
+    def graph(self, lanes: list[tuple[str, str, str]] | None = None, **caps: int) -> dict:
+        """Lanes, clips and links for the whole workspace (see graphs.py)."""
+        return _graph(self, lanes, **caps)
+
     # ---- export -----------------------------------------------------------
     def export(self, fmt: str = "json") -> str:
         """The audit report (claimtrace.report/v1) for each document that is not an amendment."""
@@ -294,6 +304,10 @@ def export(fmt: str = "json") -> str:
     return _s().export(fmt)
 
 
+def graph() -> dict:
+    return _s().graph()
+
+
 def reset() -> dict:
     return _s().reset()
 
@@ -311,8 +325,14 @@ def call(request: str, files: list[dict] | None = None) -> str:
             result = _s().register()
         elif op == "ask":
             result = ask(str(req.get("question", "")), req.get("document_ids"))
+            if req.get("graph"):
+                result["graph"] = answer_graph(_s(), result)
         elif op == "verify":
             result = verify(str(req["base_id"]), str(req["other_id"]))
+            if req.get("graph"):
+                result["graph"] = check_graph(_s(), result)
+        elif op == "graph":
+            result = graph()
         elif op == "document":
             result = document(str(req["doc_id"]))
         elif op == "export":
