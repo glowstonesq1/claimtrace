@@ -214,7 +214,9 @@ async function main() {
 
     // 2. own files: a generated PDF and DOCX
     await page.setInputFiles('#file-input', [join(dir, 'supply.pdf'), join(dir, 'order.docx')]);
-    await page.waitForFunction(() => document.getElementById('add-status').textContent.startsWith('Read 2 documents'), null, { timeout: 60000 });
+    // A locator wait, not waitForFunction: older Playwright evaluates that as a string, which this page's CSP
+    // (no 'unsafe-eval') correctly refuses.
+    await page.locator('#add-status', { hasText: /^Read 2 documents/ }).waitFor({ timeout: 60000 });
     const docs = await page.locator('#doc-list').innerText();
     check(docs.includes('supply.pdf') && docs.includes('order.docx'), 'PDF and DOCX listed');
     check(await page.locator('.item', { hasText: 'June 30, 2026' }).count() > 0, 'PDF commitment in the register');
