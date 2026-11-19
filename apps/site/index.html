@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- Only this origin: no third-party script, style, font or request. No inline script or style: page
-     scripts live in files (head.js, slots.js, map.js, site.js); GSAP is self-hosted in vendor/gsap. -->
+     scripts live in files (head.js, map.js, site.js); GSAP is self-hosted in vendor/gsap. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClaimTrace: check contracts and amendments with verified quotes</title>
@@ -262,12 +262,10 @@ docker compose up --build</code></pre></div>
 </footer>
 <!-- /footer -->
 
-<script src="slots.js"></script>
-<!-- GSAP 3.12.5, self-hosted: dist/gsap.min.js and dist/ScrollTrigger.min.js copied unchanged from the npm
-     package gsap@3.12.5 (GreenSock standard licence, header kept in each file), SRI-pinned. It only staggers
+<!-- GSAP 3.12.5, self-hosted: dist/gsap.min.js copied unchanged from the npm package gsap@3.12.5
+     (GreenSock standard licence, header kept in the file), SRI-pinned. It only staggers
      the hero rows in once; without it (or with reduced motion) the page is already complete. -->
 <script src="vendor/gsap/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" defer></script>
-<script src="vendor/gsap/ScrollTrigger.min.js" integrity="sha384-Z3REaz79l2IaAZqJsSABtTbhjgOUYyV3p90XNnAPCSHg3EMTz1fouunq9WZRtj3d" defer></script>
 <script src="map.js" defer></script>
 <script src="site.js" defer></script>
 </body>

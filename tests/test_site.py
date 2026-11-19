@@ -67,7 +67,7 @@ def test_no_third_party_scripts_and_vendored_gsap_matches_its_sri():
     scripts = [s for s in _page().scripts if s.get("src")]
     assert not [s for s in scripts if re.match(r"(?:https?:)?//", s["src"] or "")], "no third-party scripts"
     gsap = [s for s in scripts if "vendor/gsap/" in (s["src"] or "")]
-    assert len(gsap) == 2
+    assert [s["src"] for s in gsap] == ["vendor/gsap/gsap.min.js"]  # ScrollTrigger was never used
     for s in gsap:
         body = (SITE / (s["src"] or "")).read_bytes()
         digest = "sha384-" + base64.b64encode(hashlib.sha384(body).digest()).decode()
@@ -173,3 +173,12 @@ def test_home_limits_say_scans_need_the_ocr_extra_and_the_browser_flags_them() -
     text = re.sub(r"<[^>]+>", " ", row)
     assert "OCR extra" in text and "self-host" in text.lower(), text
     assert "browser" in text.lower() and "flag" in text.lower(), text
+
+
+def test_unused_scripts_are_gone() -> None:
+    """slots.js (image slots) and ScrollTrigger had no users: neither is on disk or loaded by any page."""
+    assert not (SITE / "slots.js").exists() and not (SITE / "vendor" / "gsap" / "ScrollTrigger.min.js").exists()
+    for p in SITE.rglob("*.html"):
+        if "pyodide" not in p.parts:
+            text = p.read_text(encoding="utf-8")
+            assert "slots.js" not in text and "ScrollTrigger" not in text, p.relative_to(SITE)
