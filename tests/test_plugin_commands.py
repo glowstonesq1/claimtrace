@@ -83,3 +83,25 @@ def test_runner_reads_the_question_from_stdin(tmp_path: Path) -> None:
     out = json.loads(proc.stdout)
     assert proc.returncode == 0, out
     assert out["answer"]["question"] == QUESTION
+
+
+def _check_script(doc: Path, paths: list[Path]) -> str:
+    """The analyze command as Claude would run it for these paths. A literal `$ARGUMENTS` in the block is replaced
+    with the raw argument text, as Claude Code does; a `<paths>` placeholder is filled per the doc's quoting rule
+    (each path in single quotes), which the doc must state."""
+    text = doc.read_text(encoding="utf-8")
+    block = _block(doc, "analyze").replace("<skill-folder>", str(SKILL))
+    if "$ARGUMENTS" in block:
+        return block.replace("$ARGUMENTS", " ".join(str(p) for p in paths))
+    assert "single quotes" in text, f"{doc.name}: must tell Claude to single-quote each path"
+    return PATHS.sub(lambda _m: " ".join(shlex.quote(str(p)) for p in paths), block)
+
+
+@pytest.mark.parametrize("doc", [PLUGIN / "commands" / "claimtrace-check.md", SKILL / "SKILL.md"], ids=lambda p: p.name)
+def test_check_command_keeps_a_folder_with_spaces_whole(doc: Path, tmp_path: Path) -> None:
+    folder = tmp_path / "My Contracts"
+    folder.mkdir()
+    (folder / "msa v1.md").write_bytes((EXAMPLES / "msa-v1.md").read_bytes())
+    out = _bash(_check_script(doc, [folder]), tmp_path)
+    assert out.get("ok"), out
+    assert [d["file"] for d in out["documents"]] == ["msa v1.md"] and out["skipped_files"] == []
