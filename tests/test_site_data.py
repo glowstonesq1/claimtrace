@@ -57,8 +57,14 @@ def _jsonl(paths: list[Path]) -> list[dict]:
     return [json.loads(line) for p in paths for line in p.read_text().splitlines() if line.strip()]
 
 
+def _site_pages(site: Path) -> list[Path]:
+    """Every HTML page of the site (home, evidence, get, docs, try, 404, partials), but not the try page's
+    self-hosted Pyodide bundle, which is third-party code."""
+    return sorted(p for p in site.rglob("*.html") if "pyodide" not in p.relative_to(site).parts)
+
+
 def _published_text(site: Path = SITE) -> str:
-    files = sorted((site / "data").rglob("*")) + sorted((site / "evidence").glob("*"))
+    files = sorted((site / "data").rglob("*")) + sorted((site / "evidence").glob("*")) + _site_pages(site)
     text = "\n".join(p.read_text(encoding="utf-8") for p in files if p.is_file())
     # compare in the same escaping the outputs use: raw, JSON-escaped and HTML-escaped
     return text
@@ -178,15 +184,15 @@ def _derived_sentence(sealed: set[str]) -> tuple[str, str]:
     return original, near.replace(",", " ,").upper()
 
 
-def test_sealing_check_catches_a_near_copy(tmp_path: Path) -> None:
+@pytest.mark.parametrize("planted", ["evidence/index.html", "index.html", "get/index.html"])
+def test_sealing_check_catches_a_near_copy(tmp_path: Path, planted: str) -> None:
     ids, sealed = _sealed_strings()
     original, near = _derived_sentence(sealed)
     if near == original:
         pytest.fail("the derived sentence is unchanged", pytrace=False)
     site = tmp_path / "site"
-    shutil.copytree(SITE / "data", site / "data")
-    shutil.copytree(SITE / "evidence", site / "evidence")
-    page = site / "evidence" / "index.html"
+    shutil.copytree(SITE, site, ignore=shutil.ignore_patterns("pyodide", "media", "fonts", "vendor"))
+    page = site / planted
     page.write_text(page.read_text(encoding="utf-8") + f"\n<p>{html.escape(near)}</p>\n", encoding="utf-8")
     leaked_ids, leaked = _find_leaks(_published_text(site), ids, sealed)
     found = bool(leaked_ids or leaked)
@@ -308,6 +314,42 @@ def test_home_numbers_match_the_published_runs() -> None:
     values = re.findall(r'<td class="num nums__v">([0-9.]+)', nums)
     assert values == ["0.00", "0.03", "0.71", "0.81", "0.60", "0.71"]
     assert "0.51 to 0.70, n=105" in nums and "0.62 to 0.80, n=91" in nums and "precision 0.83" in nums
+    # Each row names its interval method, and the lead says both are used.
+    assert len(re.findall(r"95% (?:bootstrap|Wilson) interval", nums)) == 6
+    assert "95% bootstrap interval 0.51 to 0.70, n=105" in nums
+    head = page.split('<section class="evaluation"')[1].split("<!-- build:numbers -->")[0]
+    assert "bootstrap" in head and "Wilson" in head
     evaluation = (ROOT / "docs" / "evaluation.md").read_text(encoding="utf-8")
     assert "**0.60 (0.51–0.70)** n=105" in evaluation and "**0.71 (0.62–0.80)** n=91" in evaluation
     assert "**0.83 / 0.71**" in evaluation
+
+
+def test_withheld_clauses_point_to_try_and_say_nothing_about_test_cases() -> None:
+    """A withheld clause's panel says only that the wording is on Try it, with a link; no word about evaluation."""
+    builder = _load_builder()
+    samples = builder.build_samples()
+    script = (SITE / "map.js").read_text(encoding="utf-8")
+    words = "Wording not shown on this page. Read it on "
+    tail = ", where the full sample contract is loaded."
+    for cid in builder.WITHHELD_CLIPS:
+        panel = builder.render_panel(samples, cid)
+        assert f'{words}<a href="try/">Try it</a>{tail}' in panel, cid
+    assert words in script and tail in script and "go.href = 'try/'" in script
+    for text in (script, (SITE / "index.html").read_text(encoding="utf-8")):
+        assert not re.search(r"sealed test|test case|evaluation case", text, re.I)
+
+
+def test_map_announces_a_short_status_not_the_whole_panel() -> None:
+    """The panel is not a live region (it re-read the whole clause on every move); a short visually hidden status
+    ("Contract §4.1, contradicted") is, and map.js updates it when a clause is chosen, never on hover."""
+    page = (SITE / "index.html").read_text(encoding="utf-8")
+    panel = re.search(r'<div class="map__panel" id="map-panel"[^>]*>', page)
+    assert panel and "aria-live" not in panel.group(0)
+    status = re.search(r'<p [^>]*id="map-status"[^>]*>', page)
+    assert status and 'role="status"' in status.group(0) and "visually-hidden" in status.group(0)
+    script = (SITE / "map.js").read_text(encoding="utf-8")
+    pin = script.split("function pin(id, animate) {")[1].split("\n    }\n")[0]
+    show = script.split("function show(id, animate) {")[1].split("\n    }\n")[0]
+    assert "announce(id)" in pin and "announce" not in show
+    hover = script.split("'pointerover'")[1].split("});")[0]
+    assert "announce" not in hover and "pin(" not in hover

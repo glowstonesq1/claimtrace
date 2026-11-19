@@ -1,4 +1,4 @@
-"""Optional OCR for PDF pages without a text layer (install with `pip install 'claimtrace[ocr]'`).
+"""Optional OCR for PDF pages without a text layer (install with `.venv/bin/pip install -e '.[ocr]'` from a clone).
 
 The engine is Tesseract via `pytesseract`, with pages rendered by `pypdfium2`. Both the Python
 packages and the `tesseract` binary must be present; otherwise `default_ocr()` returns None and

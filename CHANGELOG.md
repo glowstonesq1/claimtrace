@@ -3,7 +3,41 @@
 All notable changes are documented here. The project follows [Semantic Versioning](https://semver.org/);
 during 0.x, minor versions may include breaking API changes.
 
-## [Unreleased]
+## [Unreleased] (v0.4)
+
+A redesign of the website, a new film and a rewritten README. The engine is unchanged.
+
+### Changed
+- **Site redesign** ("Dusk ledger"): one design system (tokens, shared nav and footer) for home, Try it,
+  Evidence, Get it, Docs and 404. The home page answers four questions in order: what it does, how it decides,
+  how to use it, how good it is.
+- **Fonts**: Instrument Sans, Figtree and JetBrains Mono, self-hosted under the SIL Open Font License, replace
+  Bodoni Moda and Geist.
+- **Home hero and numbers are build-time engine output**: the hero panel is the rules engine's result on
+  `examples/documents` (`apps/site/data/samples.json`), and the numbers table shows each headline measure with
+  its 95% interval (the evaluation report's bootstrap interval, or Wilson for counts), named in each row,
+  and the keyword floor.
+- **README** opens with the hero image, the three ways to use ClaimTrace, the honest numbers, the evidence map
+  and the film; its figures (`docs/img/readme-*.png`) are designed frames made from the real site UI. The OCR
+  install line now gives the real path (`.venv/bin/pip install -e '.[ocr]'` plus the `tesseract` package).
+
+### Added
+- **Evidence map** on the home page: one lane per sample document, a button per cited clause, connectors for
+  every link the engine found (replaces, changes, supports, partly supports, contradicts, needs review), a side
+  panel with the clause's verbatim text, keyboard navigation and a short spoken status, and the full list of
+  links without scripting.
+- **New film** (`apps/film`): a 50 s one-take film made with givemotion in the site's own design system, every
+  quote verbatim from the samples; the poster stands in if the video fails.
+
+### Withheld from the home page
+- The wording of two sample clauses (contract §5.3 and audit report §2.1), and the engine's detail notes about
+  them, is not shown on the home page; the map shows their section and heading and points to Try it, where the
+  full sample documents are loaded. This keeps the site-sealing test strict with no exemptions; it now scans
+  every site page, the home page included.
+
+### Removed
+- `apps/promo` (the Remotion promo film), superseded by `apps/film`, and its `.gitignore` entries.
+- Unused `slots.js` and GSAP ScrollTrigger from the site.
 
 ## [0.3.0] — 2026-11-19
 

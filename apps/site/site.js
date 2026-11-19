@@ -3,12 +3,19 @@
 (function () {
   'use strict';
 
-  /* 1. The film slot. If the film fails to load, show its poster instead of an empty player. */
+  /* 1. The film slot. If the film fails to load, show its poster instead of an empty player. The poster is
+        decorative (alt="", aria-hidden) while the video works and gets its description back when it stands in. */
   document.querySelectorAll('[data-film]').forEach(function (frame) {
     var video = frame.querySelector('video');
     if (!video) return;
     var source = video.querySelector('source');
-    var missing = function () { frame.classList.add('is-missing'); video.setAttribute('aria-hidden', 'true'); video.setAttribute('tabindex', '-1'); };
+    var img = frame.querySelector('.film__fallback');
+    var missing = function () {
+      frame.classList.add('is-missing');
+      video.setAttribute('aria-hidden', 'true');
+      video.setAttribute('tabindex', '-1');
+      if (img) { img.alt = img.dataset.alt || ''; img.removeAttribute('aria-hidden'); } // the poster now stands in
+    };
     if (source) source.addEventListener('error', missing, { once: true });
     video.addEventListener('error', missing, { once: true });
     if (video.networkState === 3) missing(); // NETWORK_NO_SOURCE

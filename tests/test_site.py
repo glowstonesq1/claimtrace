@@ -67,7 +67,7 @@ def test_no_third_party_scripts_and_vendored_gsap_matches_its_sri():
     scripts = [s for s in _page().scripts if s.get("src")]
     assert not [s for s in scripts if re.match(r"(?:https?:)?//", s["src"] or "")], "no third-party scripts"
     gsap = [s for s in scripts if "vendor/gsap/" in (s["src"] or "")]
-    assert len(gsap) == 2
+    assert [s["src"] for s in gsap] == ["vendor/gsap/gsap.min.js"]  # ScrollTrigger was never used
     for s in gsap:
         body = (SITE / (s["src"] or "")).read_bytes()
         digest = "sha384-" + base64.b64encode(hashlib.sha384(body).digest()).decode()
@@ -164,3 +164,60 @@ def test_no_scored_once_claims() -> None:
     claim = re.compile(r"(?<!re-)scored\s+(?:exactly\s+)?once|\bone\s+scoring\b|\bonly\s+scored\s+once", re.I)
     found = [f"{p.relative_to(root)}: {m.group(0)}" for p in files for m in claim.finditer(p.read_text(encoding="utf-8"))]
     assert not found, found
+
+
+def test_home_limits_say_scans_need_the_ocr_extra_and_the_browser_flags_them() -> None:
+    page = (SITE / "index.html").read_text(encoding="utf-8")
+    limits = page.split('<div class="limits">')[1].split("</dl>")[0]
+    row = next(r for r in re.findall(r'<div class="row[^"]*">(.*?)</div>', limits) if "scanned" in r.lower())
+    text = re.sub(r"<[^>]+>", " ", row)
+    assert "OCR extra" in text and "self-host" in text.lower(), text
+    assert "browser" in text.lower() and "flag" in text.lower(), text
+
+
+def test_unused_scripts_are_gone() -> None:
+    """slots.js (image slots) and ScrollTrigger had no users: neither is on disk or loaded by any page."""
+    assert not (SITE / "slots.js").exists() and not (SITE / "vendor" / "gsap" / "ScrollTrigger.min.js").exists()
+    for p in SITE.rglob("*.html"):
+        if "pyodide" not in p.parts:
+            text = p.read_text(encoding="utf-8")
+            assert "slots.js" not in text and "ScrollTrigger" not in text, p.relative_to(SITE)
+
+
+def test_og_image_alt_describes_the_film_poster() -> None:
+    """Pages that share the film poster describe it with the same words as the film's fallback image."""
+    home = (SITE / "index.html").read_text(encoding="utf-8")
+    poster_alt = re.search(r'<img class="film__fallback"[^>]*?\s(?:data-)?alt="([^"]+)"', home, re.S)
+    assert poster_alt, "the film fallback image needs its alt text in the markup"
+    pages = 0
+    for page in [SITE / "index.html", *sorted(SITE.glob("*/index.html"))]:
+        text = page.read_text(encoding="utf-8")
+        if "claimtrace-film-poster.jpg" in (re.search(r'og:image" content="([^"]+)"', text) or [""])[0]:
+            pages += 1
+            alt = re.search(r'og:image:alt" content="([^"]+)"', text)
+            assert alt and alt.group(1) == poster_alt.group(1), page.relative_to(SITE)
+    assert pages >= 3
+
+
+def test_film_fallback_is_hidden_until_the_film_is_missing() -> None:
+    """The poster image sits behind a working video, so it has no alt and is aria-hidden; site.js gives it its
+    description back (and unhides it) when the frame is marked .is-missing."""
+    home = (SITE / "index.html").read_text(encoding="utf-8")
+    img = re.search(r'<img class="film__fallback"[^>]*>', home, re.S)
+    assert img
+    tag = img.group(0)
+    assert re.search(r'\salt=""', tag) and 'aria-hidden="true"' in tag and re.search(r'data-alt="[^"]{20,}"', tag)
+    script = (SITE / "site.js").read_text(encoding="utf-8")
+    missing = script.split("var missing = function () {")[1].split("};")[0]
+    assert "dataset.alt" in missing and "removeAttribute('aria-hidden')" in missing
+
+
+def test_command_code_is_not_shrunk_below_14px() -> None:
+    """.cmd pre is set at --text-xs (0.875rem = 14px); code inside a pre must inherit that size, not take the
+    0.9em that inline code gets (which made /get's commands 12.6px)."""
+    base = (SITE / "base.css").read_text(encoding="utf-8")
+    chrome = (SITE / "chrome.css").read_text(encoding="utf-8")
+    tokens = (SITE / "tokens.css").read_text(encoding="utf-8")
+    assert re.search(r"--text-xs:\s*0\.875rem", tokens)
+    assert re.search(r"\.cmd pre \{[^}]*font: 400 var\(--text-xs\)", chrome)
+    assert re.search(r"(?m)^pre code \{[^}]*font-size: inherit;", base)

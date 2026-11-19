@@ -5,7 +5,8 @@
 // Needs `playwright` (Chromium) and `axe-core` resolvable by require() (CI installs playwright@1.49.1 and
 // axe-core@4.10.2 with --no-save and points NODE_PATH at them), and Python with reportlab and python-docx
 // to generate the upload fixtures (PYTHON, default python3). Starts `python -m http.server` on apps/site
-// unless BASE is set. SHOTS=1 writes docs/img/try-*.png at deviceScaleFactor 2.
+// unless BASE is set. SHOTS=1 writes try-*.png at deviceScaleFactor 2 into SHOTS_DIR (default
+// docs/img/frames/raw/, which is gitignored: raw frames, never referenced as they are).
 //
 // Asserts: samples load and the register shows commitments, a replaced clause and verified quotes; an
 // answer with a verified quote; a contradiction when the contract is checked against the delivery record;
@@ -17,7 +18,7 @@
 // action restarts it.
 
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -32,6 +33,8 @@ const site = resolve(here, '..');
 const repo = resolve(site, '..', '..');
 const PY = process.env.PYTHON || 'python3';
 const SHOTS = process.env.SHOTS === '1';
+const SHOTS_DIR = resolve(process.env.SHOTS_DIR || join(repo, 'docs/img/frames/raw'));
+if (SHOTS) mkdirSync(SHOTS_DIR, { recursive: true });
 const PORT = Number(process.env.PORT || 8790);
 let BASE = process.env.BASE;
 const failures = [];
@@ -86,7 +89,7 @@ let consoleErrors = [];
 async function shot(page, selector, file) {
   if (!SHOTS) return;
   await page.locator(selector).evaluate((el) => el.scrollIntoView({ block: 'start' }));
-  await page.screenshot({ path: join(repo, 'docs/img', file) });
+  await page.screenshot({ path: join(SHOTS_DIR, file) });
 }
 
 async function axe(page, name) {
@@ -163,7 +166,7 @@ async function main() {
     check(true, `engine ready (cold) in ${(report.cold_load_ms / 1000).toFixed(1)} s`);
     check(await page.getByText('Your files are read by code running in this tab. Nothing is uploaded.').isVisible(), 'privacy statement visible');
     check(seen.some((u) => u.endsWith('/pyodide.asm.wasm')), 'worker requests are routed through the egress guard');
-    if (SHOTS) await page.screenshot({ path: join(repo, 'docs/img/try-start.png') });
+    if (SHOTS) await page.screenshot({ path: join(SHOTS_DIR, 'try-start.png') });
     await axe(page, 'ready');
 
     // 1. samples -> register
@@ -185,7 +188,7 @@ async function main() {
     await page.waitForSelector('#viewer[open]');
     const mark = await page.locator('#viewer-mark').innerText();
     check(mark.includes('March 31, 2026'), 'show in document highlights the passage');
-    if (SHOTS) await page.screenshot({ path: join(repo, 'docs/img/try-document.png') });
+    if (SHOTS) await page.screenshot({ path: join(SHOTS_DIR, 'try-document.png') });
     await page.keyboard.press('Escape');
     check(await page.evaluate(() => !document.getElementById('viewer').open), 'Escape closes the document');
     check(await show.evaluate((el) => el === document.activeElement), 'focus returns to the button');
@@ -277,7 +280,7 @@ async function main() {
     const mp = await mob.newPage();
     await mp.goto(`${BASE}/try/`);
     await mp.waitForSelector('body[data-engine="ready"]', { timeout: 180000 });
-    if (SHOTS) await mp.screenshot({ path: join(repo, 'docs/img/try-mobile-start.png') });
+    if (SHOTS) await mp.screenshot({ path: join(SHOTS_DIR, 'try-mobile-start.png') });
     await mp.focus('#load-samples');
     await mp.keyboard.press('Enter');
     await mp.waitForSelector('.item', { timeout: 60000 });
@@ -290,7 +293,7 @@ async function main() {
     check(sw2 <= 390, `390 px with an answer: no horizontal scroll (scrollWidth ${sw2})`);
     if (SHOTS) {
       await mp.locator('.party').first().scrollIntoViewIfNeeded();
-      await mp.screenshot({ path: join(repo, 'docs/img/try-mobile.png') });
+      await mp.screenshot({ path: join(SHOTS_DIR, 'try-mobile.png') });
     }
     await axe(mp, 'mobile');
     check(offM.length === 0, `390 px: no request left ${BASE} (${seenM.length} requests)`);

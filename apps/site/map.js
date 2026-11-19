@@ -9,6 +9,7 @@
   var lanesEl = map.querySelector('[data-map-lanes]');
   var svg = map.querySelector('.map__wires');
   var panel = document.getElementById('map-panel');
+  var statusEl = document.getElementById('map-status');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   var NS = 'http://www.w3.org/2000/svg';
 
@@ -73,12 +74,16 @@
       frag.appendChild(state);
       var file;
       if (c.withheld) {
-        file = el('p', 'map__file', 'Wording not shown here: it also appears in a sealed test case. Read it in ');
+        file = el('p', 'map__file', 'Wording not shown on this page. Read it on ');
+        var go = el('a', '', 'Try it');
+        go.href = 'try/';
+        file.appendChild(go);
+        file.appendChild(document.createTextNode(', where the full sample contract is loaded.'));
       } else {
         frag.appendChild(el('blockquote', 'map__quote', c.text));
         file = el('p', 'map__file', 'Verbatim from ');
+        file.appendChild(el('span', 'num', lane.file));
       }
-      file.appendChild(el('span', 'num', lane.file));
       frag.appendChild(file);
       frag.appendChild(el('h3', 'map__links-title', 'Links'));
       var ls = linksOf(id);
@@ -242,7 +247,22 @@
       if (id !== current) renderPanel(id);
       mark(id, animate);
     }
+    /* A short spoken status when a clause is chosen (click, Enter, arrow keys), never on hover: the panel
+       itself is not a live region, so moving along a lane does not re-read whole clauses. */
+    var GRAVITY = ['replaces', 'contradicts', 'changes', 'partly', 'review', 'supports'];
+    var said = '';
+    function announce(id) {
+      if (!statusEl || !clips[id]) return;
+      var ins = data.links.filter(function (l) { return l.to === id; });
+      ins.sort(function (a, b) { return GRAVITY.indexOf(a.kind) - GRAVITY.indexOf(b.kind); });
+      var word = ins.length ? STATUS[ins[0].kind][0] : (STATE[clips[id].effect] || STATE.evidence)[0];
+      var msg = cite(id) + ', ' + word.toLowerCase();
+      if (msg === said) return;
+      said = msg;
+      statusEl.textContent = msg;
+    }
     function pin(id, animate) {
+      announce(id);
       pinned = id;
       buttons.forEach(function (b) { b.tabIndex = b.dataset.clip === id ? 0 : -1; });
       show(id, animate);

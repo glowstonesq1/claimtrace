@@ -22,10 +22,6 @@ apps/api/static/
 .claude/
 .hallmark/salt
 apps/site/.hallmark/
-# promo film (apps/promo)
-apps/promo/node_modules/
-apps/promo/out/
-apps/promo/public/audio/
 
 # Claude skill / plugin builds (scripts/build_skill_zip.py)
 dist/
