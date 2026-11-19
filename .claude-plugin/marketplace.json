@@ -1,0 +1,25 @@
+{
+  "name": "claimtrace",
+  "owner": {
+    "name": "ClaimTrace Maintainers"
+  },
+  "metadata": {
+    "description": "ClaimTrace for Claude Code: commitment registers, quote-verified answers and cross-document checks.",
+    "version": "0.3.0"
+  },
+  "plugins": [
+    {
+      "name": "claimtrace",
+      "source": "./plugins/claimtrace",
+      "description": "Check contracts, amendments, audit reports and delivery records with verified verbatim quotes. Not legal advice.",
+      "version": "0.3.0",
+      "author": {
+        "name": "ClaimTrace Maintainers"
+      },
+      "homepage": "https://glowstonesq1.github.io/claimtrace/",
+      "repository": "https://github.com/glowstonesq1/claimtrace",
+      "license": "Apache-2.0",
+      "category": "productivity"
+    }
+  ]
+}
