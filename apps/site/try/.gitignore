@@ -1,0 +1,4 @@
+# Built by scripts/build_try_bundle.py (`make try-bundle`), in CI and in the Pages workflow; not committed.
+# The pinned inputs and their sha256 are in bundle.lock.json.
+pyodide/
+samples/

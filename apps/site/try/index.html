@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- Everything comes from this origin. 'wasm-unsafe-eval' lets the browser compile the engine
+     (WebAssembly); blob: is the worker's own address, so the worker inherits this policy and can only
+     connect to this origin too. No inline script or style, no analytics. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; media-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Try ClaimTrace</title>
+<meta name="description" content="Run the ClaimTrace engine in your browser on the sample documents or your own files. Your files are read by code running in the tab and are never uploaded.">
+<link rel="preload" href="../fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../fonts/geist-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="../fonts.css">
+<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="try.css">
+<script src="../head.js"></script>
+<script type="module" src="try.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="container nav__inner">
+    <a class="wordmark" href="../" aria-label="ClaimTrace, home">ClaimTrace</a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="../">Overview</a>
+      <a href="./" aria-current="page">Try it</a>
+      <a class="btn btn--quiet" href="https://github.com/glowstonesq1/claimtrace">Source on GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+
+  <section class="intro" aria-labelledby="try-title">
+    <div class="container intro__grid">
+      <div>
+        <h1 id="try-title">Try it on your own documents</h1>
+        <p class="lead">The real engine, running in this browser tab. No account, nothing to install.</p>
+      </div>
+      <div class="privacy" id="privacy">
+        <h2 class="privacy__head">Your files stay here</h2>
+        <p>Your files are read by code running in this tab. Nothing is uploaded.</p>
+        <p class="privacy__more">The page may only talk to this site, and only to download the engine. Close the tab and everything you added is gone.</p>
+      </div>
+    </div>
+  </section>
+
+  <noscript>
+    <div class="container">
+      <div class="nojs">
+        <h2>This page needs JavaScript</h2>
+        <p>The engine is a program that runs inside your browser tab, so with JavaScript turned off nothing can be read. Turn it on for this site, or <a href="https://github.com/glowstonesq1/claimtrace#quickstart">run ClaimTrace on your own computer</a>.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <div class="app" id="app" hidden>
+
+    <section class="panel engine" aria-labelledby="engine-title">
+      <div class="container engine__grid">
+        <h2 id="engine-title" class="panel__head">Engine</h2>
+        <div class="engine__body">
+          <p class="engine__status" id="engine-status">Starting the engine.</p>
+          <p class="visually-hidden" id="engine-live" role="status" aria-live="polite"></p>
+          <progress id="engine-progress" max="100" value="0" aria-labelledby="engine-status"></progress>
+          <p class="engine__note" id="engine-note">About 18 MB, downloaded from this site on your first visit only. Your browser keeps a copy for next time.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel add" aria-labelledby="add-title">
+      <div class="container add__grid">
+        <div>
+          <h2 id="add-title" class="panel__head">1. Add documents</h2>
+          <p class="panel__lede">Start with four fictional samples: a contract, its amendment, an audit report and a delivery record.</p>
+        </div>
+        <div class="add__actions">
+          <button class="btn" type="button" id="load-samples" disabled>Load sample documents</button>
+          <div class="drop" id="drop">
+            <input class="visually-hidden" type="file" id="file-input" multiple accept=".pdf,.docx,.txt,.md,.markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown" disabled>
+            <label class="drop__label" for="file-input">
+              <span class="drop__title">Or choose your own files</span>
+              <span class="drop__hint">Drop them here, or press to browse. PDF, Word (.docx), text or Markdown, up to 10 MB each.</span>
+            </label>
+          </div>
+          <p class="add__status" id="add-status" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+      <div class="container">
+        <ul class="docs" id="doc-list" aria-label="Documents added"></ul>
+        <div class="docs__tools" id="doc-tools" hidden>
+          <button class="btn btn--quiet btn--small" type="button" id="export-json">Download JSON</button>
+          <button class="btn btn--quiet btn--small" type="button" id="export-md">Download Markdown</button>
+          <button class="btn btn--quiet btn--small" type="button" id="reset">Remove all documents</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel register" aria-labelledby="register-title" id="register" hidden>
+      <div class="container">
+        <h2 id="register-title" class="panel__head" tabindex="-1">2. Who owes what, by when</h2>
+        <p class="panel__lede" id="register-summary"></p>
+        <div class="deadlines" id="deadlines"></div>
+        <div id="parties"></div>
+      </div>
+    </section>
+
+    <section class="panel ask" aria-labelledby="ask-title" id="ask" hidden>
+      <div class="container ask__grid">
+        <div>
+          <h2 id="ask-title" class="panel__head">3. Ask a question</h2>
+          <p class="panel__lede">Answers quote the documents. If nothing supports an answer, it says so.</p>
+        </div>
+        <div>
+          <form class="ask__form" id="ask-form">
+            <label class="field__label" for="question">Your question</label>
+            <div class="ask__row">
+              <input class="field" type="text" id="question" name="question" autocomplete="off" maxlength="500" required>
+              <button class="btn" type="submit" id="ask-button">Ask</button>
+            </div>
+          </form>
+          <div class="chips" id="suggestions" aria-label="Example questions"></div>
+          <p class="visually-hidden" id="answer-status" role="status" aria-live="polite"></p>
+          <div class="answer" id="answer"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel check" aria-labelledby="check-title" id="check" hidden>
+      <div class="container ask__grid">
+        <div>
+          <h2 id="check-title" class="panel__head">4. Check one document against another</h2>
+          <p class="panel__lede">A contract against its amendment, an audit report or a delivery record.</p>
+        </div>
+        <div>
+          <form class="check__form" id="check-form">
+            <div class="check__field">
+              <label class="field__label" for="base-doc">Check this document</label>
+              <select class="field" id="base-doc"></select>
+            </div>
+            <div class="check__field">
+              <label class="field__label" for="other-doc">against</label>
+              <select class="field" id="other-doc"></select>
+            </div>
+            <button class="btn" type="submit" id="check-button">Check</button>
+          </form>
+          <p class="visually-hidden" id="check-status" role="status" aria-live="polite"></p>
+          <div class="findings" id="findings"></div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <section class="limits-note" aria-labelledby="limits-title">
+    <div class="container limits-note__grid">
+      <h2 id="limits-title" class="panel__head">Before you rely on it</h2>
+      <div class="limits-note__body">
+        <p>Not legal advice. ClaimTrace is a reading aid: check every quote before you act on it.</p>
+        <p>On amendment wording it had not seen before, its amendment check was wrong about 4 times in 10 (verdict accuracy 0.60 on 105 checks). It usually errs by saying &ldquo;needs review&rdquo; where a change was real. <a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md">How it was measured</a>.</p>
+        <p>This browser version uses the rules engine only: no language model, no OCR for scanned PDFs.</p>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<dialog class="viewer" id="viewer" aria-labelledby="viewer-title">
+  <div class="viewer__bar">
+    <h2 class="viewer__title" id="viewer-title">Document</h2>
+    <button class="btn btn--quiet btn--small" type="button" id="viewer-close">Close</button>
+  </div>
+  <p class="viewer__where" id="viewer-where"></p>
+  <div class="viewer__text" id="viewer-text" tabindex="0" aria-label="Document text, the quoted passage highlighted"></div>
+</dialog>
+
+<footer class="foot">
+  <div class="container">
+    <p class="foot__mark">ClaimTrace</p>
+    <ul class="foot__links">
+      <li><a href="https://github.com/glowstonesq1/claimtrace">Source on GitHub</a></li>
+      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md">Evaluation</a></li>
+      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/privacy.md">Privacy</a></li>
+      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/security.md">Security</a></li>
+    </ul>
+    <p class="foot__legal">Apache-2.0. Not legal advice. The sample documents are fictional.</p>
+  </div>
+</footer>
+</body>
+</html>
