@@ -71,8 +71,13 @@
       state.appendChild(icon(st[1]));
       state.appendChild(document.createTextNode(st[0]));
       frag.appendChild(state);
-      frag.appendChild(el('blockquote', 'map__quote', c.text));
-      var file = el('p', 'map__file', 'Verbatim from ');
+      var file;
+      if (c.withheld) {
+        file = el('p', 'map__file', 'Wording not shown here: it also appears in a sealed test case. Read it in ');
+      } else {
+        frag.appendChild(el('blockquote', 'map__quote', c.text));
+        file = el('p', 'map__file', 'Verbatim from ');
+      }
       file.appendChild(el('span', 'num', lane.file));
       frag.appendChild(file);
       frag.appendChild(el('h3', 'map__links-title', 'Links'));

@@ -621,6 +621,22 @@ def _changed(old_c: dict, new_c: dict) -> dict | None:
     return None
 
 
+# Clauses whose wording also occurs in sealed evaluation cases. The home page shows their section and heading but not
+# their text (or the engine's detail notes about them), so the sealing check in tests/test_site_data.py stays as strict
+# as it is: it never has to exempt public text. The wording stays in examples/documents and on /try.
+WITHHELD_CLIPS = frozenset({"msa-5.3", "audit-2.1"})
+
+
+def _withhold(lanes: list[dict], link_list: list[dict]) -> None:
+    for lane in lanes:
+        for c in lane["clips"]:
+            if c["id"] in WITHHELD_CLIPS:
+                c["text"], c["withheld"] = "", True
+    for lk in link_list:
+        if lk["note"] and {lk["from"], lk["to"]} & WITHHELD_CLIPS:
+            lk["note"] = lk["note"].split(". ")[0].rstrip(".") + "."
+
+
 def build_samples() -> dict:
     """Run the rules engine on examples/documents and reduce it to what the hero panel and the map show:
     clips (one per cited section, verbatim passage text), links between them (from the register's supersede
@@ -715,6 +731,7 @@ def build_samples() -> dict:
                       "clips": [{x: c[x] for x in ("id", "section", "heading", "text", "kinds", "effect")} for c in cs]})
     order = {c["id"]: i for i, c in enumerate(c for lane in lanes for c in lane["clips"])}
     link_list = sorted(links.values(), key=lambda lk: (order[lk["to"]], order[lk["from"]]))
+    _withhold(lanes, link_list)
 
     # Hero rows: the contract's clauses that something links to, the gravest first; clause 2.1 leads.
     rows = []

@@ -285,8 +285,13 @@ def test_every_map_clip_is_verbatim_and_every_link_joins_two_clips() -> None:
     ids = set()
     for lane in data["lanes"]:
         for c in lane["clips"]:
-            assert f"{c['section']} {c['text']}" in texts[lane["file"]], c["id"]
             ids.add(c["id"])
+            if c.get("withheld"):
+                assert c["text"] == "", c["id"]
+                continue
+            assert f"{c['section']} {c['text']}" in texts[lane["file"]], c["id"]
+    builder = _load_builder()
+    assert {c["id"] for lane in data["lanes"] for c in lane["clips"] if c.get("withheld")} == set(builder.WITHHELD_CLIPS)
     kinds = {lk["kind"] for lk in data["links"]}
     assert {"replaces", "supports", "contradicts"} <= kinds <= set(data["kinds"])
     for lk in data["links"]:
