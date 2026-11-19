@@ -9,6 +9,7 @@
   var lanesEl = map.querySelector('[data-map-lanes]');
   var svg = map.querySelector('.map__wires');
   var panel = document.getElementById('map-panel');
+  var statusEl = document.getElementById('map-status');
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
   var NS = 'http://www.w3.org/2000/svg';
 
@@ -246,7 +247,22 @@
       if (id !== current) renderPanel(id);
       mark(id, animate);
     }
+    /* A short spoken status when a clause is chosen (click, Enter, arrow keys), never on hover: the panel
+       itself is not a live region, so moving along a lane does not re-read whole clauses. */
+    var GRAVITY = ['replaces', 'contradicts', 'changes', 'partly', 'review', 'supports'];
+    var said = '';
+    function announce(id) {
+      if (!statusEl || !clips[id]) return;
+      var ins = data.links.filter(function (l) { return l.to === id; });
+      ins.sort(function (a, b) { return GRAVITY.indexOf(a.kind) - GRAVITY.indexOf(b.kind); });
+      var word = ins.length ? STATUS[ins[0].kind][0] : (STATE[clips[id].effect] || STATE.evidence)[0];
+      var msg = cite(id) + ', ' + word.toLowerCase();
+      if (msg === said) return;
+      said = msg;
+      statusEl.textContent = msg;
+    }
     function pin(id, animate) {
+      announce(id);
       pinned = id;
       buttons.forEach(function (b) { b.tabIndex = b.dataset.clip === id ? 0 : -1; });
       show(id, animate);

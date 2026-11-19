@@ -919,9 +919,10 @@ def render_map(samples: dict) -> str:
   <svg class="map__wires" aria-hidden="true" focusable="false"></svg>
   {chr(10).join(lanes)}
 </div>
-<div class="map__panel" id="map-panel" aria-live="polite">
+<div class="map__panel" id="map-panel">
 {render_panel(samples, "msa-2.1")}
 </div>
+<p class="visually-hidden" id="map-status" role="status" aria-atomic="true"></p>
 <details class="wire-list">
   <summary>Every link the engine found, as a list ({len(samples["links"])})</summary>
   <ul>{"".join(items)}</ul>
