@@ -8,7 +8,7 @@ DIRECTION
   Look: the v0.4 "Dusk ledger" site, filmed. One world laid out like the home page: a CSS evening sky over slate
     (the dusk band) with the product in smoked glass with a lit top edge, and below the band the cool paper sheet with
     48 px hairlines that carries the evidence map (one lane per sample document, clauses as clips, orthogonal
-    connectors routed through the gutters, as map.js draws them). No photos, no stock, no extra brand colour.
+    connectors routed through the gutters, as graph.js draws them). No photos, no stock, no extra brand colour.
   Palette: the site's own tokens (site/tokens.css, oklch). Periwinkle/cobalt = current or in force; apricot =
     replaced; one muted red = contradiction. A status colour never appears without its word and icon.
   Type: Instrument Sans 500/600 for the question, card titles and the wordmark (112 / 56 / 168 px); Figtree 400/500
@@ -310,7 +310,7 @@ const A = (i) => 1960 + i * 112, B = (i) => 4560 + i * 112;
 ['2.1', '2.2', '2.3', '2.4'].forEach((n, i) => chip('ch-aud' + n, n, 2, A(i), 'evidence'));
 chip('ch-del2.1', '2.1', 3, A(0), 'evidence');
 
-// orthogonal routes with rounded corners, as the site's map.js draws them
+// orthogonal routes with rounded corners, as the site's graph.js draws them
 function rounded(pts, r) {
   let d = `M${pts[0][0]},${pts[0][1]}`;
   for (let i = 1; i < pts.length - 1; i++) {

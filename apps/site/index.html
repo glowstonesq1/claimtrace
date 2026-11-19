@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- Only this origin: no third-party script, style, font or request. No inline script or style: page
-     scripts live in files (head.js, map.js, site.js); GSAP is self-hosted in vendor/gsap. -->
+     scripts live in files (head.js, graph.js, site.js); GSAP is self-hosted in vendor/gsap. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClaimTrace: check contracts and amendments with verified quotes</title>
@@ -111,7 +111,7 @@
         <li class="legend__item legend__item--contradicts"><svg class="legend__wire" viewBox="0 0 32 8" aria-hidden="true"><path d="M0 4h32"/></svg>Contradicts</li>
         <li class="legend__item legend__item--review"><svg class="legend__wire" viewBox="0 0 32 8" aria-hidden="true"><path d="M0 4h32"/></svg>Needs review</li>
       </ul>
-      <div class="map" data-map role="group" aria-labelledby="how-title" aria-describedby="map-keys">
+      <div class="map" data-map data-graph-src="data/samples.json" data-graph-selected="msa-2.1" role="group" aria-labelledby="how-title" aria-describedby="map-keys">
         <p class="visually-hidden" id="map-keys">Each clause is a button. Arrow keys move along a document and between documents; the panel shows the clause in focus and what links to it.</p>
 <!-- build:map -->
 <div class="map__lanes" data-map-lanes>
@@ -128,7 +128,7 @@
 <blockquote class="map__quote">The Vendor shall deliver the Phase 1 System no later than March 31, 2026.</blockquote>
 <p class="map__file">Verbatim from <span class="num">msa-v1.md</span></p>
 <h3 class="map__links-title">Links</h3>
-<ul class="map__links"><li class="map__link"><span class="status status--replaces"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Replaced</span><span class="map__link-text">Replaced by <button type="button" class="cite" data-go="amd-1.1">Amendment No. 1 §1.1</button><span class="map__note">Changed by the amendment (§2.1). Date differs: 31 Mar 2026 vs 15 May 2026.</span></span></li></ul>
+<ul class="map__links"><li class="map__link"><span class="status status--replaces"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Replaced</span><span class="map__link-text">Replaced by <button type="button" class="map__cite" data-go="amd-1.1">Amendment No. 1 §1.1</button><span class="map__note">Changed by the amendment (§2.1). Date differs: 31 Mar 2026 vs 15 May 2026.</span></span></li></ul>
 </div>
 <p class="visually-hidden" id="map-status" role="status" aria-atomic="true"></p>
 <details class="wire-list">
@@ -267,7 +267,7 @@ docker compose up --build</code></pre></div>
      (GreenSock standard licence, header kept in the file), SRI-pinned. It only staggers
      the hero rows in once; without it (or with reduced motion) the page is already complete. -->
 <script src="vendor/gsap/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" defer></script>
-<script src="map.js" defer></script>
+<script src="graph.js" defer></script>
 <script src="site.js" defer></script>
 </body>
 </html>

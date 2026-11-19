@@ -328,7 +328,7 @@ def test_withheld_clauses_point_to_try_and_say_nothing_about_test_cases() -> Non
     """A withheld clause's panel says only that the wording is on Try it, with a link; no word about evaluation."""
     builder = _load_builder()
     samples = builder.build_samples()
-    script = (SITE / "map.js").read_text(encoding="utf-8")
+    script = (SITE / "graph.js").read_text(encoding="utf-8")
     words = "Wording not shown on this page. Read it on "
     tail = ", where the full sample contract is loaded."
     for cid in builder.WITHHELD_CLIPS:
@@ -341,15 +341,16 @@ def test_withheld_clauses_point_to_try_and_say_nothing_about_test_cases() -> Non
 
 def test_map_announces_a_short_status_not_the_whole_panel() -> None:
     """The panel is not a live region (it re-read the whole clause on every move); a short visually hidden status
-    ("Contract §4.1, contradicted") is, and map.js updates it when a clause is chosen, never on hover."""
+    ("Contract §4.1, contradicted") is, and graph.js updates it when a clause is chosen, never on hover."""
     page = (SITE / "index.html").read_text(encoding="utf-8")
     panel = re.search(r'<div class="map__panel" id="map-panel"[^>]*>', page)
     assert panel and "aria-live" not in panel.group(0)
     status = re.search(r'<p [^>]*id="map-status"[^>]*>', page)
     assert status and 'role="status"' in status.group(0) and "visually-hidden" in status.group(0)
-    script = (SITE / "map.js").read_text(encoding="utf-8")
+    script = (SITE / "graph.js").read_text(encoding="utf-8")
     pin = script.split("function pin(id, animate) {")[1].split("\n    }\n")[0]
     show = script.split("function show(id, animate) {")[1].split("\n    }\n")[0]
     assert "announce(id)" in pin and "announce" not in show
-    hover = script.split("'pointerover'")[1].split("});")[0]
+    assert "addEventListener('pointerover', onOver)" in script
+    hover = script.split("function onOver(e) {")[1].split("\n    }\n")[0]
     assert "announce" not in hover and "pin(" not in hover
