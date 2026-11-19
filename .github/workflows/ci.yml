@@ -65,6 +65,17 @@ jobs:
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8765/health && break; sleep 1; done
           cd apps/web && npm i --no-save playwright@1.49.1 && BASE=http://127.0.0.1:8765 node e2e/smoke.mjs
 
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Inject the shared nav and footer, as the Pages workflow does
+        run: python scripts/inject_partials.py
+      - name: Every internal link resolves (try/ and evidence/ are skipped while absent)
+        run: python scripts/check_links.py
+
   docker:
     runs-on: ubuntu-latest
     steps:

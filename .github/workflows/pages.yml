@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - "apps/site/**"
+      - "scripts/inject_partials.py"
+      - "scripts/check_links.py"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -25,6 +27,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Inject the shared nav and footer into every page (idempotent; no build step)
+        run: python scripts/inject_partials.py
+      - name: Every internal link resolves
+        run: python scripts/check_links.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
