@@ -41,7 +41,7 @@ def add(buf: list[float], start: float, samples: list[float], gain: float = 1.0)
 def pad() -> None:
     """A slow D-major-add9 bed with breathing voices and a little air."""
     voices = [(73.42, 0.050), (110.0, 0.060), (146.83, 0.055), (185.0, 0.040), (220.0, 0.040), (329.63, 0.022)]
-    rng = random.Random(7)
+    rng = random.Random(7)  # noqa: S311 - seeded for a reproducible soundtrack, not security
     two_pi = 2 * math.pi
     params = [(f, a, rng.uniform(0.04, 0.11), rng.uniform(0, two_pi), rng.uniform(0.6, 1.4)) for f, a in voices]
     noise_l = noise_r = 0.0
@@ -49,16 +49,16 @@ def pad() -> None:
         t = i / RATE
         env = min(1.0, t / 3.0) * min(1.0, max(0.0, (DURATION - t) / 4.0))
         swell = 0.85 + 0.15 * math.sin(two_pi * t / 26.0 - 1.2)
-        l = r = 0.0
+        sl = sr = 0.0
         for f, a, lfo, ph, det in params:
             amp = a * (0.7 + 0.3 * math.sin(two_pi * lfo * t + ph))
-            l += amp * math.sin(two_pi * (f - det * 0.12) * t + ph)
-            r += amp * math.sin(two_pi * (f + det * 0.12) * t + ph * 1.3)
+            sl += amp * math.sin(two_pi * (f - det * 0.12) * t + ph)
+            sr += amp * math.sin(two_pi * (f + det * 0.12) * t + ph * 1.3)
         # air: one-pole low-passed noise
         noise_l += 0.02 * (rng.uniform(-1, 1) - noise_l)
         noise_r += 0.02 * (rng.uniform(-1, 1) - noise_r)
-        left[i] += env * swell * (l + 0.10 * noise_l)
-        right[i] += env * swell * (r + 0.10 * noise_r)
+        left[i] += env * swell * (sl + 0.10 * noise_l)
+        right[i] += env * swell * (sr + 0.10 * noise_r)
 
 
 def tick(rng: random.Random) -> list[float]:
@@ -77,7 +77,7 @@ def low_hit(gain: float = 1.0) -> list[float]:
     """A low hit: a sine sweeping 92 -> 46 Hz with a long tail, plus a short low-passed thump."""
     n = int(1.6 * RATE)
     out, phase, lp = [], 0.0, 0.0
-    rng = random.Random(11)
+    rng = random.Random(11)  # noqa: S311 - seeded, not security
     for j in range(n):
         t = j / RATE
         f = 46 + 46 * math.exp(-t / 0.08)
@@ -114,7 +114,7 @@ def typing(text: str, delay: float, cps: float, rng: random.Random) -> None:
 
 def main() -> None:
     pad()
-    rng = random.Random(3)
+    rng = random.Random(3)  # noqa: S311 - seeded, not security
     typing(*QUESTION, rng)
     typing(*ANSWER, rng)
     hit = low_hit()
@@ -136,8 +136,8 @@ def main() -> None:
         w.setsampwidth(2)
         w.setframerate(RATE)
         frames = bytearray()
-        for l, r in zip(left, right):
-            frames += struct.pack("<hh", int(max(-1, min(1, l * scale)) * 32767), int(max(-1, min(1, r * scale)) * 32767))
+        for sl, sr in zip(left, right, strict=True):
+            frames += struct.pack("<hh", int(max(-1, min(1, sl * scale)) * 32767), int(max(-1, min(1, sr * scale)) * 32767))
         w.writeframes(bytes(frames))
     print(f"wrote {OUT} ({DURATION:.0f} s, peak {peak:.2f}, scale {scale:.2f})")
 
