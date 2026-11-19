@@ -135,7 +135,6 @@ body[data-engine="ready"] progress { border-color: var(--color-rule-2); }
 .limits-note__body { display: grid; gap: var(--space-sm); }
 .limits-note__body p { color: var(--color-ink-2); }
 .limits-note__body p:first-child { color: var(--color-ink); font-size: var(--text-lead); line-height: 1.4; }
-.nav__links > a[aria-current="page"] { text-decoration-thickness: 2px; }
 
 /* Show in document */
 .viewer { width: min(56rem, calc(100% - 2 * var(--space-md))); max-height: calc(100dvh - 2 * var(--space-xl)); padding: 0; border: var(--rule-hair) solid var(--color-ink); border-radius: 0; background: var(--color-paper); color: var(--color-ink); }

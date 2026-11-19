@@ -24,6 +24,8 @@
 .ev-hero .lead { margin-top: var(--space-lg); max-width: 46ch; color: var(--color-ink-2); }
 .ev-hero .actions { margin-top: var(--space-xl); align-items: center; gap: var(--space-lg); }
 .ev-textlink { display: inline-flex; align-items: center; min-height: 48px; font-weight: 500; }
+.ev-jump { display: flex; flex-wrap: wrap; gap: 0 var(--space-lg); margin-top: var(--space-md); font-size: var(--text-sm); }
+.ev-jump a { display: inline-flex; align-items: center; min-height: 44px; color: var(--color-ink-2); }
 .ev-answers, .ev-metrics, .ev-cases, .ev-method, .ev-repro { padding-block: var(--section-gap-s); border-top: var(--rule-hair) solid var(--color-rule); }
 .ev-metrics, .ev-repro { background: var(--ev-surface-2); }
 .ev-head { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); gap: var(--gap-columns); align-items: end; margin-bottom: var(--space-xl); }

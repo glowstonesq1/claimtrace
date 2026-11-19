@@ -13,24 +13,27 @@
 <link rel="preload" href="../fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../fonts/geist-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../fonts.css">
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../chrome.css">
 <link rel="stylesheet" href="try.css">
 <script src="../head.js"></script>
 <script type="module" src="try.js"></script>
 </head>
 <body>
+<!-- nav -->
 <a class="skip" href="#main">Skip to content</a>
-
 <header class="nav">
   <div class="container nav__inner">
     <a class="wordmark" href="../" aria-label="ClaimTrace, home">ClaimTrace</a>
     <nav class="nav__links" aria-label="Primary">
-      <a href="../">Overview</a>
-      <a href="./" aria-current="page">Try it</a>
-      <a class="btn btn--quiet" href="https://github.com/glowstonesq1/claimtrace">Source on GitHub</a>
+      <a href="../try/" data-nav="try" aria-current="page">Try</a>
+      <a href="../evidence/" data-nav="evidence">Evidence</a>
+      <a href="../get/" data-nav="get">Get it</a>
+      <a href="../docs/" data-nav="docs">Docs</a>
+      <a href="https://github.com/glowstonesq1/claimtrace">GitHub</a>
     </nav>
   </div>
 </header>
+<!-- /nav -->
 
 <main id="main">
 
@@ -177,17 +180,27 @@
   <div class="viewer__text" id="viewer-text" tabindex="0" aria-label="Document text, the quoted passage highlighted"></div>
 </dialog>
 
+<!-- footer -->
 <footer class="foot">
   <div class="container">
     <p class="foot__mark">ClaimTrace</p>
-    <ul class="foot__links">
-      <li><a href="https://github.com/glowstonesq1/claimtrace">Source on GitHub</a></li>
-      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md">Evaluation</a></li>
-      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/privacy.md">Privacy</a></li>
-      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/security.md">Security</a></li>
-    </ul>
-    <p class="foot__legal">Apache-2.0. Not legal advice. The sample documents are fictional.</p>
+    <div class="foot__cols">
+      <ul class="foot__links" aria-label="Site">
+        <li><a href="../try/">Try it in your browser</a></li>
+        <li><a href="../evidence/">Evidence</a></li>
+        <li><a href="../get/">Get it</a></li>
+        <li><a href="../docs/">Docs</a></li>
+        <li><a href="https://github.com/glowstonesq1/claimtrace">Source on GitHub</a></li>
+      </ul>
+      <ul class="foot__links" aria-label="Policies">
+        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/LICENSE">Licence: Apache-2.0</a></li>
+        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/SECURITY.md">Security policy</a></li>
+        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/privacy.md">Privacy</a></li>
+      </ul>
+    </div>
+    <p class="foot__legal">Not legal advice. ClaimTrace helps you read documents; it does not decide what is binding or what you should do. Every result quotes its source so you can check it. The sample documents are fictional.</p>
   </div>
 </footer>
+<!-- /footer -->
 </body>
 </html>
