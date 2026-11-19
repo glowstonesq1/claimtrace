@@ -32,10 +32,23 @@ JSON object on stdout. Run it with `python3`, passing the document files or a fo
 
 ```bash
 python3 <skill-folder>/scripts/claimtrace_run.py analyze <files or folder...>
-python3 <skill-folder>/scripts/claimtrace_run.py ask "<question>" <files or folder...>
 python3 <skill-folder>/scripts/claimtrace_run.py verify <base file> <other file>
 python3 <skill-folder>/scripts/claimtrace_run.py doctor
 ```
+
+A question is passed on stdin, never on the command line. Replace `<question>` with the user's question exactly
+as written, unchanged and unescaped, on the line(s) between the markers:
+
+```bash
+python3 <skill-folder>/scripts/claimtrace_run.py ask --question-file - <paths> <<'CLAIMTRACE_QUESTION'
+<question>
+CLAIMTRACE_QUESTION
+```
+
+- **Quoting.** The heredoc marker is quoted (`<<'CLAIMTRACE_QUESTION'`), so the shell expands nothing in the
+  question: `$1`, backticks, `$(...)`, quotes and backslashes reach the engine as typed. Put every file or folder
+  path in single quotes (`'/mnt/user-data/uploads/My Contract.pdf'`), writing a single quote inside a path as
+  `'\''`. Never build a command by putting the user's words inside double quotes.
 
 - **Where the files are.** In claude.ai, attached files are usually in `/mnt/user-data/uploads/`; list that folder
   first. In Claude Code, use the paths the user gives. Pass every relevant document in one call: amendments only
@@ -66,7 +79,7 @@ Which command to use:
 | The user wants | Run |
 |---|---|
 | "check this", obligations, deadlines, a register, an overview | `analyze` with all documents |
-| a specific question | `ask "<their question>"` with all documents; one call per question |
+| a specific question | `ask --question-file -` with all documents and the question on stdin (above); one call per question |
 | "did the amendment change X", "does the report match the contract" for two named files | `verify <contract> <other>`; for a broader view use `analyze` (its `cross_document` has every pair) |
 
 ## Hard rules

@@ -2,7 +2,10 @@
 """ClaimTrace skill runner: one entry point that prints JSON.
 
     claimtrace_run.py analyze <files or folders...>
-    claimtrace_run.py ask "<question>" <files or folders...>
+    claimtrace_run.py ask --question-file - <files or folders...>  <<'CLAIMTRACE_QUESTION'
+    <question>
+    CLAIMTRACE_QUESTION
+    claimtrace_run.py ask '<question>' <files or folders...>   (the question as an argument also works)
     claimtrace_run.py verify <base file> <other file>
     claimtrace_run.py doctor
     claimtrace_run.py install --yes [--dry-run]
@@ -466,8 +469,10 @@ def parser() -> argparse.ArgumentParser:
     a = sub.add_parser("analyze", help="register of commitments plus cross-document findings")
     a.add_argument("paths", nargs="+")
     q = sub.add_parser("ask", help="answer a question with verified quotes")
-    q.add_argument("question")
-    q.add_argument("paths", nargs="+")
+    q.add_argument("--question-file", metavar="FILE",
+                   help="read the question from FILE ('-' for stdin), so the shell never sees its text; then every "
+                        "positional argument is a document")
+    q.add_argument("words", nargs="+", metavar="[question] paths")
     v = sub.add_parser("verify", help="compare two documents")
     v.add_argument("base")
     v.add_argument("other")
@@ -477,6 +482,29 @@ def parser() -> argparse.ArgumentParser:
     ins.add_argument("--yes", action="store_true", help="the user has agreed to this install")
     ins.add_argument("--dry-run", action="store_true", help="show the steps, install nothing")
     return ap
+
+
+def ask_arguments(question_file: str | None, words: list[str]) -> tuple[str, list[str]]:
+    """(question, paths). With --question-file the question is read verbatim (one trailing newline, as a heredoc
+    adds, is dropped) and every positional is a path; otherwise the first positional is the question."""
+    if question_file is None:
+        if len(words) < 2:
+            raise RunnerError("usage", "ask needs a question and at least one file or folder.", EXIT_USAGE)
+        return words[0], words[1:]
+    try:
+        if question_file == "-":
+            text = sys.stdin.buffer.read().decode("utf-8")
+        else:
+            text = Path(question_file).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        raise RunnerError("usage", f"The question could not be read ({type(e).__name__}).", EXIT_USAGE) from e
+    if text.endswith("\r\n"):
+        text = text[:-2]
+    elif text.endswith("\n"):
+        text = text[:-1]
+    if not text.strip():
+        raise RunnerError("usage", "The question is empty.", EXIT_USAGE)
+    return text, list(words)
 
 
 def needs_install_error() -> RunnerError:
@@ -514,6 +542,8 @@ def run(args: argparse.Namespace) -> dict:
         return {"ok": not problems and decision != "needs_install", "command": "doctor",
                 "python": sys.version.split()[0], "decision": decision, "engine": engine,
                 "installed_cli_python": _installed_python(), "plugin_venv": str(engine_venv()), "problems": problems}
+    if args.cmd == "ask":
+        args.question, args.paths = ask_arguments(args.question_file, args.words)
     files = expand(args.paths if args.cmd in ("analyze", "ask") else [args.base, args.other])
     if args.cmd == "verify" and len(files) != 2:
         raise RunnerError("usage", "verify needs two different files.", EXIT_USAGE)
