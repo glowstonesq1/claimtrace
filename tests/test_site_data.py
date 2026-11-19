@@ -5,16 +5,28 @@ from the holdout runs' per-case outputs may reach the site. Only aggregates are 
 
 from __future__ import annotations
 
+import functools
+import hashlib
+import html
 import importlib.util
 import json
 import re
+import shutil
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = ROOT / "apps" / "site"
 HOLDOUT = ROOT / "evals" / "datasets" / "holdout"
 OPEN_SETS = [ROOT / "evals" / "datasets" / "core", ROOT / "evals" / "datasets" / "amendments-v2"]
 RUNS = ROOT / "evals" / "runs" / "published"
+NUMBER_WORDS = {w: str(n) for n, w in enumerate(
+    "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen "
+    "eighteen nineteen twenty".split())}
+NUMBER_WORDS.update({w: str(n) for n, w in zip(range(30, 100, 10), "thirty forty fifty sixty seventy eighty ninety".split(),
+                                               strict=True)})
+NUMBER_WORDS_REV = {v: k for k, v in NUMBER_WORDS.items()}
 MIN_LEN = 16  # shorter strings ("Supplier", "contradicted") are vocabulary, not case content
 
 
@@ -45,28 +57,47 @@ def _jsonl(paths: list[Path]) -> list[dict]:
     return [json.loads(line) for p in paths for line in p.read_text().splitlines() if line.strip()]
 
 
-def _published_text() -> str:
-    files = sorted((SITE / "data").rglob("*")) + sorted((SITE / "evidence").glob("*"))
+def _published_text(site: Path = SITE) -> str:
+    files = sorted((site / "data").rglob("*")) + sorted((site / "evidence").glob("*"))
     text = "\n".join(p.read_text(encoding="utf-8") for p in files if p.is_file())
     # compare in the same escaping the outputs use: raw, JSON-escaped and HTML-escaped
     return text
 
 
 def _norm(s: str) -> str:
-    return re.sub(
-        r"\s+", " ", s.replace("&quot;", '"').replace("&#x27;", "'").replace("&amp;", "&").replace("\\n", " ").replace('\\"', '"')
-    ).lower()
+    """Compare text, not formatting: HTML entities decoded, JSON escapes undone, case, punctuation and spacing
+    dropped, and number words written as digits ("thirty" -> "30")."""
+    s = html.unescape(s.replace("\\n", " ").replace('\\"', '"')).lower()
+    return " ".join(NUMBER_WORDS.get(w, w) for w in re.findall(r"\w+", s))
 
 
-def _sealed_strings() -> tuple[set[str], set[str]]:
-    holdout_cases = _jsonl(sorted(HOLDOUT.glob("*.jsonl")))
+NGRAM = 8  # a run of 8 words from a sealed field is enough to call it copied
+
+
+def _ngrams(normed: str) -> set[tuple[str, ...]]:
+    w = normed.split()
+    return {tuple(w[i : i + NGRAM]) for i in range(len(w) - NGRAM + 1)}
+
+
+def _short_hash(s: str) -> str:
+    return hashlib.sha256(_norm(s).encode()).hexdigest()[:10]
+
+
+@functools.cache
+def _open_strings() -> frozenset[str]:
     open_strings: set[str] = set()
     for c in _jsonl([p for d in OPEN_SETS for p in sorted(d.glob("*.jsonl"))]):
         open_strings |= _strings(c)
     open_runs = [d for d in RUNS.iterdir() if "holdout" not in d.name]
     for c in _jsonl([d / "cases.jsonl" for d in open_runs]):
         open_strings |= _strings(c)
-    open_corpus = "\n".join(sorted(_norm(s) for s in open_strings))
+    return frozenset(open_strings)
+
+
+@functools.cache
+def _sealed_strings() -> tuple[set[str], set[str]]:
+    holdout_cases = _jsonl(sorted(HOLDOUT.glob("*.jsonl")))
+    open_corpus = "\n".join(sorted(_norm(s) for s in _open_strings()))
 
     ids = {c["id"] for c in holdout_cases}
     content: set[str] = set()
@@ -88,14 +119,90 @@ def test_site_data_is_up_to_date() -> None:
     assert not stale, f"run python scripts/build_site_data.py; stale: {stale}"
 
 
+@functools.cache
+def _open_ngrams() -> frozenset[tuple[str, ...]]:
+    grams: set[tuple[str, ...]] = set()
+    for s in _open_strings():
+        grams |= _ngrams(_norm(s))
+    return frozenset(grams)
+
+
+def _find_leaks(published_raw: str, ids: set[str], sealed: set[str]) -> tuple[list[str], list[str]]:
+    """(leaked ids, leaked strings) of the sealed set found in the published text: a sealed string whose
+    normalised text appears whole, or any of whose 8-word runs (fields of 8 words or more; runs that also occur
+    in the public sets do not count) appears on the site."""
+    raw_lower = html.unescape(published_raw).lower()
+    leaked_ids = sorted(i for i in ids if re.search(rf"(?<![\w-]){re.escape(i.lower())}(?![\w-])", raw_lower))
+    published = _norm(published_raw)
+    published_grams = _ngrams(published)
+    open_grams = _open_ngrams()
+    leaked = []
+    for s in sealed:
+        n = _norm(s)
+        if f" {n} " in f" {published} " or (_ngrams(n) - open_grams) & published_grams:
+            leaked.append(s)
+    return leaked_ids, sorted(leaked)
+
+
+def _leak_report(leaked_ids: list[str], leaked: list[str]) -> str:
+    """Counts and short hashes only: this message is printed in public CI logs."""
+    return (f"{len(leaked_ids)} holdout case id(s) and {len(leaked)} holdout string(s) on the site; "
+            f"sha256[:10] of the normalised strings: {sorted(_short_hash(x) for x in leaked_ids + leaked)[:10]}. "
+            "Find them locally with a script that compares hashes; do not print the text.")
+
+
 def test_no_holdout_case_content_reaches_the_site() -> None:
     ids, sealed = _sealed_strings()
-    assert len(ids) == 46 and len(sealed) > 300, "the sealing test lost its inputs"
-    published = _norm(_published_text())
-    leaked_ids = sorted(i for i in ids if re.search(rf"(?<![\w-]){re.escape(i.lower())}(?![\w-])", published))
-    assert not leaked_ids, f"holdout case ids on the site: {leaked_ids[:5]}"
-    leaked = sorted(s for s in sealed if _norm(s) in published)
-    assert not leaked, f"{len(leaked)} holdout strings on the site, e.g. {leaked[:3]}"
+    if not (len(ids) == 46 and len(sealed) > 300):  # not an assert: its introspection would print the sets
+        pytest.fail(f"the sealing test lost its inputs ({len(ids)} ids, {len(sealed)} strings)", pytrace=False)
+    leaked_ids, leaked = _find_leaks(_published_text(), ids, sealed)
+    if leaked_ids or leaked:
+        pytest.fail(_leak_report(leaked_ids, leaked), pytrace=False)
+
+
+def _derived_sentence(sealed: set[str]) -> tuple[str, str]:
+    """A long sealed sentence (chosen at runtime, never written down) and a near-copy of it: one word changed, a
+    number spelled out, punctuation and spacing altered."""
+    candidates = sorted((s for s in sealed if len(s.split()) >= 20 and re.search(r"\b\d{1,2}\b", s)
+                         and not re.search(r"[.;:!?]\s|\n", s.strip())), key=len)
+    norm = {x: _norm(x) for x in sealed}
+    # one that contains no other sealed string, so only matching of the sentence itself can catch the copy
+    original = next((c for c in candidates if not any(x != c and norm[x] in norm[c] for x in sealed)), None)
+    if original is None:
+        pytest.fail("no long sealed sentence with a number to derive from", pytrace=False)
+    words = original.split()
+    middle = len(words) // 2
+    words[middle] = "zzzaltered"
+    near = " ".join(words)
+    near = re.sub(r"\b(\d{1,2})\b", lambda m: NUMBER_WORDS_REV.get(m.group(1), m.group(1)), near)  # 30 -> thirty
+    return original, near.replace(",", " ,").upper()
+
+
+def test_sealing_check_catches_a_near_copy(tmp_path: Path) -> None:
+    ids, sealed = _sealed_strings()
+    original, near = _derived_sentence(sealed)
+    if near == original:
+        pytest.fail("the derived sentence is unchanged", pytrace=False)
+    site = tmp_path / "site"
+    shutil.copytree(SITE / "data", site / "data")
+    shutil.copytree(SITE / "evidence", site / "evidence")
+    page = site / "evidence" / "index.html"
+    page.write_text(page.read_text(encoding="utf-8") + f"\n<p>{html.escape(near)}</p>\n", encoding="utf-8")
+    leaked_ids, leaked = _find_leaks(_published_text(site), ids, sealed)
+    found = bool(leaked_ids or leaked)
+    del original, near  # nothing below may show them
+    if not found:
+        pytest.fail("a near-copy of a sealed sentence on the page was not detected", pytrace=False)
+
+
+def test_leak_report_shows_no_sealed_text() -> None:
+    ids, sealed = _sealed_strings()
+    sample = sorted(sealed, key=len)[-3:]
+    some_ids = sorted(ids)[:2]
+    report = _leak_report(some_ids, sample)
+    shown = sum(1 for x in [*sample, *some_ids] if x in report or _norm(x)[:40] in _norm(report))
+    if shown:  # pytest.fail, not assert: assertion rewriting would print the values
+        pytest.fail(f"the failure message would print {shown} sealed value(s)", pytrace=False)
 
 
 def test_holdout_runs_are_aggregates_only() -> None:
