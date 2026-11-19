@@ -2,6 +2,7 @@ name: CI
 on:
   push: { branches: [main] }
   pull_request:
+  release: { types: [published] }
 permissions: { contents: read }
 concurrency:
   group: ci-${{ github.ref }}
@@ -41,6 +42,28 @@ jobs:
           ! grep -Ei '"(GNU|.*GPL)' licenses.csv
       - name: Dependency vulnerability audit (blocking)
         run: pip-audit -r requirements.lock --require-hashes --disable-pip --strict
+
+  skill:
+    # Claude.ai skill zip + Claude Code plugin zip (docs/claude.md). Artifact on every run; attached to releases.
+    runs-on: ubuntu-latest
+    permissions: { contents: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Build dist/claimtrace-skill.zip and dist/claimtrace-plugin.zip (wheels checked against requirements.lock)
+        run: python scripts/build_skill_zip.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: claimtrace-skill
+          path: |
+            dist/claimtrace-skill.zip
+            dist/claimtrace-plugin.zip
+          if-no-files-found: error
+      - name: Attach to the GitHub release
+        if: github.event_name == 'release'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/claimtrace-skill.zip dist/claimtrace-plugin.zip --clobber
 
   web:
     runs-on: ubuntu-latest
