@@ -1,4 +1,4 @@
-/* ClaimTrace site: film fallback, copy buttons, plus two GSAP scroll patterns (word scrub on the promise, sticky walk-through).
+/* ClaimTrace site: film fallback, copy buttons, the home page's tabs and glyph field, and one GSAP entrance.
    Everything here is progressive: with scripting off or reduced motion the page is already complete. */
 (function () {
   'use strict';
@@ -69,59 +69,62 @@
     block.appendChild(button);
   });
 
-  /* 3. Motion: only with GSAP loaded and motion allowed. */
-  var gsap = window.gsap;
-  var ScrollTrigger = window.ScrollTrigger;
-  if (!gsap || !ScrollTrigger) return;
-  gsap.registerPlugin(ScrollTrigger);
-
-  var mm = gsap.matchMedia();
-
-  /* Pattern A: the statement reads in, word by word, as it scrolls through (scrubbed). The floor is 0.5
-     opacity, not lower, so a word not yet reached still clears 3:1 contrast as large text. */
-  mm.add('(prefers-reduced-motion: no-preference)', function () {
-    var head = document.querySelector('[data-scrub]');
-    if (!head) return;
-    var original = head.textContent;
-    head.setAttribute('aria-label', original);
-    head.innerHTML = original.split(/(\s+)/).map(function (part) {
-      return /^\s+$/.test(part) ? part : '<span class="w" aria-hidden="true">' + part + '</span>';
-    }).join('');
-    gsap.fromTo(head.querySelectorAll('.w'), { opacity: 0.5 }, {
-      opacity: 1, ease: 'none', stagger: 0.12,
-      scrollTrigger: { trigger: head, start: 'top 85%', end: 'bottom 45%', scrub: true }
-    });
-    return function () { head.textContent = original; head.removeAttribute('aria-label'); };
-  });
-
-  /* Pattern B: register, ask, verify. One screen stays put while the three steps scroll past it. */
-  mm.add('(prefers-reduced-motion: no-preference) and (min-width: 60rem)', function () {
-    var walk = document.querySelector('[data-walk]');
-    if (!walk) return;
-    var texts = Array.prototype.slice.call(walk.querySelectorAll('.walk__text'));
-    var figs = Array.prototype.slice.call(walk.querySelectorAll('.walk__fig'));
-    walk.classList.add('is-pinned');
-    gsap.set(figs, { autoAlpha: 0, y: 12 });
-    gsap.set(figs[0], { autoAlpha: 1, y: 0 });
-    gsap.set(texts.slice(1), { opacity: 0.75 }); // 0.75 keeps body text above 4.5:1
-    var current = 0;
-    var show = function (i) {
-      if (i === current) return;
-      gsap.to(figs[current], { autoAlpha: 0, y: -12, duration: 0.35, ease: 'power2.in', overwrite: true });
-      gsap.fromTo(figs[i], { autoAlpha: 0, y: 12 }, { autoAlpha: 1, y: 0, duration: 0.45, ease: 'power3.out', overwrite: true });
-      gsap.to(texts, { opacity: function (k) { return k === i ? 1 : 0.75; }, duration: 0.3, overwrite: true });
-      current = i;
+  /* 3. Tabs (home, "Three ways to run it"). Without scripting all three panels show, stacked. */
+  document.querySelectorAll('[data-tabs]').forEach(function (box) {
+    var tabs = Array.prototype.slice.call(box.querySelectorAll('[role="tab"]'));
+    var select = function (tab, focus) {
+      tabs.forEach(function (t) {
+        var on = t === tab;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        t.tabIndex = on ? 0 : -1;
+        var p = document.getElementById(t.getAttribute('aria-controls'));
+        if (p) p.hidden = !on;
+      });
+      if (focus) tab.focus();
     };
-    texts.forEach(function (t, i) {
-      ScrollTrigger.create({
-        trigger: t, start: 'top 55%', end: 'bottom 55%',
-        onToggle: function (self) { if (self.isActive) show(i); }
+    tabs.forEach(function (t, i) {
+      t.addEventListener('click', function () { select(t, false); });
+      t.addEventListener('keydown', function (e) {
+        var n = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
+        if (n === undefined) return;
+        e.preventDefault();
+        select(tabs[(n + tabs.length) % tabs.length], true);
       });
     });
-    ScrollTrigger.refresh();
-    return function () {
-      walk.classList.remove('is-pinned');
-      gsap.set(figs.concat(texts), { clearProps: 'all' });
-    };
+    var start = tabs.filter(function (t) { return t.getAttribute('aria-selected') === 'true'; })[0] || tabs[0];
+    if (start) select(start, false);
+  });
+
+  /* 4. The hero's glyph field: the sample contract's own words, faint, under the sky. The two delivery dates
+        are picked out (the struck one in apricot, the one in force in periwinkle). Decorative: aria-hidden. */
+  var field = document.querySelector('[data-field]');
+  if (field && window.fetch) {
+    fetch(new URL('data/samples.json', document.baseURI)).then(function (r) { return r.ok ? r.json() : null; }).then(function (data) {
+      if (!data) return;
+      var rows = data.hero && data.hero.rows || [];
+      var lead = rows[0] && rows[0].change;
+      var words = data.lanes.map(function (l) { return l.clips.map(function (c) { return c.section + ' ' + c.text; }).join(' '); }).join(' ');
+      var text = (words + ' ').repeat(3);
+      field.textContent = '';
+      if (!lead) { field.textContent = text; return; }
+      var re = new RegExp('(' + [lead.old, lead.new].map(function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')', 'g');
+      text.split(re).forEach(function (part) {
+        if (part === lead.old || part === lead.new) {
+          var s = document.createElement('span');
+          s.className = part === lead.old ? 'hi' : 'lo';
+          s.textContent = part;
+          field.appendChild(s);
+        } else field.appendChild(document.createTextNode(part));
+      });
+    }).catch(function () {});
+  }
+
+  /* 5. Motion: with GSAP loaded and motion allowed, the hero rows rise in once. Visible by default. */
+  var gsap = window.gsap;
+  if (!gsap) return;
+  gsap.matchMedia().add('(prefers-reduced-motion: no-preference)', function () {
+    var rows = document.querySelectorAll('.ledger__row');
+    if (!rows.length) return;
+    gsap.from(rows, { opacity: 0, y: 10, duration: 0.6, ease: 'power3.out', stagger: 0.07, delay: 0.15, clearProps: 'all' });
   });
 })();

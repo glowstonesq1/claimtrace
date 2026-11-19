@@ -244,3 +244,65 @@ def test_wilson_interval() -> None:
     w = _load_builder().wilson
     assert w(0, 8) == [0.0, 0.324]
     assert w(2, 63) == [0.009, 0.109]
+
+
+# ------------------------------------------------------------------ home page: hero panel and evidence map
+SAMPLES = ROOT / "examples" / "documents"
+
+
+def _sample_text() -> dict[str, str]:
+    return {p.name: p.read_text(encoding="utf-8") for p in SAMPLES.glob("*.md")}
+
+
+def test_samples_json_is_the_engine_output_on_the_samples() -> None:
+    """apps/site/data/samples.json equals a fresh run of the rules engine on examples/documents."""
+    published = json.loads((SITE / "data" / "samples.json").read_text(encoding="utf-8"))
+    assert published == _load_builder().build_samples()
+
+
+def test_hero_clause_2_1_is_replaced_by_amendment_1_1_with_verbatim_quotes() -> None:
+    data = json.loads((SITE / "data" / "samples.json").read_text(encoding="utf-8"))
+    lead = data["hero"]["rows"][0]
+    assert (lead["clip"], lead["kind"], lead["by"]) == ("msa-2.1", "replaces", "amd-1.1")
+    assert lead["change"] == {"old": "March 31, 2026", "new": "May 15, 2026"}
+    clips = {c["id"]: (lane, c) for lane in data["lanes"] for c in lane["clips"]}
+    texts = _sample_text()
+    for cid, words in (("msa-2.1", "March 31, 2026"), ("amd-1.1", "May 15, 2026")):
+        lane, c = clips[cid]
+        assert words in c["text"] and c["text"] in texts[lane["file"]], cid
+    assert clips["amd-1.1"][1]["section"] == "1.1" and clips["amd-1.1"][0]["name"] == "Amendment No. 1"
+    page = (SITE / "index.html").read_text(encoding="utf-8")
+    hero = page.split("<!-- build:hero -->")[1].split("<!-- /build:hero -->")[0]
+    assert "<del>March 31, 2026</del>" in hero and "<ins>May 15, 2026</ins>" in hero
+    assert "Amendment No. 1 §1.1" in hero and "docs/img" not in page
+
+
+def test_every_map_clip_is_verbatim_and_every_link_joins_two_clips() -> None:
+    data = json.loads((SITE / "data" / "samples.json").read_text(encoding="utf-8"))
+    texts = _sample_text()
+    assert [lane["file"] for lane in data["lanes"]] == ["msa-v1.md", "amendment-1.md", "audit-report-2026.md",
+                                                        "delivery-record.md"]
+    ids = set()
+    for lane in data["lanes"]:
+        for c in lane["clips"]:
+            assert f"{c['section']} {c['text']}" in texts[lane["file"]], c["id"]
+            ids.add(c["id"])
+    kinds = {lk["kind"] for lk in data["links"]}
+    assert {"replaces", "supports", "contradicts"} <= kinds <= set(data["kinds"])
+    for lk in data["links"]:
+        assert lk["from"] in ids and lk["to"] in ids, lk
+    page = (SITE / "index.html").read_text(encoding="utf-8")
+    assert {f'data-clip="{i}"' for i in ids} == set(re.findall(r'data-clip="[^"]+"', page))
+    assert data["integrity"]["verified"] == data["integrity"]["quotes"]
+
+
+def test_home_numbers_match_the_published_runs() -> None:
+    """The home page's numbers are the docs/evaluation.md headline values (v0.2, sealed sets)."""
+    page = (SITE / "index.html").read_text(encoding="utf-8")
+    nums = page.split("<!-- build:numbers -->")[1].split("<!-- /build:numbers -->")[0]
+    values = re.findall(r'<td class="num nums__v">([0-9.]+)', nums)
+    assert values == ["0.00", "0.03", "0.71", "0.81", "0.60", "0.71"]
+    assert "0.51 to 0.70, n=105" in nums and "0.62 to 0.80, n=91" in nums and "precision 0.83" in nums
+    evaluation = (ROOT / "docs" / "evaluation.md").read_text(encoding="utf-8")
+    assert "**0.60 (0.51–0.70)** n=105" in evaluation and "**0.71 (0.62–0.80)** n=91" in evaluation
+    assert "**0.83 / 0.71**" in evaluation
