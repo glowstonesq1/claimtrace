@@ -1,6 +1,6 @@
 # ClaimTrace architecture
 
-Describes commit 1899c3c.
+Describes commit 1899c3c; section 1 (module map) and section 8 (other hosts) are updated for v0.3.0.
 
 This document describes how the code is organised and how a request moves through it. It
 describes the code as it is. Where the code differs from `docs/product-spec.md` or
@@ -9,7 +9,7 @@ legal advice.
 
 ## 1. Module map
 
-There is one Python distribution, `claimtrace` (version 0.1.0). `pyproject.toml` maps the
+There is one Python distribution, `claimtrace` (version 0.3.0). `pyproject.toml` maps the
 monorepo directories onto subpackages with `package-dir`:
 
 | Directory | Import name | Role |
@@ -22,6 +22,7 @@ monorepo directories onto subpackages with `package-dir`:
 | `packages/verification/` | `claimtrace.verification` | Question answering (`ask.py`), document-pair verification (`verify.py`), typed field comparison (`compare.py`), report and CSV export (`report.py`). |
 | `packages/integrations/` | `claimtrace.integrations` | `LLMProvider` protocol, `OpenAICompatible` HTTP adapter, `FakeProvider` for tests. |
 | `packages/evaluation/` | `claimtrace.evaluation` | Eval runner used by `claimtrace eval`. |
+| `packages/browser/` | `claimtrace.browser` | In-process facade for single-process hosts (the try page's Pyodide worker): JSON in, JSON out, on an in-memory store. Section 8. |
 | `packages/cli/` | `claimtrace.cli` | `claimtrace` command: `serve`, `ingest`, `list`, `ask`, `verify`, `report`, `delete`, `eval run`, `eval report`. |
 | `apps/api/` | `claimtrace.api` | FastAPI app (`main.py`) and the built web UI under `static/`. |
 | `apps/web/` | (not Python) | React + Vite SPA source. `npm run build` output is copied to `apps/api/static` and served by FastAPI. No Node process at runtime (D19). |
@@ -307,3 +308,43 @@ There is no plugin registry. An extractor is a function called from
 4. If the output changes, bump `EXTRACTOR_VERSION` (it is part of the idempotency key and
    the run manifest).
 5. Any new object kind needs an entry in `Store._KIND`.
+
+## 8. Other hosts (v0.3): the browser facade and the skill runner
+
+The same engine modules run in two hosts besides the API server and CLI. Neither starts a server, configures a
+language model or imports fastapi, uvicorn or httpx.
+
+### 8.1 Browser facade (`claimtrace.browser`, the try page)
+
+```
+try.js (page)  --postMessage-->  engine-worker.mjs (Web Worker)  --Pyodide-->  claimtrace.browser.call(json, files)
+                                   loads pyodide/ (self-hosted,                   Session: in-memory Store,
+                                   sha256-pinned in bundle.lock.json)             ingest_parsed -> analyze_document
+                                                                                  -> apply_amendments; ask; verify
+```
+
+- `scripts/build_try_bundle.py` builds `apps/site/try/pyodide/`: Pyodide plus the wheels the engine needs and a
+  ClaimTrace wheel of the current commit, every file checked against `apps/site/try/bundle.lock.json`. It is
+  built in CI and in the Pages workflow, not committed.
+- `Session` holds one in-memory `Store`. Files are parsed in-process with `ingestion.parsers.parse` (Pyodide has
+  no subprocesses; the browser tab is the sandbox), then go through the same `ingest_parsed` checks as the
+  server. The cap is 10 MB per file. OCR is replaced by a no-op, so scanned PDFs get the `SCANNED:` warning.
+- Every returned quote carries `verified`, re-checked against the stored text.
+- The page's CSP allows `'wasm-unsafe-eval'` (to compile WebAssembly), `worker-src 'self' blob:` and
+  `connect-src 'self'` only, so neither the page nor the worker can send document content elsewhere.
+
+### 8.2 Skill runner (`claimtrace_run.py`, the claude.ai skill and the Claude Code plugin)
+
+`plugins/claimtrace/skills/claimtrace/scripts/claimtrace_run.py` is one entry point (`analyze`, `ask`, `verify`,
+`doctor`, `install`) that prints one JSON object. It chooses an engine (`choose_engine`): a working `claimtrace`
+on `PATH` (it re-runs itself with that Python, and parsing then uses the sandboxed subprocess), the private
+engine the user agreed to install into the plugin's data folder, the copy bundled in `vendor/` (in the release
+zips), a source checkout's `packages/`, or none (exit 5, `needs_install`; nothing is installed without
+`install --yes`). The bundled and source-checkout engines parse in-process.
+
+The runner uses an in-memory store, configures no model and stubs `httpx` where it is absent. It drops any
+item whose quote does not re-check against the stored text and counts it (`dropped_unverified`).
+`scripts/build_skill_zip.py` builds `vendor/` from the `pyproject.toml` package mapping (without `cli`,
+`evaluation` and `api`) plus the pure-Python wheels pinned in `requirements.lock`; pydantic and lxml are compiled
+and must already be present. `tests/test_skill_bundle.py` runs the built zip in a fresh virtual environment with
+sockets and subprocesses blocked.

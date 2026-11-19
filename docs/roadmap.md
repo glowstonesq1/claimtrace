@@ -28,6 +28,21 @@ Status key: **[x]** implemented on the v0.2 branch (pending its eval gate where 
 9. [x] **Hash-pinned Python lockfile** and blocking `pip-audit` in CI.
 10. [x] **ICS export** of deadlines (user-initiated download only).
 
+## v0.3 — "Usable without installing" (version 0.3.0)
+
+Plan: [plans/2026-11-19-v0.3.md](plans/2026-11-19-v0.3.md). Engine accuracy was out of scope: amendment verdicts
+stay at 0.60 on unseen wording, and the site says so.
+
+1. [x] **Try it in the browser**: the real engine in the tab (Pyodide), samples or your own files, nothing
+   uploaded, self-hosted sha256-pinned engine bundle, CSP limited to the site's own origin.
+2. [x] **Claude.ai skill** (`claimtrace-skill.zip`) with a first-use privacy notice. Built and tested locally in a
+   restricted virtual environment; **not yet verified on real claude.ai** (sandbox packages, upload flow).
+3. [x] **Claude Code plugin** and repository marketplace (`/plugin install claimtrace@claimtrace`), with an
+   ask-first install of the pinned engine. The marketplace install path depends on the `v0.3.0` tag existing.
+4. [x] **Evidence explorer** (`/evidence/`): every metric with intervals, version history, browsable unsealed cases.
+5. [x] **Site restructured around jobs** (home, Get it, docs, shared chrome, link checker).
+6. [x] **Release workflow** attaching both zips to tagged releases.
+
 ## v1.0 — "Team use"
 
 - Accounts, roles and a separation between preparer and reviewer; signed review trail (hash chain:
