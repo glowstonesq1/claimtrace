@@ -71,6 +71,7 @@
 .wire-list__note { display: block; color: var(--color-ink-2); font-size: var(--text-xs); }
 
 /* Link kinds of the answer and check maps */
+.legend__item--changes .legend__wire { stroke: var(--sig-replaced-mark); stroke-dasharray: 8 4; }
 .legend__item--states .legend__wire, .wire--states { stroke: var(--sig-current-mark); }
 .legend__item--replaced .legend__wire, .wire--replaced { stroke: var(--sig-replaced-mark); }
 .legend__item--conflicts .legend__wire, .wire--conflicts { stroke: var(--sig-contra-mark); }
