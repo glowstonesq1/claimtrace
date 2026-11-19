@@ -82,11 +82,12 @@
         </div>
         <div class="add__actions">
           <button class="btn" type="button" id="load-samples" disabled>Load sample documents</button>
+          <button class="btn btn--quiet btn--small" type="button" id="cancel" hidden>Cancel</button>
           <div class="drop" id="drop">
             <input class="visually-hidden" type="file" id="file-input" multiple accept=".pdf,.docx,.txt,.md,.markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown" disabled>
             <label class="drop__label" for="file-input">
               <span class="drop__title">Or choose your own files</span>
-              <span class="drop__hint">Drop them here, or press to browse. PDF, Word (.docx), text or Markdown, up to 10 MB each.</span>
+              <span class="drop__hint">Drop them here, or press to browse. PDF, Word (.docx), text or Markdown, up to 10 MB and about 400 pages of text each.</span>
             </label>
           </div>
           <p class="add__status" id="add-status" role="status" aria-live="polite"></p>

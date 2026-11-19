@@ -36,25 +36,34 @@ from claimtrace.verification import answer_question, verify_documents
 from claimtrace.verification.report import DISCLAIMER, build_report, render_markdown
 
 MAX_FILE_BYTES = 10 * 1024 * 1024  # the try page's cap; below the server's 20 MB
+# The browser runs the engine on one thread, about 2-3x slower than CPython. Past these sizes a document is
+# refused with a reason rather than left running for minutes (analysis time is linear in both).
+MAX_TEXT_CHARS = 1_000_000  # roughly 400 pages
+MAX_PASSAGES = 20_000
 SEVERITY_ORDER = {Severity.high.value: 0, Severity.medium.value: 1, Severity.low.value: 2, Severity.info.value: 3}
 
-__all__ = ["MAX_FILE_BYTES", "Session", "analyze", "ask", "call", "document", "export", "reset", "verify"]
+__all__ = ["MAX_FILE_BYTES", "MAX_PASSAGES", "MAX_TEXT_CHARS", "Session", "analyze", "ask", "call", "document",
+           "export", "reset", "verify"]
 
 
-def _span_verified(store: Store, span: Span | None) -> bool:
+def _span_verified(store: Store, span: Span | None, texts: dict[str, str | None] | None = None) -> bool:
+    """`texts` caches document text across calls: fetching it once per quote made the register quadratic."""
     if span is None:
         return False
-    try:
-        text = store.get_document_text(span.document_id)
-    except Exception:  # noqa: BLE001 - a span into a removed document does not verify
-        return False
-    return text[span.char_start : span.char_end] == span.quote
+    cache = texts if texts is not None else {}
+    if span.document_id not in cache:
+        try:
+            cache[span.document_id] = store.get_document_text(span.document_id)
+        except Exception:  # noqa: BLE001 - a span into a removed document does not verify
+            cache[span.document_id] = None
+    text = cache[span.document_id]
+    return text is not None and text[span.char_start : span.char_end] == span.quote
 
 
-def _span(store: Store, span: Span | None) -> dict | None:
+def _span(store: Store, span: Span | None, texts: dict[str, str | None] | None = None) -> dict | None:
     if span is None:
         return None
-    return {**span.model_dump(mode="json"), "verified": _span_verified(store, span)}
+    return {**span.model_dump(mode="json"), "verified": _span_verified(store, span, texts)}
 
 
 class Session:
@@ -83,6 +92,7 @@ class Session:
                     raise IngestError("file_too_large", f"Files must be under {MAX_FILE_BYTES // (1024 * 1024)} MB.")
                 kind = check_upload(name, data)
                 raw = parse(kind, data, _no_ocr)
+                _check_size(raw)
             except IngestError as e:
                 problems.append({"file": name, "code": e.code, "message": e.message})
                 continue
@@ -123,7 +133,9 @@ class Session:
         replaced_by: dict[str, list[str]] = {}
         for e in edges:  # src supersedes dst
             replaced_by.setdefault(e.dst_id, []).append(e.src_id)
-        items = [self._commitment(c, titles, [by_id[i] for i in replaced_by.get(c.id, []) if i in by_id])
+        texts: dict[str, str | None] = {}
+        ordinals = {p.id: p.ordinal for d in docs for p in store.passages(d.id)}
+        items = [self._commitment(c, titles, [by_id[i] for i in replaced_by.get(c.id, []) if i in by_id], texts, ordinals)
                  for c in commitments]
         order = {d.id: n for n, d in enumerate(docs)}
         items.sort(key=lambda i: (order.get(i["document_id"], 0), i.pop("ordinal")))
@@ -162,13 +174,10 @@ class Session:
                 "is_evidence": d.doc_type in (DocType.audit_report, DocType.evidence, DocType.report),
                 "warnings": d.warnings}
 
-    def _commitment(self, c: Commitment, titles: dict[str, str], replacements: list[Commitment]) -> dict:
+    def _commitment(self, c: Commitment, titles: dict[str, str], replacements: list[Commitment],
+                    texts: dict[str, str | None], ordinals: dict[str, int]) -> dict:
         span = c.provenance.span
-        ordinal = 0
-        try:
-            ordinal = self.store.get_passage(span.passage_id).ordinal
-        except Exception:  # noqa: BLE001
-            ordinal = 0
+        ordinal = ordinals.get(span.passage_id, 0)
         return {
             "id": c.id, "document_id": c.document_id, "document": titles.get(c.document_id),
             "ordinal": ordinal,
@@ -183,7 +192,7 @@ class Session:
                              "text": r.text} for r in replacements],
             "confidence": c.confidence.value, "needs_review": c.needs_review,
             "review_reasons": c.review_reasons, "caveats": c.caveats,
-            "quote": _span(self.store, span),
+            "quote": _span(self.store, span, texts),
         }
 
     def document(self, doc_id: str) -> dict:
@@ -234,6 +243,20 @@ class Session:
         self.store.conn.close()
         self.store = Store(":memory:")
         return self.register()
+
+
+def _check_size(raw: Any) -> None:
+    chars = sum(len(b.text) for b in raw.blocks)
+    if chars > MAX_TEXT_CHARS:
+        raise IngestError("too_long_for_browser",
+                          f"This document has about {chars // 1000:,} thousand characters of text; the browser "
+                          f"version reads up to {MAX_TEXT_CHARS // 1000:,} thousand. Try a smaller file, or "
+                          "install ClaimTrace to read it on your computer.")
+    passages = sum(1 for b in raw.blocks if b.text.strip())
+    if passages > MAX_PASSAGES:
+        raise IngestError("too_many_passages_for_browser",
+                          f"This document has {passages:,} paragraphs; the browser version reads up to "
+                          f"{MAX_PASSAGES:,}. Try a smaller file, or install ClaimTrace to read it on your computer.")
 
 
 def _no_ocr(_data: bytes, _pages: list[int]) -> dict[int, tuple[str, float]]:

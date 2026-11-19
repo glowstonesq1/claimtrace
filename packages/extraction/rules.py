@@ -33,7 +33,7 @@ from claimtrace.core.models import (
     cap_confidence,
     derive_status,
 )
-from claimtrace.core.text import find_quote, looks_like_injection, sentences_with_offsets
+from claimtrace.core.text import looks_like_injection, sentences_with_offsets
 
 from . import patterns as P
 from .amendments import find_restatement, parse_instructions
@@ -459,6 +459,7 @@ def _commitments_in(
     out: list[Commitment] = []
     region = p.text[lo:hi]
     sents = sentences_with_offsets(region)
+    injection = looks_like_injection(p.text)  # once per passage, not once per commitment (keeps this linear)
     for idx, (s0, s1, sentence) in enumerate(sents):
         abs0, abs1 = lo + s0, lo + s1
         matches = list(P.MODAL_RE.finditer(sentence))
@@ -491,7 +492,8 @@ def _commitments_in(
             action = re.sub(r"\s+(?:and|or)$", "", action)
             after_modal = sentence[m0:]
             c = _build_commitment(
-                doc, p, resolver, ref_date, sentence, abs0, abs1, subject, modal_phrase, action, after_modal, next_sentence
+                doc, p, resolver, ref_date, sentence, abs0, abs1, subject, modal_phrase, action, after_modal, next_sentence,
+                injection=injection,
             )
             if c:
                 out.append(c)
@@ -511,6 +513,8 @@ def _build_commitment(
     action: str,
     after_modal: str,
     next_sentence: str,
+    *,
+    injection: bool,
 ) -> Commitment | None:
     modality = P.modality_of(modal_phrase)
     reasons: list[str] = []
@@ -597,8 +601,8 @@ def _build_commitment(
     if num:
         span_start += num.end()
     span = make_span(doc, p, span_start, span_end)
-    assert find_quote(p.text, span.quote) is not None
-    if looks_like_injection(p.text):
+    assert span.quote and p.text[span_start:span_end] == span.quote
+    if injection:
         confidence = Confidence.low
         reasons.append("The passage contains instruction-like text aimed at AI tools; read it yourself.")
     if p.ocr_confidence is not None and p.ocr_confidence < OCR_LOW_CONFIDENCE:

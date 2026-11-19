@@ -148,6 +148,24 @@ def test_rejected_files_do_not_stop_the_rest(session: Session) -> None:
     assert [d["filename"] for d in reg["documents"]] == ["msa-v1.md"]
 
 
+def test_text_and_passage_caps_refuse_with_a_clear_warning(session: Session) -> None:
+    """The try page runs on one browser thread: a document past the caps is refused up front, with a reason,
+    instead of running for minutes. The other files are still read."""
+    from claimtrace import browser
+
+    long_text = b"The Vendor shall deliver the goods. " * (browser.MAX_TEXT_CHARS // 36 + 10)
+    many = b"".join(b"%d. The Vendor shall deliver item %d.\n\n" % (i, i) for i in range(browser.MAX_PASSAGES + 10))
+    assert len(many) < MAX_FILE_BYTES and len(long_text) < MAX_FILE_BYTES
+    reg = session.analyze([{"name": "long.txt", "bytes": long_text}, {"name": "many.txt", "bytes": many},
+                           *_files("msa-v1.md")])
+    by_file = {w["file"]: w for w in reg["warnings"]}
+    assert by_file["long.txt"]["code"] == "too_long_for_browser"
+    assert by_file["many.txt"]["code"] == "too_many_passages_for_browser"
+    for name in ("long.txt", "many.txt"):
+        assert "install ClaimTrace" in by_file[name]["message"]
+    assert [d["filename"] for d in reg["documents"]] == ["msa-v1.md"]
+
+
 def test_same_file_twice_is_stored_once(session: Session) -> None:
     session.analyze(_files("msa-v1.md"))
     reg = session.analyze(_files("msa-v1.md"))

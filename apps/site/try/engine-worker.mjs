@@ -6,6 +6,9 @@
 // Protocol. In:  {id, op, args, files?: [{name, buffer: ArrayBuffer}]}
 //           Out: {id, ok: true, result} | {id, ok: false, error: {code, message}}
 //                {type: "progress", phase: "download" | "start" | "ready" | "failed", loaded, total}
+//
+// Python running here cannot be interrupted, so try.js stops a call that runs too long (its watchdog) or that
+// the person cancels by terminating this worker, and starts a new one for the next action.
 
 const BASE = new URL('./pyodide/', import.meta.url).href;
 const realFetch = globalThis.fetch.bind(globalThis);

@@ -46,14 +46,27 @@ function h(tag, props, ...kids) {
 }
 
 // ---- engine -------------------------------------------------------------------------------------
+// Watchdog: a call that runs longer than this is stopped by terminating the worker (Python cannot be
+// interrupted from outside any other way). The next action starts a fresh worker. The e2e test shortens it
+// with ?watchdog-ms=N; that only changes a timer, not what the page may load or connect to.
+const WATCHDOG_MS = (() => {
+  const n = Number(new URLSearchParams(location.search).get('watchdog-ms'));
+  return Number.isFinite(n) && n > 0 ? n : 120000;
+})();
+const TOO_SLOW = 'This document took too long to read in the browser. Try a smaller file, or install ClaimTrace.';
+const CANCELLED = 'Stopped.';
+const CLEARED = 'The engine was restarted, so documents added earlier in this tab were removed.';
 const pending = new Map();
 let nextId = 1;
 let worker = null;
 let started = 0;
 let lastAnnounced = -1;
+let engineReady = null; // resolves when the current worker reports "ready"
+let markReady = () => {};
 
 function startEngine() {
   started = performance.now();
+  engineReady = new Promise((resolve) => { markReady = resolve; });
   // A blob: worker inherits this page's Content-Security-Policy (connect-src 'self'), so the engine
   // cannot reach another origin. It only imports the real worker script from this site.
   const src = new URL('engine-worker.mjs', import.meta.url).href;
@@ -76,12 +89,52 @@ function startEngine() {
 }
 
 function request(op, args = {}, files = null) {
+  if (!worker) startEngine(); // stopped by the watchdog or Cancel: restart on the next action
   return new Promise((resolve, reject) => {
     const id = nextId++;
-    pending.set(id, { resolve, reject });
+    // the clock starts once the engine is loaded: a slow download is not a slow document
+    let timer = null;
+    let settled = false;
+    const owner = worker;
+    engineReady.then(() => {
+      if (!settled && worker === owner) timer = setTimeout(() => stopEngine('timeout', TOO_SLOW), WATCHDOG_MS);
+    });
+    const done = (fn) => (value) => {
+      settled = true;
+      clearTimeout(timer);
+      fn(value);
+    };
+    pending.set(id, { resolve: done(resolve), reject: done(reject) });
     const transfer = files ? files.map((f) => f.buffer) : [];
     worker.postMessage({ id, op, args, files }, transfer);
   });
+}
+
+// Terminate the worker (the only way to stop running Python), fail every waiting call with `message`, and
+// forget the workspace it held. A new worker starts on the next request.
+function stopEngine(code, message) {
+  if (!worker) return;
+  worker.terminate();
+  worker = null;
+  const waiting = [...pending.values()];
+  pending.clear();
+  for (const p of waiting) p.reject(Object.assign(new Error(message), { code }));
+  register = null;
+  samplesLoaded = false;
+  docCache.clear();
+  $('answer').replaceChildren();
+  $('findings').replaceChildren();
+  render();
+  document.body.dataset.engine = 'stopped';
+  $('engine-status').textContent = `${message} The engine starts again when you next add documents.`;
+  $('engine-note').textContent = CLEARED;
+  $('engine-live').textContent = message;
+}
+
+// What to show when a call fails: the watchdog and Cancel messages stand on their own.
+function failText(prefix, err) {
+  if (err.code === 'timeout' || err.code === 'cancelled') return `${err.message} ${CLEARED}`;
+  return `${prefix}: ${err.message}`;
 }
 
 function onProgress(m) {
@@ -101,6 +154,7 @@ function onProgress(m) {
     status.textContent = 'Starting the engine.';
   } else if (m.phase === 'ready') {
     bar.value = 100;
+    bar.hidden = false;
     const secs = ((performance.now() - started) / 1000).toFixed(1);
     const fromCache = m.transferred < m.total * 0.05;
     status.textContent = `Engine ready in ${secs} s.`;
@@ -109,6 +163,7 @@ function onProgress(m) {
       : `Downloaded ${mb(m.transferred)} MB from this site. Your browser keeps a copy, so next time is faster.`;
     $('engine-live').textContent = 'Engine ready. You can add documents.';
     document.body.dataset.engine = 'ready';
+    markReady();
     for (const id of ['load-samples', 'file-input']) $(id).disabled = false;
   } else if (m.phase === 'failed') {
     engineFailed('The engine could not start in this browser. Try a current version of Chrome, Edge, Firefox or Safari.');
@@ -152,7 +207,7 @@ async function addFiles(fileList, label) {
     render();
     $('register-title').focus();
   } catch (err) {
-    status.textContent = `Something went wrong while reading: ${err.message}`;
+    status.textContent = failText('Something went wrong while reading', err);
   } finally {
     setBusy(false);
   }
@@ -170,6 +225,9 @@ async function loadSamples() {
 }
 
 function setBusy(busy) {
+  const cancel = $('cancel');
+  cancel.hidden = !busy;
+  if (!busy && document.activeElement === cancel) $('load-samples').focus();
   for (const id of ['load-samples', 'file-input', 'ask-button', 'check-button', 'reset', 'export-json', 'export-md']) {
     const el = $(id);
     if (el) el.disabled = busy;
@@ -183,7 +241,10 @@ function render() {
   const has = docs.length > 0;
   for (const id of ['register', 'ask', 'check', 'doc-tools']) $(id).hidden = !has;
   renderDocs(docs);
-  if (!has) return;
+  if (!has) {
+    for (const id of ['parties', 'deadlines', 'suggestions']) $(id).replaceChildren();
+    return;
+  }
   renderRegister();
   renderSuggestions();
   renderCheckOptions(docs);
@@ -337,7 +398,8 @@ async function ask(event) {
     $('answer-status').textContent = `Answer: ${LABEL.answer[a.status] || a.status}. ${a.answer_text} ` +
       (n ? `${n} quote${n === 1 ? '' : 's'}${ok ? ', all matched to the documents' : ''}.` : '');
   } catch (err) {
-    $('answer-status').textContent = `Could not answer: ${err.message}`;
+    $('answer-status').textContent = failText('Could not answer', err);
+    if (err.code === 'timeout' || err.code === 'cancelled') $('add-status').textContent = failText('', err);
   } finally {
     setBusy(false);
   }
@@ -394,7 +456,8 @@ async function check(event) {
     const main = run.findings.filter((f) => !f.routine);
     $('check-status').textContent = `${LABEL.mode[run.mode] || 'Check'} done: ${main.length} finding${main.length === 1 ? '' : 's'}.`;
   } catch (err) {
-    $('check-status').textContent = `Could not check: ${err.message}`;
+    $('check-status').textContent = failText('Could not check', err);
+    if (err.code === 'timeout' || err.code === 'cancelled') $('add-status').textContent = failText('', err);
   } finally {
     setBusy(false);
   }
@@ -447,6 +510,8 @@ async function download(format) {
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     $('add-status').textContent = `Report saved as ${format === 'md' ? 'Markdown' : 'JSON'}. It was made in this tab.`;
+  } catch (err) {
+    $('add-status').textContent = failText('Could not make the report', err);
   } finally {
     setBusy(false);
   }
@@ -464,6 +529,8 @@ async function reset() {
     render();
     $('add-status').textContent = 'All documents removed from this tab.';
     $('load-samples').focus();
+  } catch (err) {
+    $('add-status').textContent = failText('Could not remove the documents', err);
   } finally {
     setBusy(false);
   }
@@ -496,6 +563,7 @@ function wire() {
   $('export-json').addEventListener('click', () => download('json'));
   $('export-md').addEventListener('click', () => download('md'));
   $('reset').addEventListener('click', reset);
+  $('cancel').addEventListener('click', () => stopEngine('cancelled', CANCELLED));
   $('viewer-close').addEventListener('click', closeViewer);
   $('viewer').addEventListener('close', () => {
     if (viewerReturn && viewerReturn.isConnected) viewerReturn.focus();
