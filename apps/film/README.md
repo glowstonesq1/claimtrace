@@ -28,5 +28,9 @@ ffmpeg -y -i out/film.mp4 -c:v libx264 -preset slow -crf 22 -tune animation -pix
 ffmpeg -y -ss 43.5 -i ../site/media/claimtrace-film.mp4 -frames:v 1 -q:v 3 ../site/media/claimtrace-film-poster.jpg
 ```
 
+`site` is a git symlink. On Windows, clone with symlinks enabled (`git clone -c core.symlinks=true ...`, which needs
+Developer Mode or an elevated shell); otherwise `site` checks out as a small text file and the composition loads no
+tokens or fonts.
+
 If you change a time in `video.html`, change it in `make_audio.py` (and `brief.md`) too. `out/`, `review/`,
 `audio/*.wav` and render caches are ignored by git.

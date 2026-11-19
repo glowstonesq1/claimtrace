@@ -14,7 +14,7 @@
 
 16-22.8 s: Camera travels right across the lanes to Contract §4.1 (99.5%) and Audit report §2.5 (99.1%). Muted red connector draws up; "Contradicts" and "Measured 99.1% is below the committed 99.5%." at 19.2 s; §4.1 becomes "Contradicted".
 
-22.8-29 s: Camera travels down-left to Amendment No. 1 §1.1 and Delivery record §1.1 ("The Vendor delivered the Phase 1 System on May 22, 2026."). Muted red connector, "Contradicts", "Done on 22 May 2026, after the deadline of 15 May 2026 (7 days late)." at 25.7 s; §1.1 becomes "Contradicted".
+22.8-29 s: Camera travels down-left to Amendment No. 1 §1.1 and Delivery record §1.1 ("The Vendor delivered the Phase 1 System on May 22, 2026."). Muted red connector, "Contradicts" at 25.65 s and "Done on 22 May 2026, after the deadline of 15 May 2026 (7 days late)." at 25.95 s; §1.1 becomes "Contradicted".
 
 29-33 s: Pull out to the whole page: the full evidence map with four lanes and every link the engine found; the answer card (glass) rises in the sky at 31.6 s.
 
