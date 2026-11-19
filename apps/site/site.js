@@ -3,7 +3,7 @@
 (function () {
   'use strict';
 
-  /* 1. The film slot. If media/claimtrace-promo.mp4 fails to load, show the screenshot instead of an empty player. */
+  /* 1. The film slot. If the film fails to load, show its poster instead of an empty player. */
   document.querySelectorAll('[data-film]').forEach(function (frame) {
     var video = frame.querySelector('video');
     if (!video) return;
