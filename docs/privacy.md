@@ -15,6 +15,21 @@ Two features can send data, and both are off by default:
 | Language model | Only if `CLAIMTRACE_LLM_PROVIDER` is set | Passages of the document being analysed, and questions with retrieved passages | A non-local endpoint (anything other than localhost/Ollama on this machine) also requires the document's `allow_external_llm` flag. Every send is recorded locally (host, document ID, bytes, purpose, time — no content) at `GET /privacy/egress`. The endpoint host is shown in `/health` and stored in each item's provenance. |
 | URL ingestion | Only if `CLAIMTRACE_ALLOW_URL_INGESTION=true` | A GET request to the URL you give | SSRF protections in [security.md](security.md). |
 
+## The browser page, the claude.ai skill and the Claude Code plugin (v0.3)
+
+The table above is about the local app and Docker. v0.3 adds three ways to run the same engine without installing
+the app, and where your documents go differs a lot between them:
+
+| Path | Where the engine runs | Where your documents go | What is kept |
+|---|---|---|---|
+| **Try it page** (`/try/` on the project site) | In your browser tab (Pyodide, WebAssembly) | **Nowhere.** Files are read by code in the tab and never uploaded. The page downloads the engine (about 18 MB) from the same site, and its Content-Security-Policy only allows connections to that site; the end-to-end test fails if any request leaves the local origin. GitHub Pages, which hosts the site, sees ordinary page requests (IP address, user agent), not your files. | Nothing after you close the tab. The browser may cache the engine files, not your documents. |
+| **claude.ai skill** (`claimtrace-skill.zip`) | In Anthropic's code-execution sandbox | **To Anthropic.** The files you attach to the chat, and the results the engine returns, are processed by Claude under your Claude plan's terms (retention and training settings as for any chat). The skill starts by reminding you of this. | Whatever your Claude plan keeps for a chat. The runner itself writes nothing to disk (in-memory SQLite) and uses no network. |
+| **Claude Code plugin** | On your computer | **Partly to Anthropic.** The files stay on your disk, but the quotes and results the engine prints, and any file Claude opens, become part of the conversation and are processed under your Claude plan or API terms. | Nothing by the runner (in-memory). If you agree to the one-time install, a private copy of ClaimTrace v0.3.0 is kept in the plugin's data folder; deleting the folder removes it. |
+
+The install is the only step in these paths that uses the network on its own: the plugin asks you first, and runs
+`pip install` from GitHub only after you agree. If your documents must not leave your machine, use the local app,
+Docker, or the Try it page. Details: [claude.md](claude.md#where-do-my-documents-go).
+
 ## What is stored, where
 
 Everything lives in one SQLite file (`CLAIMTRACE_DB`, default `./data/claimtrace.db`; in Docker, the

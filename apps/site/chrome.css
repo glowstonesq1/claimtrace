@@ -1,0 +1,68 @@
+/* Hallmark · shared chrome for every page (nav, footer, skip link, buttons, links, copy control) · theme: Specimen (by request, kept from the v0.1 build) · hero: Settled · nav: edge-aligned · footer: mast · posture: restrained · v2.0.0 */
+/* Pages built outside this stylesheet (try/, evidence/) link fonts.css and chrome.css, add the
+   <!-- nav --> and <!-- footer --> markers, and get the same chrome from scripts/inject_partials.py. */
+@import url("./tokens.css");
+@import url("./base.css");
+
+/* Skip link */
+.skip { position: absolute; left: var(--space-md); top: calc(-1 * var(--space-3xl)); z-index: var(--z-toast); padding: var(--space-xs) var(--space-md); background: var(--color-ink); color: var(--color-paper); }
+.skip:focus-visible { top: var(--space-md); }
+
+/* Nav: edge-aligned, a wordmark and five plain links */
+.nav { position: relative; z-index: var(--z-sticky-nav); border-bottom: var(--rule-hair) solid var(--color-rule); background: var(--color-paper); }
+.nav__inner { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-lg); min-height: 72px; }
+.wordmark { font-family: var(--font-display); font-size: var(--text-xl); letter-spacing: var(--tracking-display); text-decoration: none; white-space: nowrap; }
+.wordmark:hover { text-decoration: underline; text-decoration-color: var(--color-accent); text-decoration-thickness: 1px; }
+.nav__links { display: flex; flex-wrap: wrap; align-items: center; gap: 0 var(--space-lg); }
+.nav__links a { display: inline-flex; align-items: center; min-height: 44px; font-size: var(--text-sm); font-weight: 500; text-decoration: none; white-space: nowrap; }
+.nav__links a:hover { text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 0.18em; }
+.nav__links a[aria-current="page"] { text-decoration: underline; text-decoration-color: var(--color-accent); text-decoration-thickness: 2px; text-underline-offset: 0.3em; }
+
+/* Links in content and footer */
+main a:not(.btn), .foot a { text-decoration-color: var(--color-accent); text-underline-offset: 0.18em; }
+main a:not(.btn):hover, .foot a:hover { text-decoration-thickness: 2px; }
+
+/* Buttons: all states */
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: var(--space-xs) var(--space-lg); border: var(--rule-hair) solid var(--color-ink); border-radius: var(--radius-card); background: var(--color-ink); color: var(--color-paper); font: 500 var(--text-md)/1.25 var(--font-body); text-align: center; text-decoration: none; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out); }
+.btn:hover { background: var(--color-ink-2); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; transition: none; }
+.btn:disabled, .btn[aria-disabled="true"] { opacity: 0.55; cursor: not-allowed; transform: none; }
+.btn[aria-busy="true"] { cursor: progress; }
+.btn--quiet { background: transparent; color: var(--color-ink); }
+.btn--quiet:hover { background: var(--color-paper-2); }
+.btn--invert { background: var(--color-paper); color: var(--color-ink); border-color: var(--color-paper); }
+.btn--invert:hover { background: var(--color-paper-3); }
+.btn--invert:focus-visible { outline-color: var(--color-paper); }
+.actions__note { font-weight: 500; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-sm) var(--space-lg); }
+
+/* Commands with a copy control (the control is added by site.js, so it never shows without scripting) */
+.cmd { position: relative; margin: 0; }
+.cmd pre { margin: 0; padding: var(--space-md) var(--space-lg); padding-right: var(--space-3xl); background: var(--color-paper-2); outline: var(--rule-hair) solid var(--color-rule); outline-offset: -1px; font: 400 var(--text-sm)/1.7 var(--font-outlier); white-space: pre-wrap; overflow-wrap: anywhere; }
+.copy { position: absolute; top: var(--space-xs); right: var(--space-xs); min-height: 44px; min-width: 76px; padding: 0 var(--space-sm); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-card); background: var(--color-paper); color: var(--color-ink); font: 500 var(--text-xs)/1 var(--font-body); cursor: pointer; transition: background-color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out); }
+.copy:hover { background: var(--color-paper-3); border-color: var(--color-ink); }
+.copy:active { background: var(--color-paper-3); }
+.copy:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; transition: none; }
+.copy:disabled { opacity: 0.55; cursor: not-allowed; }
+.copy[data-state="done"] { border-color: var(--color-ink); }
+
+/* Footer: mast */
+.foot { padding-block: var(--section-gap-s) var(--space-2xl); border-top: var(--rule-hair) solid var(--color-rule); }
+.foot__mark { margin: 0; font-family: var(--font-display); font-size: clamp(3.5rem, 11vw, 10rem); line-height: 1; letter-spacing: var(--tracking-display); font-variation-settings: "opsz" var(--display-optical); overflow-wrap: break-word; min-width: 0; }
+.foot__cols { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: var(--space-sm) var(--gap-columns); margin-top: var(--space-xl); padding-top: var(--space-lg); border-top: var(--rule-hair) solid var(--color-ink); }
+.foot__links { display: flex; flex-wrap: wrap; align-content: start; gap: var(--space-xs) var(--space-xl); margin: 0; padding: 0; list-style: none; }
+.foot__links a { display: inline-flex; align-items: center; min-height: 32px; white-space: nowrap; }
+.foot__legal { margin-top: var(--space-xl); font-size: var(--text-sm); color: var(--color-muted); max-width: 65ch; }
+
+@media (max-width: 40rem) {
+  .nav__inner { padding-block: var(--space-xs); min-height: 0; }
+  .nav__links { gap: 0 var(--space-md); }
+  .foot__cols { grid-template-columns: minmax(0, 1fr); }
+  .cmd pre { padding: var(--space-sm) var(--space-md); padding-right: var(--space-3xl); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn, .copy { transition: background-color var(--dur-short) linear; }
+  .btn:active { transform: none; }
+}

@@ -1,0 +1,6 @@
+# GitHub Pages project site. Crawlers read robots.txt only at the host root, so this copy documents
+# intent and names the sitemap; the sitemap is also submitted as https://glowstonesq1.github.io/claimtrace/sitemap.xml
+User-agent: *
+Allow: /
+
+Sitemap: https://glowstonesq1.github.io/claimtrace/sitemap.xml

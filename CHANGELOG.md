@@ -5,7 +5,36 @@ during 0.x, minor versions may include breaking API changes.
 
 ## [Unreleased]
 
-### Added
+## [0.3.0] — 2026-11-19
+
+Use ClaimTrace without installing it. This is also the first versioned release of the v0.2 engine work (the
+`release/v0.2` branch was merged without a version bump), listed after the v0.3 changes.
+
+### Added (v0.3)
+- **Try it in the browser** (`/try/`): the real engine runs in the tab under Pyodide, through a new in-process
+  facade (`claimtrace.browser`). Files are never uploaded; the page's CSP allows only its own origin (plus
+  `'wasm-unsafe-eval'` and a same-origin worker), and an end-to-end test fails on any request that leaves it.
+  The engine bundle (about 18 MB) is self-hosted and sha256-pinned (`apps/site/try/bundle.lock.json`,
+  `scripts/build_try_bundle.py`).
+- **Claude.ai skill and Claude Code plugin** (`plugins/claimtrace`, `.claude-plugin/marketplace.json`):
+  `claimtrace-skill.zip` for claude.ai and a plugin with `/claimtrace:claimtrace-check` and
+  `/claimtrace:claimtrace-ask`. One runner (`claimtrace_run.py`) picks an installed, private, bundled or
+  source-checkout engine, re-checks every quote, and installs nothing unless the user agreed (`install --yes`,
+  pinned to `v0.3.0`). `scripts/build_skill_zip.py` builds both zips reproducibly. See `docs/claude.md`.
+- **Evidence explorer** (`/evidence/`): every published metric with 95% intervals, version history and the
+  browsable core and amendments-v2 cases; the sealed holdout appears as aggregates only. Built from
+  `evals/runs/published` by `scripts/build_site_data.py` (`--check` in CI).
+- **Site restructured around jobs**: home, Get it (five paths, each saying where documents go), docs index, 404;
+  shared nav and footer injected by `scripts/inject_partials.py`; internal link checker `scripts/check_links.py`;
+  GSAP self-hosted.
+- **Release workflow** (`.github/workflows/release.yml`): a `v*` tag builds both zips and attaches them to the
+  GitHub release.
+
+### Changed (v0.3)
+- Version 0.3.0 in `pyproject.toml`, `claimtrace.__version__`, the plugin manifest and the marketplace entry.
+- `/try/` and `/evidence/` use the shared nav and footer (`aria-current` on the current page).
+
+### Added (engine, from the v0.2 branch)
 - Amendment generalisation: deleting/substituting words, "substituting X for Y", "shall be read as",
   "read as if ... were deleted", "deleted in its entirety", inserts after/before a clause, schedules
   replaced wholesale, imperative and letter-style instructions, "shall cease to apply", renumbering,
@@ -26,7 +55,7 @@ during 0.x, minor versions may include breaking API changes.
 - Hash-chained review trail (migration 002): `GET /reviews/verify-chain`, `claimtrace reviews verify`.
 - Hash-pinned `requirements.lock`; `make check`, `make lock`, `make audit`.
 
-### Changed
+### Changed (engine, from the v0.2 branch)
 - Extractor version `rules-0.2.0`. Passages with instruction-like text are no longer included in model
   prompts at all (previously only model items quoting them were dropped).
 - DOCX paragraphs and tables are read in document order (tables were appended at the end).

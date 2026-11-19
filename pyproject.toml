@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "claimtrace"
-version = "0.1.0"
+version = "0.3.0"
 description = "Privacy-first document intelligence: map commitments, ask grounded questions, verify against exact source text."
 readme = "README.md"
 license = "Apache-2.0"
@@ -34,7 +34,7 @@ package-dir = { "claimtrace" = "packages", "claimtrace.api" = "apps/api" }
 packages = [
   "claimtrace", "claimtrace.core", "claimtrace.ingestion", "claimtrace.extraction",
   "claimtrace.retrieval", "claimtrace.verification", "claimtrace.evaluation",
-  "claimtrace.integrations", "claimtrace.cli", "claimtrace.api",
+  "claimtrace.integrations", "claimtrace.cli", "claimtrace.api", "claimtrace.browser",
 ]
 
 [tool.setuptools.package-data]

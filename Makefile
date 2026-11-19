@@ -1,4 +1,4 @@
-.PHONY: dev web test lint typecheck check e2e eval serve docker clean lock audit
+.PHONY: dev web test lint typecheck check e2e eval serve docker clean lock audit try-bundle try-e2e
 
 PY ?= .venv/bin/python
 
@@ -29,6 +29,12 @@ check:          ## ruff + mypy + pytest (what CI's python job gates on)
 
 e2e:            ## needs a running server on :8765 and Playwright
 	cd apps/web && BASE=http://127.0.0.1:8765 node e2e/smoke.mjs
+
+try-bundle:     ## build the try page's self-hosted engine (Pyodide + wheels, sha256-checked) into apps/site/try/pyodide
+	$(PY) scripts/build_try_bundle.py
+
+try-e2e:        ## try page in Chromium (needs try-bundle, playwright + axe-core on NODE_PATH, reportlab)
+	PYTHON=$(PY) node apps/site/try/e2e.mjs
 
 eval:
 	.venv/bin/claimtrace eval run --suite core --model rules
