@@ -152,7 +152,9 @@ One Python distribution (`claimtrace`); the directories under `packages/` are it
 
 ## Evaluation (v0.2, rules engine, no model)
 
-Benchmark: 140 core cases, 46 sealed holdout cases and 50 sealed amendment cases (added in v0.2, scored once). Both sets are synthetic and were written by isolated
+Benchmark: 140 core cases, 46 sealed holdout cases (scored at v0.1 and v0.2) and 50 sealed amendment cases (added
+in v0.2). The sealed sets were scored without tuning, and re-scored once after the v0.2 review fixes with
+identical results. Both sets are synthetic and were written by isolated
 agents that did not see the code. The holdout set was never opened before scoring. Full protocol, definitions
 and every number: [docs/evaluation.md](docs/evaluation.md).
 

@@ -130,3 +130,15 @@ def test_plugin_zip_requirements_are_stated_from_one_source() -> None:
             assert name in text, f"{source.name}: does not say the zip bundles {name}"
         assert "exit code 3" in text or "exits with code 3" in text, f"{source.name}: missing-dependency behaviour"
         assert "install --yes" in text or "asks" in text, f"{source.name}: the install path is not described"
+
+
+def test_no_scored_once_claims() -> None:
+    """docs/evaluation.md records that both sealed sets were re-scored after the review fixes (v2-postfix, identical
+    numbers) and that the holdout was also scored at v0.1, so "scored once" is false wherever it appears."""
+    root = SITE.parents[1]
+    files = [root / "README.md", *sorted((root / "docs").glob("*.md")), root / "scripts" / "build_site_data.py",
+             *[p for p in SITE.rglob("*") if p.suffix in (".html", ".js", ".json") and "pyodide" not in p.parts
+               and "vendor" not in p.parts]]
+    claim = re.compile(r"(?<!re-)scored\s+(?:exactly\s+)?once|\bone\s+scoring\b|\bonly\s+scored\s+once", re.I)
+    found = [f"{p.relative_to(root)}: {m.group(0)}" for p in files for m in claim.finditer(p.read_text(encoding="utf-8"))]
+    assert not found, found

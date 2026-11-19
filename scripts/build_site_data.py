@@ -42,7 +42,8 @@ SETS = {
     "amendments-v2": {
         "label": "Amendments",
         "long": "Amendments set (sealed for v0.2, now spent, 50 cases)",
-        "about": "Scored once for v0.2, now spent. Every case is published below.",
+        "about": "Scored for v0.2 without tuning, re-scored once after the review fixes with identical results; now spent. "
+                 "Every case is published below.",
     },
     "core": {
         "label": "Core",
