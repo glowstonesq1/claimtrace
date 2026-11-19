@@ -2,7 +2,6 @@ name: CI
 on:
   push: { branches: [main] }
   pull_request:
-  release: { types: [published] }
 permissions: { contents: read }
 concurrency:
   group: ci-${{ github.ref }}
@@ -48,9 +47,9 @@ jobs:
         run: pip-audit -r requirements.lock --require-hashes --disable-pip --strict
 
   skill:
-    # Claude.ai skill zip + Claude Code plugin zip (docs/claude.md). Artifact on every run; attached to releases.
+    # Claude.ai skill zip + Claude Code plugin zip (docs/claude.md). Artifact on every run. Only release.yml
+    # attaches them to a GitHub release (two uploaders with --clobber raced each other).
     runs-on: ubuntu-latest
-    permissions: { contents: write }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -64,10 +63,6 @@ jobs:
             dist/claimtrace-skill.zip
             dist/claimtrace-plugin.zip
           if-no-files-found: error
-      - name: Attach to the GitHub release
-        if: github.event_name == 'release'
-        env: { GH_TOKEN: "${{ github.token }}" }
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/claimtrace-skill.zip dist/claimtrace-plugin.zip --clobber
 
   web:
     runs-on: ubuntu-latest

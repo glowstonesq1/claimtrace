@@ -5,12 +5,18 @@ Covers href/src/poster/srcset in every page, absolute URLs on the published orig
 and the <loc> entries in sitemap.xml. External links are not fetched. Targets under a top-level folder
 listed in --optional (default: try, evidence) are skipped while that folder does not exist yet, because
 other workstreams build those pages; once the folder exists its links are checked like any other.
+
+Scripts are checked too, simply: every literal `fetch('path')` in the site's own .js/.mjs files must resolve, and
+when it names a JSON file holding a list of file names (try/samples/index.json), each listed file must exist next
+to it. Targets under BUILT (made by scripts/build_try_bundle.py, not committed) are only required with
+--require-built, which the Pages workflow passes after building them.
 Exits 1 and lists each broken link.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 from html.parser import HTMLParser
@@ -21,6 +27,9 @@ DEFAULT_SITE = Path(__file__).resolve().parent.parent / "apps" / "site"
 PUBLIC_ORIGIN = "https://glowstonesq1.github.io/claimtrace/"
 BASE_PATH = "/claimtrace/"
 SKIP_DIRS = {"partials", ".hallmark", "node_modules"}
+SCRIPT_SKIP_DIRS = SKIP_DIRS | {"vendor", "pyodide"}  # third-party code: its fetches are not our links
+BUILT = ("try/samples", "try/pyodide")
+FETCH = re.compile(r"""\bfetch\(\s*(['"`])([^'"`$]+)\1""")
 URL_ATTRS = {"href", "src", "poster"}
 
 
@@ -74,7 +83,7 @@ def resolve(site: Path, page: Path, url: str) -> tuple[Path | None, str]:
     return target.resolve(), parts.fragment
 
 
-def check(site: Path, optional: set[str]) -> list[str]:
+def check(site: Path, optional: set[str], require_built: bool = False) -> list[str]:
     site = site.resolve()
     errors: list[str] = []
     cache: dict[Path, Collector] = {}
@@ -96,6 +105,8 @@ def check(site: Path, optional: set[str]) -> list[str]:
         top = rel.parts[0] if len(rel.parts) > 1 else ""
         if top in optional and not (site / top).is_dir():
             return
+        if not require_built and rel.as_posix().startswith(tuple(b + "/" for b in BUILT)) and not target.is_file():
+            return
         if not target.is_file():
             errors.append(f"{origin}: {url} -> missing {rel.as_posix()}")
             return
@@ -109,6 +120,28 @@ def check(site: Path, optional: set[str]) -> list[str]:
         collected = cache.setdefault(page.resolve(), parse(page))
         for line, url in collected.urls:
             verify(f"{rel.as_posix()}:{line}", page.resolve(), url.strip())
+
+    for script in sorted([*site.rglob("*.js"), *site.rglob("*.mjs")]):
+        rel = script.relative_to(site)
+        if any(p in SCRIPT_SKIP_DIRS for p in rel.parts[:-1]):
+            continue
+        text = script.read_text(encoding="utf-8")
+        for m in FETCH.finditer(text):
+            origin = f"{rel.as_posix()}:{text.count(chr(10), 0, m.start()) + 1}"
+            url = m.group(2).strip()
+            n_before = len(errors)
+            verify(origin, script.resolve(), url)
+            target, _ = resolve(site, script.resolve(), url)
+            if len(errors) > n_before or target is None or target.suffix != ".json" or not target.is_file():
+                continue
+            try:
+                listed = json.loads(target.read_text(encoding="utf-8"))
+            except ValueError:
+                errors.append(f"{origin}: {url} is not valid JSON")
+                continue
+            if isinstance(listed, list) and all(isinstance(x, str) for x in listed):
+                for name in listed:
+                    verify(f"{origin} ({url})", target, name)
 
     sitemap = site / "sitemap.xml"
     if sitemap.is_file():
@@ -124,8 +157,10 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--site", type=Path, default=DEFAULT_SITE)
     ap.add_argument("--optional", default="try,evidence", help="top-level folders skipped while absent")
+    ap.add_argument("--require-built", action="store_true",
+                    help=f"also require the build outputs ({', '.join(BUILT)}): use after build_try_bundle.py")
     args = ap.parse_args(argv)
-    errors = check(args.site, {s for s in args.optional.split(",") if s})
+    errors = check(args.site, {s for s in args.optional.split(",") if s}, args.require_built)
     for e in errors:
         print(e)
     print(f"links: {len(errors)} broken" if errors else "links: every internal link resolves")
