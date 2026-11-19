@@ -1,8 +1,8 @@
 # ClaimTrace — Product Specification
 
-Status: v0.1 draft for design review · Written 2026-11-18 · Owner: maintainers
+Status: v0.1 specification · Written 2026-11-18 · Owner: maintainers
 
-> **Revised by the design review.** Decisions D1–D24 in [design-review.md](design-review.md) supersede this
+> **Revised by the design review.** Decisions D1–D24 in [architecture.md](architecture.md#9-design-decisions) supersede this
 > draft where they differ (notably: split commitment status, evidence-sufficiency wording, 4-screen UI,
 > async analysis runs, append-only reviews, per-document model egress gate). The shipped behaviour is
 > documented in the architecture, data-model, commitment-model and question-answering docs.

@@ -5,7 +5,7 @@ Describes commit 1899c3c.
 How the rules extractor (`packages/extraction/rules.py`, `patterns.py`) turns sentences
 into commitments, how amendments change them (`amendments.py`, `apply.py`), and the exact
 confidence rules (D5). The optional LLM extractor (`llm.py`) is covered where it differs.
-Differences from `docs/design-review.md` and `docs/product-spec.md` are noted. This is a
+Differences from the [design decisions](architecture.md#9-design-decisions) and `docs/product-spec.md` are noted. This is a
 review aid, not legal advice.
 
 ## 1. Commitment fields
