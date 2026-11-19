@@ -26,3 +26,7 @@ apps/site/.hallmark/
 apps/promo/node_modules/
 apps/promo/out/
 apps/promo/public/audio/
+
+# Claude skill / plugin builds (scripts/build_skill_zip.py)
+dist/
+plugins/claimtrace/skills/claimtrace/vendor/
