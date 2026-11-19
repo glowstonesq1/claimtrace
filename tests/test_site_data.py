@@ -313,7 +313,20 @@ def test_home_numbers_match_the_published_runs() -> None:
     nums = page.split("<!-- build:numbers -->")[1].split("<!-- /build:numbers -->")[0]
     values = re.findall(r'<td class="num nums__v">([0-9.]+)', nums)
     assert values == ["0.00", "0.03", "0.71", "0.81", "0.60", "0.71"]
-    assert "0.51 to 0.70, n=105" in nums and "0.62 to 0.80, n=91" in nums and "precision 0.83" in nums
+    assert "precision 0.83" in nums
+    # The home page says its ranges are 95% Wilson intervals, so every row's range is the Wilson interval of the
+    # published value x n (docs/evaluation.md and the README keep the runner's bootstrap intervals).
+    builder = _load_builder()
+    rows = re.findall(r'<td class="num nums__v">([0-9.]+).*?<span class="num">([0-9.]+) to ([0-9.]+), n=(\d+)</span>', nums)
+    assert len(rows) == 6
+    for v, lo, hi, n in rows:
+        w = builder.wilson(round(float(v) * int(n)), int(n))
+        assert (lo, hi) == (builder._2dp(w[0]), builder._2dp(w[1])), (v, n)
+    assert "0.50 to 0.69, n=105" in nums and "0.61 to 0.80, n=91" in nums
+    assert nums.count("95% Wilson interval") == 6
+    head = page.split('<section class="evaluation"')[1].split("<!-- build:numbers -->")[0]
+    assert "95% Wilson intervals" in head and "Wilson score" in head and ">95% Wilson interval<" in head
+    assert "bootstrap" not in head.lower()
     evaluation = (ROOT / "docs" / "evaluation.md").read_text(encoding="utf-8")
     assert "**0.60 (0.51–0.70)** n=105" in evaluation and "**0.71 (0.62–0.80)** n=91" in evaluation
     assert "**0.83 / 0.71**" in evaluation
