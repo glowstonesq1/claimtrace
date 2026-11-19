@@ -1,0 +1,14 @@
+{
+  "name": "claimtrace",
+  "version": "0.3.0",
+  "description": "Check contracts, amendments, audit reports and delivery records: a register of who owes what to whom by when, answers with verified verbatim quotes, and cross-document findings. Runs the ClaimTrace engine locally, with no network. Not legal advice.",
+  "author": {
+    "name": "ClaimTrace Maintainers"
+  },
+  "homepage": "https://glowstonesq1.github.io/claimtrace/",
+  "repository": "https://github.com/glowstonesq1/claimtrace",
+  "documentationUrl": "https://github.com/glowstonesq1/claimtrace/blob/main/docs/claude.md",
+  "supportUrl": "https://github.com/glowstonesq1/claimtrace/issues",
+  "license": "Apache-2.0",
+  "keywords": ["contracts", "amendments", "obligations", "audit", "document-review", "verification"]
+}
