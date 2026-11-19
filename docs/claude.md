@@ -152,8 +152,10 @@ The engine files come from `packages/` through the `pyproject.toml` package mapp
 are left out. The pure-Python dependencies (pypdf, python-docx, defusedxml) are added as wheels at the versions
 in `requirements.lock`, and their sha256 hashes are checked against it. Compiled dependencies (pydantic with
 pydantic_core, and lxml for `.docx`) are not bundled: the runner checks for them at start-up and says what is
-missing. The zip is reproducible (fixed timestamps, sorted entries). CI builds both zips on every run, keeps them
-as the `claimtrace-skill` artifact, and attaches them to each published GitHub release.
+missing. The zip is reproducible (fixed timestamps, sorted entries). CI builds both zips on every run and keeps them
+as the `claimtrace-skill` artifact. Pushing a `v*` tag runs `.github/workflows/release.yml`, which checks the tag
+against the `pyproject.toml` and `plugin.json` versions, builds both zips, creates the GitHub release if needed and
+attaches them under exactly these names (plus `SHA256SUMS`), so the `releases/latest/download/...` links work.
 
 `tests/test_skill_bundle.py` builds the zip and unzips it. It then runs the runner on `examples/documents` in a
 fresh virtual environment that has only pydantic and lxml, with sockets and subprocesses blocked. It also checks

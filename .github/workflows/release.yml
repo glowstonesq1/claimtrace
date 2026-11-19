@@ -1,0 +1,53 @@
+name: Release
+
+# On a version tag (v0.3.0, ...), build the Claude.ai skill zip and the Claude Code plugin zip and attach them to
+# the GitHub Release for that tag, creating the release if it does not exist yet. The asset names are fixed:
+# the Get page and docs/claude.md link
+#   https://github.com/glowstonesq1/claimtrace/releases/latest/download/claimtrace-skill.zip
+#   https://github.com/glowstonesq1/claimtrace/releases/latest/download/claimtrace-plugin.zip
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  zips:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - name: Tag matches the package and plugin versions
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          py=$(python -c "import tomllib;print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")
+          plugin=$(python -c "import json;print(json.load(open('plugins/claimtrace/.claude-plugin/plugin.json'))['version'])")
+          echo "tag=$tag pyproject=$py plugin.json=$plugin"
+          test "$tag" = "$py" && test "$tag" = "$plugin"
+      - name: Build dist/claimtrace-skill.zip and dist/claimtrace-plugin.zip (wheels checked against requirements.lock)
+        env:
+          SOURCE_DATE_EPOCH: "315532800"
+        run: |
+          python scripts/build_skill_zip.py
+          test -f dist/claimtrace-skill.zip && test -f dist/claimtrace-plugin.zip
+          sha256sum dist/claimtrace-skill.zip dist/claimtrace-plugin.zip | tee dist/SHA256SUMS
+      - name: Create the release if needed, then upload the zips
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            notes="docs/releases/${TAG}.md"
+            if [ -f "$notes" ]; then
+              gh release create "$TAG" --verify-tag --title "ClaimTrace $TAG" --notes-file "$notes"
+            else
+              gh release create "$TAG" --verify-tag --title "ClaimTrace $TAG" --generate-notes
+            fi
+          fi
+          gh release upload "$TAG" dist/claimtrace-skill.zip dist/claimtrace-plugin.zip dist/SHA256SUMS --clobber
