@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en" data-width="1920" data-height="1080" data-fps="30" data-duration="50.3">
+<head>
+<meta charset="utf-8">
+<title>ClaimTrace: one take</title>
+<!--
+DIRECTION
+  Look: the v0.4 "Dusk ledger" site, filmed. One world laid out like the home page: a CSS evening sky over slate
+    (the dusk band) with the product in smoked glass with a lit top edge, and below the band the cool paper sheet with
+    48 px hairlines that carries the evidence map (one lane per sample document, clauses as clips, orthogonal
+    connectors routed through the gutters, as map.js draws them). No photos, no stock, no extra brand colour.
+  Palette: the site's own tokens (site/tokens.css, oklch). Periwinkle/cobalt = current or in force; apricot =
+    replaced; one muted red = contradiction. A status colour never appears without its word and icon.
+  Type: Instrument Sans 500/600 for the question, card titles and the wordmark (112 / 56 / 168 px); Figtree 400/500
+    for every quote and note (40-50 px in world, >= 36 px on screen at each hold); JetBrains Mono only for clause
+    numbers (2.1, §1.1). Self-hosted woff2 from site/fonts via site/fonts.css. Quotes are verbatim from
+    apps/site/data/samples.json (engine output on examples/documents).
+  Motion: one continuous camera (gm.camera over #world), no cuts, no fades to black. Moves are in-out-cubic 1.3-2 s,
+    only toward what is read next; the opening is a slow felt push (sine). Entrances expo.out 0.7-1 s with blur while
+    fast; marks (wash, strike, connector) arrive 0.3-0.5 s after the line they mark has settled. Ambient: horizon
+    glow and the glyph field drift for the whole take; held shots breathe.
+  Hand-overs: things come from things. The question's clause is traced from the glass contract down to its clip on
+    the map; the amendment slides in on its own lane; connectors lead the camera from lane to lane; the answer card
+    rises in the sky while the map is in view; the answer's verified check becomes the wordmark's mark.
+  Signature: clause 2.1, "March 31, 2026" struck in apricot and "May 15, 2026" landing in periwinkle, with a low hit.
+  Sound: synthesized (make_audio.py): soft pad bed, a tick per typed character, a low hit on the strike.
+
+SHOT LIST (one take; times in seconds)
+  0.0-6.3   Dusk band. Glass contract sheet rises in; the question types in (1.0-3.7). Slow push 0.92 -> 1.0.
+            Hold: question + sheet. 4.4 clause 2.1 row lights, "In force" tag.
+  6.3-8.4   Push to clause 2.1 (zoom 1.17); "March 31, 2026" gets the periwinkle wash (7.0).
+  8.4-10.4  Trace line drops from the row to clip 2.1 on the map's Contract lane; camera follows down onto paper.
+  10.2-16.0 Amendment No. 1 §1.1 slides in on its lane; connector draws (11.5); "March 31, 2026" struck (12.3, low
+            hit); status In force -> Replaced (12.85); "Now May 15, 2026" lands (13.4). Hold, read.
+  16.0-22.8 Camera travels right across the lanes to Contract §4.1 and Audit report §2.5: 99.1% marked (17.9),
+            connector draws up (18.3), 99.5% marked, "Contradicts" + the engine's note (19.2), 4.1 -> Contradicted.
+  22.8-29.0 Camera travels down-left to Amendment §1.1 and Delivery record §1.1: May 22, 2026 marked (24.5),
+            connector draws up (24.9), "Contradicts" + "7 days late" (25.4), Amendment §1.1 -> Contradicted (26.4).
+  29.0-33.0 Pull out to the whole page: every other link draws in (30.0); the answer card rises in the sky (31.6).
+  33.0-44.4 Push to the answer card. Answer types (34.6-37.3); three verbatim quotes reveal (37.6-39.0);
+            "23 of 23 quotes match the source text" (39.9). Hold, read.
+  44.4-50.3 The answer card leaves; camera drifts right along the horizon; the check draws into the ClaimTrace mark,
+            wordmark rises (45.4), "Runs in your browser. Nothing is uploaded." (46.3), the URL (46.7). Hold.
+-->
+<link rel="stylesheet" href="site/tokens.css">
+<link rel="stylesheet" href="site/fonts.css">
+<style>
+  :root {
+    --w-key: 6px; --w-faint: 4px;
+    --in: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  html, body { margin: 0; }
+  body { background: var(--color-night); color: var(--color-night-ink); font-family: var(--font-body); -webkit-font-smoothing: antialiased; }
+  .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+  .icon { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .icon .icon-fill { fill: currentColor; stroke: none; }
+  p { margin: 0; }
+
+  #world { position: absolute; left: 0; top: 0; width: 5840px; height: 2840px; }
+  #world > * { position: absolute; }
+
+  /* the dusk band: drawn sky over slate, as .hero__sky on the site */
+  .band { left: -700px; top: -500px; width: 7240px; height: 1740px;
+    background: linear-gradient(180deg, var(--color-sky-top) 0%, var(--color-sky-top) 26%, var(--color-sky-mid) 52%, var(--color-sky-low) 72.5%, var(--color-horizon-soft) 81.2%, var(--color-night-3) 81.7%, var(--color-night) 100%); }
+  .glow { width: 2000px; height: 640px; border-radius: 50%; background: radial-gradient(closest-side, color-mix(in oklab, var(--color-horizon) 62%, transparent), transparent); }
+  .field { left: 0; top: 960px; opacity: 0.7; width: 5840px; height: 270px; overflow: hidden; font: 400 26px/1.9 var(--font-body); color: var(--color-field); text-align: justify; white-space: normal; }
+  .field .hi { color: var(--color-field-hi); } .field .lo { color: var(--color-field-lo); }
+
+  /* paper below the band, and the map sheet with hairlines (as .map__lanes) */
+  .paper { left: -700px; top: 1240px; width: 7240px; height: 2000px; background: var(--color-paper); box-shadow: inset 0 1px 0 var(--color-rule-2); }
+  .sheet { left: 280px; top: 1262px; width: 5480px; height: 1506px; border: 2px solid var(--color-rule); border-radius: 22px; background-color: var(--color-sheet);
+    background-image: repeating-linear-gradient(90deg, var(--color-rule) 0 2px, transparent 2px 64px); background-position: 40px 0; box-shadow: var(--shadow-card); }
+  .lane-name { left: 400px; font: 600 36px/44px var(--font-body); color: var(--color-ink-2); white-space: nowrap; }
+
+  /* glass, as .glass on the site, with a lit top edge */
+  .glass { border-radius: 22px; background: var(--glass); -webkit-backdrop-filter: blur(24px) saturate(1.3); backdrop-filter: blur(24px) saturate(1.3);
+    box-shadow: inset 0 2px 0 oklch(100% 0 0 / 0.18), inset 0 0 0 2px oklch(100% 0 0 / 0.07), 0 60px 120px -48px oklch(8% 0.02 268 / 0.8); color: var(--color-night-ink); }
+
+  /* the question */
+  #q { left: 200px; top: 60px; width: 1560px; }
+  #q .kicker { font: 500 36px/1.3 var(--font-body); color: var(--color-night-muted); margin-bottom: 18px; }
+  #q h1 { margin: 0; font: 500 112px/1.04 var(--font-display); letter-spacing: -0.026em; color: var(--color-night-ink); }
+  #q h1 .key { color: var(--color-apricot); }
+
+  /* the contract, arriving as a glass sheet */
+  #doc { left: 200px; top: 416px; width: 1600px; padding: 40px 48px 44px; }
+  .doc__head { display: flex; align-items: baseline; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 2px solid var(--color-night-rule); }
+  .doc__title { font: 600 52px/1.1 var(--font-display); letter-spacing: -0.012em; }
+  .doc__meta { font: 400 36px/1.2 var(--font-body); color: var(--color-night-muted); white-space: nowrap; }
+  .doc__intro { margin-top: 22px; font: 400 36px/1.45 var(--font-body); color: var(--color-night-ink-2); opacity: 0.8; }
+  .doc__sec { display: flex; align-items: center; justify-content: space-between; margin-top: 26px; font: 500 36px/1.2 var(--font-display); color: var(--color-night-muted); }
+  .tag { display: inline-flex; align-items: center; gap: 0.35em; font: 600 36px/1.2 var(--font-body); white-space: nowrap; }
+  .tag--current { color: var(--color-periwinkle-hi); }
+  #d21 { position: relative; display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: baseline; margin: 14px -20px 0; padding: 14px 20px 18px; border-radius: 12px; }
+  #d21 .bg { position: absolute; inset: 0; border-radius: 12px; background: var(--glass-row); box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--color-periwinkle) 45%, transparent); opacity: 0; }
+  #d21 .num { position: relative; font-size: 40px; color: var(--color-night-muted); }
+  #d21 .t { position: relative; font: 500 44px/1.38 var(--font-body); color: var(--color-night-ink); }
+  .wash-n { position: relative; display: inline-block; }
+  .wash-n i { position: absolute; inset: 4% -0.18em 0; border-radius: 6px; background: color-mix(in oklab, var(--color-periwinkle) 30%, transparent); transform-origin: left; z-index: -1; }
+  #d21 .t { isolation: isolate; }
+
+  /* map clips: big cards for the clauses the story reads, chips for the rest (as .clip on the site) */
+  .card { width: 1200px; padding: 26px 32px 28px; border: 2px solid var(--color-rule-2); border-radius: 14px; overflow: hidden;
+    background: linear-gradient(180deg, var(--color-sheet), var(--color-paper-2)); box-shadow: var(--edge-light), var(--shadow-card); color: var(--color-ink); }
+  .card--tall { height: 280px; } .card--short { height: 180px; }
+  .card .hatch { position: absolute; inset: 0; background: repeating-linear-gradient(135deg, var(--sig-replaced-wash) 0 12px, transparent 12px 18px); opacity: 0; }
+  .card .ring { position: absolute; inset: 0; border-radius: 12px; opacity: 0; }
+  .ring--cur { box-shadow: inset 0 0 0 4px var(--sig-current-mark); }
+  .ring--rep { box-shadow: inset 0 0 0 4px var(--sig-replaced-mark); }
+  .ring--con { box-shadow: inset 0 0 0 4px var(--sig-contra-mark); }
+  .card__head { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: baseline; gap: 18px; height: 48px; }
+  .card__head .num { font-size: 38px; color: var(--color-ink-2); }
+  .card__doc { font: 600 38px/1.3 var(--font-body); color: var(--color-ink-2); white-space: nowrap; }
+  .stat { display: grid; justify-items: end; }
+  .stat > span { grid-area: 1 / 1; display: inline-flex; align-items: center; gap: 0.35em; font: 600 38px/1.3 var(--font-body); white-space: nowrap; }
+  .s-cur { color: var(--sig-current); } .s-rep { color: var(--sig-replaced); } .s-con { color: var(--sig-contra); } .s-ev { color: var(--color-muted); }
+  .stat > span + span { opacity: 0; }
+  .card__quote { position: relative; margin-top: 14px; font: 400 40px/1.35 var(--font-body); color: var(--color-ink); isolation: isolate; }
+  .card__now { position: relative; margin-top: 4px; font: 500 40px/1.35 var(--font-body); color: var(--color-ink-2); }
+  .card__now ins { text-decoration: none; font-weight: 600; color: var(--sig-current); }
+  .mk { position: relative; display: inline-block; }
+  .mk .w { position: absolute; inset: 6% -0.16em 2%; border-radius: 6px; transform-origin: left; transform: scaleX(0); z-index: -1; }
+  .mk .s { position: absolute; left: -0.08em; right: -0.08em; top: 54%; height: 5px; border-radius: 3px; background: var(--sig-replaced); transform-origin: left; transform: scaleX(0); }
+  .w--cur { background: var(--sig-current-wash); } .w--con { background: var(--sig-contra-wash); }
+
+  .chip { width: 100px; height: 88px; display: grid; place-items: center; border: 2px solid var(--color-rule-2); border-radius: 10px; background: var(--color-paper-3);
+    box-shadow: var(--edge-light); font: 400 36px/1 var(--font-mono); color: var(--color-ink); }
+  .chip--in-force { border-color: color-mix(in oklab, var(--sig-current-mark) 55%, var(--color-sheet)); background: linear-gradient(180deg, var(--color-sheet), var(--sig-current-wash)); color: var(--sig-current); }
+  .chip--replaced { border-color: var(--sig-replaced-mark); background: repeating-linear-gradient(135deg, var(--sig-replaced-wash) 0 9px, var(--color-sheet) 9px 14px); color: var(--sig-replaced); text-decoration: line-through; text-decoration-thickness: 3px; }
+  .chip--evidence { color: var(--color-ink-2); }
+
+  /* connectors, as .wire on the site */
+  #wires { left: 0; top: 0; width: 5840px; height: 2840px; overflow: visible; pointer-events: none; }
+  .wire { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .wire--key { stroke-width: var(--w-key); }
+  .wire--faint { stroke-width: var(--w-faint); opacity: 0.55; }
+  .k-rep { stroke: var(--sig-replaced-mark); } .k-sup { stroke: var(--sig-current-mark); } .k-con { stroke: var(--sig-contra-mark); }
+  .k-partly { stroke: var(--sig-current-mark); stroke-dasharray: 14 10; } .k-changes { stroke: var(--sig-replaced-mark); stroke-dasharray: 22 10; } .k-review { stroke: var(--sig-replaced-mark); stroke-dasharray: 2 12; }
+  .k-trace { stroke: var(--color-periwinkle); }
+  #tdot { left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--color-periwinkle-hi); box-shadow: 0 0 24px 6px color-mix(in oklab, var(--color-periwinkle) 60%, transparent); opacity: 0; }
+  .wlabel { white-space: nowrap; }
+  .wlabel .tagline { display: inline-flex; align-items: center; gap: 0.35em; font: 600 38px/1.3 var(--font-body); }
+  .wlabel .note { margin-top: 6px; font: 400 38px/1.4 var(--font-body); color: var(--color-ink-2); }
+  .wlabel .note b { font-weight: 600; color: var(--sig-contra); }
+
+  /* the answer: the hero ledger, in glass */
+  #ans { left: 2300px; top: 120px; width: 1820px; padding: 48px 56px 50px; }
+  .ans__head { display: flex; align-items: baseline; justify-content: space-between; gap: 32px; padding-bottom: 24px; border-bottom: 2px solid var(--color-night-rule); }
+  .ans__title { font: 600 56px/1.1 var(--font-display); letter-spacing: -0.015em; }
+  .ans__meta { font: 400 38px/1.2 var(--font-body); color: var(--color-night-muted); white-space: nowrap; }
+  .ans__answer { margin-top: 26px; font: 500 50px/1.3 var(--font-body); color: var(--color-night-ink); text-wrap: balance; }
+  .ans__answer del { color: var(--color-night-muted); text-decoration: line-through; text-decoration-color: var(--color-apricot); text-decoration-thickness: 4px; }
+  .ans__answer ins { padding: 0 0.16em; border-radius: 6px; background: oklch(80% 0.09 274 / 0); color: var(--color-night-ink); text-decoration: none; font-weight: 600; }
+  .q { margin: 18px 0 0; padding: 14px 28px 16px; border-left: 5px solid var(--color-apricot); border-radius: 0 12px 12px 0; background: var(--glass-row); }
+  .q:first-of-type { margin-top: 30px; }
+  .q--new { border-left-color: var(--color-periwinkle); } .q--con { border-left-color: var(--color-rose); }
+  .q figcaption { display: flex; align-items: center; gap: 18px; font: 600 38px/1.3 var(--font-body); color: var(--color-night-muted); }
+  .q figcaption .tag { font-size: 38px; }
+  .tag--rep { color: var(--color-apricot); } .tag--con { color: var(--color-rose); }
+  .q blockquote { margin: 4px 0 0; font: 400 40px/1.4 var(--font-body); color: var(--color-night-ink-2); }
+  .q figure { margin: 0; }
+  .ans__foot { display: flex; align-items: center; justify-content: space-between; margin-top: 28px; padding-top: 22px; border-top: 2px solid var(--color-night-rule); font: 500 40px/1.2 var(--font-body); color: var(--color-night-ink-2); }
+  .ans__foot .ok { display: inline-flex; align-items: center; gap: 0.4em; }
+  .ans__foot .ok .icon { color: var(--color-periwinkle-hi); width: 1.1em; height: 1.1em; }
+  .ans__foot .src { color: var(--color-night-muted); font-weight: 400; }
+
+  /* end card */
+  #end { left: 2400px; top: 330px; width: 2000px; text-align: center; }
+  .wm { display: inline-flex; align-items: center; gap: 36px; font: 600 168px/1 var(--font-display); letter-spacing: -0.03em; color: var(--color-night-ink); }
+  .wm svg { width: 150px; height: 150px; fill: none; stroke: var(--color-periwinkle); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+  #end .line { margin-top: 56px; font: 500 52px/1.3 var(--font-body); color: var(--color-night-ink-2); }
+  .wm { position: relative; overflow: hidden; padding: 0 12px; }
+  .shine { position: absolute; inset: -20% auto -20% 0; width: 40%; background: linear-gradient(100deg, transparent, oklch(100% 0 0 / 0.22) 45%, oklch(100% 0 0 / 0.32) 50%, oklch(100% 0 0 / 0.22) 55%, transparent); mix-blend-mode: soft-light; pointer-events: none; }
+  #end .u { position: relative; display: inline-block; }
+  #urlline { position: absolute; left: 0; right: 0; bottom: -6px; height: 3px; border-radius: 2px; background: color-mix(in oklab, var(--color-periwinkle) 70%, transparent); transform-origin: left; transform: scaleX(0); }
+  #end .url { margin-top: 22px; font: 500 44px/1.3 var(--font-body); color: var(--color-periwinkle-hi); letter-spacing: 0.005em; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-replaced" viewBox="0 0 16 16"><path d="M2.5 5.5h9.5M9.5 3l2.5 2.5L9.5 8"/><path d="M13.5 10.5H4M6.5 8L4 10.5 6.5 13"/></symbol>
+  <symbol id="i-contradicts" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75"/><path d="M5.75 5.75l4.5 4.5M10.25 5.75l-4.5 4.5"/></symbol>
+  <symbol id="i-supports" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75"/><path d="M5.25 8.25l1.9 1.9 3.6-4.1"/></symbol>
+  <symbol id="i-inforce" viewBox="0 0 16 16"><rect x="2.75" y="2.75" width="10.5" height="10.5" rx="2"/><path d="M5.25 8.25l1.9 1.9 3.6-4.1"/></symbol>
+  <symbol id="i-evidence" viewBox="0 0 16 16"><path d="M4 2.5h5.5L12 5v8.5H4z"/><path d="M6.25 8h3.5M6.25 10.5h3.5"/></symbol>
+</svg>
+
+<audio id="score" src="audio/score.wav" data-volume="1"></audio>
+
+<section class="scene" id="take">
+<div id="world">
+  <!-- ground -->
+  <div class="band" aria-hidden="true"></div>
+  <div class="glow" id="glow1" style="left:0px; top:600px" aria-hidden="true"></div>
+  <div class="glow" id="glow2" style="left:2400px; top:600px; opacity:.9" aria-hidden="true"></div>
+  <div class="glow" id="glow3" style="left:4300px; top:600px; opacity:.7" aria-hidden="true"></div>
+  <div class="field" id="field" aria-hidden="true">
+    This Master Services Agreement is entered into on January 10, 2026 between Halden Freight Co. and Corvane Software Ltd. <span class="lo">The Vendor shall deliver the Phase 1 System no later than March 31, 2026.</span> The Vendor shall provide weekly written progress reports to the Customer until Acceptance. The Customer shall provide the Vendor with access to its test environment within 10 Business Days of the date of this Agreement. The Customer shall pay the Vendor a fixed fee of GBP 120,000 for the Phase 1 System. <span class="hi">The Customer shall pay each undisputed invoice within 30 days of receipt.</span> The Vendor may charge interest on late payments at 4% per year above the Bank of England base rate. The Vendor shall ensure the Phase 1 System is available 99.5% of the time in each calendar month, excluding scheduled maintenance. If availability falls below 99.5% in any month, the Customer is entitled to a service credit of 5% of the monthly support fee. <span class="lo">The Vendor shall encrypt all Customer data at rest using AES-256 or stronger.</span> The Vendor shall not transfer Customer data outside the United Kingdom without the Customer's prior written consent. <span class="hi">The Vendor shall notify the Customer of any personal data breach within 48 hours of becoming aware of it.</span> The Vendor shall maintain multi-factor authentication for all administrative access to systems that process Customer data. If the Vendor fails to deliver the Phase 1 System by the date in clause 2.1, the Vendor shall pay liquidated damages of GBP 1,000 for each day of delay, up to a maximum of GBP 30,000. Clause 6.1 does not apply where the delay is caused by the Customer's failure to comply with clause 2.3. Either party may terminate this Agreement by giving 90 days' written notice to the other party. <span class="lo">The Customer may terminate this Agreement immediately if the Vendor commits a material breach that is not remedied within 30 days of written notice.</span> Each party must keep the other party's confidential information secret and must not disclose it to any third party, except as required by law. This Master Services Agreement is entered into on January 10, 2026 between Halden Freight Co. and Corvane Software Ltd. The Vendor shall deliver the Phase 1 System no later than March 31, 2026. The Vendor shall provide weekly written progress reports to the Customer until Acceptance. <span class="hi">The Customer shall pay the Vendor a fixed fee of GBP 120,000 for the Phase 1 System.</span> The Vendor shall ensure the Phase 1 System is available 99.5% of the time in each calendar month, excluding scheduled maintenance. The Vendor shall encrypt all Customer data at rest using AES-256 or stronger. The Vendor shall not transfer Customer data outside the United Kingdom without the Customer's prior written consent.
+  </div>
+  <div class="paper" aria-hidden="true"></div>
+  <div class="sheet" aria-hidden="true"></div>
+
+  <!-- 1. the question and the contract in glass -->
+  <div id="q">
+    <p class="kicker" id="kicker">Ask the sample contract</p>
+    <h1 id="qh" data-type="14" data-type-delay="1.0" data-type-caret="1.4">Did the amendment change the <span class="key">deadline?</span></h1>
+  </div>
+
+  <div id="doc" class="glass" data-expect="in-by 1.6">
+    <div class="doc__head"><p class="doc__title">Master Services Agreement</p><p class="doc__meta">Contract, msa-v1.md</p></div>
+    <p class="doc__intro">This Master Services Agreement (the "Agreement") is entered into on January 10, 2026 between Halden Freight Co. (the "Customer") and Corvane Software Ltd. (the "Vendor").</p>
+    <p class="doc__sec"><span>2. Delivery</span><span class="tag tag--current" id="d-tag"><svg class="icon"><use href="#i-inforce"/></svg>In force</span></p>
+    <div id="d21"><i class="bg" id="d21bg"></i><span class="num">2.1</span><p class="t">The Vendor shall deliver the Phase 1 System no later than <span class="wash-n"><i id="d-wash"></i>March 31, 2026</span>.</p></div>
+  </div>
+
+  <!-- 2. the evidence map: lanes, clips and connectors (geometry: see LAYOUT in the script) -->
+  <svg id="wires" viewBox="0 0 5840 2840" aria-hidden="true"></svg>
+  <div id="tdot" aria-hidden="true"></div>
+
+  <p class="lane-name" style="top:1320px">Contract</p>
+  <p class="lane-name" style="top:1738px">Amendment No. 1</p>
+  <p class="lane-name" style="top:2156px">Audit report</p>
+  <p class="lane-name" style="top:2474px">Delivery record</p>
+
+  <div class="card card--tall" id="c-msa21" style="left:400px; top:1376px">
+    <i class="hatch" id="h-msa21"></i><i class="ring ring--cur" id="rc-msa21"></i><i class="ring ring--rep" id="rr-msa21"></i>
+    <div class="card__head"><span class="num">2.1</span><span class="card__doc">Contract, Delivery</span>
+      <span class="stat"><span class="s-cur" id="s21a"><svg class="icon"><use href="#i-inforce"/></svg>In force</span><span class="s-rep" id="s21b"><svg class="icon"><use href="#i-replaced"/></svg>Replaced</span></span></div>
+    <p class="card__quote">The Vendor shall deliver the Phase 1 System no later than <span class="mk"><i class="w w--cur" id="w-mar"></i><i class="s" id="x-mar"></i><span id="t-mar">March 31, 2026</span></span>.</p>
+    <p class="card__now" id="now21">Now <ins>May 15, 2026</ins>, from Amendment No. 1 <span class="num">§1.1</span></p>
+  </div>
+
+  <div class="card card--tall" id="c-amd11" data-expect="in-by 11.4" style="left:400px; top:1794px">
+    <i class="ring ring--cur" id="rc-amd11"></i><i class="ring ring--con" id="rx-amd11"></i>
+    <div class="card__head"><span class="num">1.1</span><span class="card__doc">Amendment No. 1</span>
+      <span class="stat"><span class="s-cur"><svg class="icon"><use href="#i-inforce"/></svg>In force</span><span class="s-con" id="s11b"><svg class="icon"><use href="#i-contradicts"/></svg>Contradicted</span></span></div>
+    <p class="card__quote">Clause 2.1 of the Agreement is deleted and replaced with: "The Vendor shall deliver the Phase 1 System no later than <span class="mk"><i class="w w--cur" id="w-may15"></i>May 15, 2026</span>."</p>
+  </div>
+
+  <div class="card card--tall" id="c-msa41" style="left:2940px; top:1376px">
+    <i class="ring ring--con" id="rx-msa41"></i>
+    <div class="card__head"><span class="num">4.1</span><span class="card__doc">Contract, Service Levels</span>
+      <span class="stat"><span class="s-cur"><svg class="icon"><use href="#i-inforce"/></svg>In force</span><span class="s-con" id="s41b"><svg class="icon"><use href="#i-contradicts"/></svg>Contradicted</span></span></div>
+    <p class="card__quote">The Vendor shall ensure the Phase 1 System is available <span class="mk"><i class="w w--con" id="w-995"></i>99.5%</span> of the time in each calendar month, excluding scheduled maintenance.</p>
+  </div>
+
+  <div class="card card--short" id="c-aud25" style="left:2940px; top:2212px">
+    <i class="ring ring--con" id="rx-aud25"></i>
+    <div class="card__head"><span class="num">2.5</span><span class="card__doc">Audit report, Findings</span>
+      <span class="stat"><span class="s-ev"><svg class="icon"><use href="#i-evidence"/></svg>Evidence</span></span></div>
+    <p class="card__quote">Availability: Measured availability for May 2026 was <span class="mk"><i class="w w--con" id="w-991"></i>99.1%</span>.</p>
+  </div>
+
+  <div class="card card--short" id="c-del11" style="left:400px; top:2530px">
+    <i class="ring ring--con" id="rx-del11"></i>
+    <div class="card__head"><span class="num">1.1</span><span class="card__doc">Delivery record, Delivery</span>
+      <span class="stat"><span class="s-ev"><svg class="icon"><use href="#i-evidence"/></svg>Evidence</span></span></div>
+    <p class="card__quote">The Vendor delivered the Phase 1 System on <span class="mk"><i class="w w--con" id="w-may22"></i>May 22, 2026</span>.</p>
+  </div>
+
+  <div id="chips"></div>
+
+  <!-- connector labels: the engine's own notes -->
+  <div class="wlabel" id="lab-rep" style="left:1330px; top:1678px"><span class="tagline s-rep"><svg class="icon"><use href="#i-replaced"/></svg>Replaces</span></div>
+  <div class="wlabel" id="lab-41" style="left:3280px; top:1832px"><span class="tagline s-con"><svg class="icon"><use href="#i-contradicts"/></svg>Contradicts</span>
+    <p class="note">Measured 99.1% is below the committed 99.5%.</p></div>
+  <div class="wlabel" id="lab-del" style="left:1040px; top:2186px"><span class="tagline s-con"><svg class="icon"><use href="#i-contradicts"/></svg>Contradicts</span>
+    <p class="note">Done on 22 May 2026, after the deadline<br>of 15 May 2026 <b>(7 days late)</b>.</p></div>
+
+  <!-- 4. the verified answer -->
+  <div id="ans" class="glass" data-expect="in-by 33.2; gone-by 45.3">
+    <div class="ans__head"><p class="ans__title">Did the amendment change the deadline?</p><p class="ans__meta">Four documents, no network</p></div>
+    <p class="ans__answer" id="answer" data-type="30" data-type-delay="34.6" data-type-caret="1.0">Yes. Amendment No. 1 <span class="num">§1.1</span> moved it from <del>March 31, 2026</del> to <ins>May 15, 2026</ins>.</p>
+    <figure class="q" id="q1"><figcaption><span>Contract <span class="num">§2.1</span></span><span class="tag tag--rep"><svg class="icon"><use href="#i-replaced"/></svg>Replaced</span></figcaption>
+      <blockquote>The Vendor shall deliver the Phase 1 System no later than March 31, 2026.</blockquote></figure>
+    <figure class="q q--new" id="q2"><figcaption><span>Amendment No. 1 <span class="num">§1.1</span></span><span class="tag tag--current"><svg class="icon"><use href="#i-inforce"/></svg>In force</span></figcaption>
+      <blockquote>Clause 2.1 of the Agreement is deleted and replaced with: "The Vendor shall deliver the Phase 1 System no later than May 15, 2026."</blockquote></figure>
+    <figure class="q q--con" id="q3"><figcaption><span>Delivery record <span class="num">§1.1</span></span><span class="tag tag--con"><svg class="icon"><use href="#i-contradicts"/></svg>Contradicted, 7 days late</span></figcaption>
+      <blockquote>The Vendor delivered the Phase 1 System on May 22, 2026.</blockquote></figure>
+    <p class="ans__foot" id="foot"><span class="ok"><svg class="icon" id="okicon"><use href="#i-supports"/></svg><span><span id="n23">23</span> of 23 quotes match the source text</span></span><span class="src">Verbatim, character for character</span></p>
+  </div>
+
+  <!-- 5. end card -->
+  <div id="end">
+    <div class="wm" id="wm"><svg viewBox="0 0 24 24" aria-hidden="true"><path id="mk1" d="M5 4h9l5 5v11H5z"/><path id="mk2" d="M14 4v5h5"/><path id="mk3" d="M8.5 14.5l2.5 2.5 4.5-5"/></svg><span id="wmword">ClaimTrace</span><i class="shine" id="shine" aria-hidden="true"></i></div>
+    <p class="line" id="endline" data-expect="in-by 47.2; in-frame">Runs in your browser. Nothing is uploaded.</p>
+    <p class="url" id="endurl"><span class="u">glowstonesq1.github.io/claimtrace<i id="urlline"></i></span></p>
+  </div>
+</div>
+</section>
+
+<script>
+/* ---------------------------------------------------------------- LAYOUT (world px)
+   Lane tracks: Contract 1376-1656, Amendment 1794-2074, Audit 2212-2392, Delivery 2530-2710; gutters between.
+   Columns: left cards 400-1600 (centre 1000), chips 1960-2508, middle cards 2940-4140, chips 4560-5680.
+   Chip y centres: 1516, 1934, 2302, 2620 (88 tall). Every hold frames whole columns, so no chip or label is cut. */
+const NS = 'http://www.w3.org/2000/svg';
+const chipsEl = document.getElementById('chips');
+const laneY = [1516, 1934, 2302, 2620];
+function chip(id, label, lane, x, kind) {
+  const d = document.createElement('div');
+  d.className = 'chip chip--' + kind; d.id = id; d.textContent = label;
+  d.style.cssText = `position:absolute; left:${x}px; top:${laneY[lane] - 44}px`;
+  chipsEl.appendChild(d);
+}
+const A = (i) => 1960 + i * 112, B = (i) => 4560 + i * 112;
+[['2.2', 'in-force'], ['2.3', 'in-force'], ['3.1', 'in-force'], ['3.2', 'replaced'], ['3.3', 'in-force']].forEach(([n, k], i) => chip('ch-msa' + n, n, 0, A(i), k));
+[['4.2', 'in-force'], ['5.1', 'in-force'], ['5.2', 'in-force'], ['5.3', 'replaced'], ['5.4', 'in-force'], ['6.1', 'in-force'], ['6.2', 'in-force'], ['7.2', 'in-force'], ['7.3', 'in-force'], ['8.1', 'in-force']].forEach(([n, k], i) => chip('ch-msa' + n, n, 0, B(i), k));
+['1.2', '1.3', '1.4', '2.1'].forEach((n, i) => chip('ch-amd' + n, n, 1, A(i), 'in-force'));
+['2.1', '2.2', '2.3', '2.4'].forEach((n, i) => chip('ch-aud' + n, n, 2, A(i), 'evidence'));
+chip('ch-del2.1', '2.1', 3, A(0), 'evidence');
+
+// orthogonal routes with rounded corners, as the site's map.js draws them
+function rounded(pts, r) {
+  let d = `M${pts[0][0]},${pts[0][1]}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [x0, y0] = pts[i - 1], [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+    const l1 = Math.hypot(x1 - x0, y1 - y0), l2 = Math.hypot(x2 - x1, y2 - y1), rr = Math.min(r, l1 / 2, l2 / 2);
+    const ax = x1 - (x1 - x0) / l1 * rr, ay = y1 - (y1 - y0) / l1 * rr, bx = x1 + (x2 - x1) / l2 * rr, by = y1 + (y2 - y1) / l2 * rr;
+    d += ` L${ax},${ay} Q${x1},${y1} ${bx},${by}`;
+  }
+  const last = pts[pts.length - 1];
+  return d + ` L${last[0]},${last[1]}`;
+}
+const svg = document.getElementById('wires');
+function wire(id, cls, pts) {
+  const p = document.createElementNS(NS, 'path');
+  p.setAttribute('id', id); p.setAttribute('class', 'wire ' + cls); p.setAttribute('d', rounded(pts, 16));
+  svg.appendChild(p); return p;
+}
+const cx = (i) => A(i) + 50, bx = (i) => B(i) + 50, tY = (l) => laneY[l] - 48, bY = (l) => laneY[l] + 48;
+// faint: every other link the engine found on the samples (samples.json "links")
+wire('f-a', 'wire--faint k-rep', [[cx(0), tY(1)], [cx(0), 1716], [cx(3) - 12, 1716], [cx(3) - 12, bY(0)]]);          // amd 1.2 replaces msa 3.2
+wire('f-b', 'wire--faint k-changes', [[cx(3) + 12, tY(1)], [cx(3) + 12, 1706], [cx(2), 1706], [cx(2), bY(0)]]);      // amd 2.1 changes msa 3.1
+wire('f-c', 'wire--faint k-rep', [[cx(1), tY(1)], [cx(1), 1694], [bx(3), 1694], [bx(3), bY(0)]]);                     // amd 1.3 replaces msa 5.3
+wire('f-d', 'wire--faint k-sup', [[cx(0), tY(2)], [cx(0), 2128], [bx(1), 2128], [bx(1), bY(0)]]);                     // audit 2.1 supports msa 5.1
+wire('f-e', 'wire--faint k-con', [[cx(1), tY(2)], [cx(1), 2140], [bx(2), 2140], [bx(2), bY(0)]]);                     // audit 2.2 contradicts msa 5.2
+wire('f-f', 'wire--faint k-partly', [[cx(3), tY(2)], [cx(3), 2152], [bx(4), 2152], [bx(4), bY(0)]]);                  // audit 2.4 partly supports msa 5.4
+wire('f-g', 'wire--faint k-review', [[cx(2), tY(2)], [cx(2), 2112], [cx(1) + 18, 2112], [cx(1) + 18, bY(1)]]);        // audit 2.3 needs review against amd 1.3
+wire('f-h', 'wire--faint k-partly', [[cx(0), tY(3)], [cx(0), 2466], [1900, 2466], [1900, 1680], [cx(0) - 20, 1680], [cx(0) - 20, bY(0)]]); // delivery 2.1 partly supports msa 2.2
+// key: the links the story reads
+wire('w-trace', 'wire--key k-trace', [[1000, 930], [1000, 1368]]);
+wire('w-rep', 'wire--key k-rep', [[1300, 1794 - 8], [1300, 1656 + 8]]);
+wire('w-41', 'wire--key k-con', [[3240, 2212 - 8], [3240, 1656 + 8]]);
+wire('w-del', 'wire--key k-con', [[1000, 2530 - 8], [1000, 2074 + 8]]);
+
+/* ---------------------------------------------------------------- CAMERA (one take, no cuts) */
+const cam = gm.camera('#world', { bounds: false });
+cam
+  .shot(0,    { fit: { x: -40, y: -85, w: 2080, h: 1170 }, padding: 0 })                                   // a touch wide
+  .shot(0.05, { fit: { x: 40, y: -40, w: 1920, h: 1080 }, padding: 0, duration: 6.0, ease: 'in-out-sine' })  // felt push to the question
+  .shot(6.3,  { fit: { x: 180, y: 380, w: 1640, h: 922 }, padding: 0, duration: 1.4, ease: 'in-out-cubic' }) // push to clause 2.1
+  .shot(8.4,  { fit: { x: 262, y: 1282, w: 1477, h: 830 }, padding: 0, duration: 2.0, ease: 'in-out-cubic' }) // follow the trace down to the map
+  .shot(16.0, { fit: { x: 2559, y: 1332, w: 1963, h: 1104 }, padding: 0, duration: 2.0, ease: 'in-out-cubic' }) // across the lanes: 4.1 and audit 2.5
+  .shot(22.8, { fit: { x: 91, y: 1728, w: 1817, h: 1022 }, padding: 0, duration: 2.0, ease: 'in-out-cubic' })  // down to amendment 1.1 and delivery 1.1
+  .shot(29.0, { fit: { x: 0, y: 0, w: 5840, h: 2840 }, padding: 0, duration: 2.2, ease: 'in-out-cubic', overview: true }) // the whole page
+  .shot(33.0, { fit: '#ans', padding: 30, duration: 1.8, ease: 'in-out-cubic' })                            // to the answer
+  .shot(44.4, { fit: { x: 2390, y: 32, w: 2021, h: 1137 }, padding: 0, duration: 1.9, ease: 'in-out-sine' }); // along the horizon to the end card
+
+/* ---------------------------------------------------------------- CHOREOGRAPHY (video seconds; make_audio.py uses the same times) */
+const tl = gm.timeline('#take');
+// ambient: the light and the glyph field never stop
+tl.fromTo('#glow1', { x: -120 }, { x: 160, duration: 50.3, ease: 'sine.inOut' }, 0)
+  .fromTo('#glow2', { x: 140, scale: 0.94 }, { x: -120, scale: 1.06, duration: 50.3, ease: 'sine.inOut' }, 0)
+  .fromTo('#glow3', { x: -80 }, { x: 120, duration: 50.3, ease: 'sine.inOut' }, 0)
+  .fromTo('#field', { x: 0 }, { x: -260, duration: 50.3, ease: 'sine.inOut' }, 0);
+
+// 1. the contract arrives as a glass sheet; the question types in (data-type on #qh)
+tl.fromTo('#doc', { y: 150, opacity: 0.35, filter: 'blur(14px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 1.5, ease: 'expo.out' }, 0)
+  .from('#kicker', { opacity: 0, y: 16, duration: 0.6, ease: 'power3.out' }, 0.5)
+  .fromTo('#d21bg', { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power2.out' }, 4.4)
+  .from('#d-tag', { opacity: 0, x: 24, duration: 0.5, ease: 'power3.out' }, 4.5)
+  .to(['#doc .doc__head', '#doc .doc__intro'], { opacity: 0.4, duration: 0.8, ease: 'power2.inOut' }, 6.5)  // focus pull onto 2.1
+  .fromTo('#d-wash', { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: 'in-out-quart' }, 7.0);
+
+// 2. traced to the map; the amendment replaces the date
+tl.fromTo('#w-trace', { draw: 0 }, { draw: 1, duration: 1.5, ease: 'in-out-cubic' }, 8.5)
+  .fromTo('#tdot', { opacity: 0 }, { opacity: 1, duration: 0.2 }, 8.5)
+  .to('#tdot', { opacity: 0, duration: 0.3 }, 10.0)
+  .to('#d21', { opacity: 0.55, duration: 0.6 }, 9.0)
+  .fromTo('#rc-msa21', { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out' }, 9.9)
+  .fromTo('#c-msa21', { scale: 1 }, { keyframes: [{ scale: 1.015, duration: 0.15 }, { scale: 1, duration: 0.45, ease: 'back.out(2)' }] }, 9.95)
+  .fromTo('#c-amd11', { x: 760, opacity: 0, filter: 'blur(10px)' }, { x: 0, opacity: 1, filter: 'blur(0px)', duration: 1.0, ease: 'expo.out' }, 10.2)
+  .fromTo('#rc-amd11', { opacity: 0 }, { opacity: 1, duration: 0.4 }, 11.1)
+  .fromTo('#w-rep', { draw: 0 }, { draw: 1, duration: 0.5, ease: 'in-out-cubic' }, 11.5)
+  .from('#lab-rep', { opacity: 0, x: -16, duration: 0.4, ease: 'power3.out' }, 11.9)
+  .fromTo('#x-mar', { scaleX: 0 }, { scaleX: 1, duration: 0.32, ease: 'in-out-cubic' }, 12.3)
+  .to('#t-mar', { opacity: 0.5, duration: 0.3 }, 12.55)
+  .fromTo('#c-msa21', { y: 0 }, { keyframes: [{ y: 6, duration: 0.08 }, { y: 0, duration: 0.5, ease: 'back.out(2.4)' }] }, 12.3)
+  .to('#rc-msa21', { opacity: 0, duration: 0.4 }, 12.7)
+  .fromTo('#rr-msa21', { opacity: 0 }, { opacity: 1, duration: 0.4 }, 12.7)
+  .fromTo('#h-msa21', { opacity: 0 }, { opacity: 0.85, duration: 0.5 }, 12.7)
+  .to('#s21a', { opacity: 0, y: -20, duration: 0.3, ease: 'power2.in' }, 12.7)
+  .fromTo('#s21b', { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: 'back.out(1.6)' }, 12.85)
+  .fromTo('#now21', { opacity: 0, y: 40 }, { opacity: 1, y: 0, duration: 0.7, ease: 'back.out(1.6)' }, 13.4)
+  .fromTo('#w-may15', { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: 'in-out-quart' }, 13.9);
+
+// 3a. across the lanes: audit 2.5 contradicts 4.1
+tl.fromTo('#w-991', { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: 'in-out-quart' }, 17.9)
+  .fromTo('#rx-aud25', { opacity: 0 }, { opacity: 1, duration: 0.4 }, 17.9)
+  .fromTo('#w-41', { draw: 0 }, { draw: 1, duration: 0.8, ease: 'in-out-cubic' }, 18.3)
+  .fromTo('#w-995', { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: 'in-out-quart' }, 19.0)
+  .from('#lab-41 .tagline', { opacity: 0, x: -16, duration: 0.45, ease: 'power3.out' }, 19.2)
+  .from('#lab-41 .note', { opacity: 0, y: 14, duration: 0.5, ease: 'power3.out' }, 19.6)
+  .fromTo('#rx-msa41', { opacity: 0 }, { opacity: 1, duration: 0.4 }, 20.2)
+  .to('#c-msa41 .s-cur', { opacity: 0, y: -20, duration: 0.3, ease: 'power2.in' }, 20.2)
+  .fromTo('#s41b', { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: 'back.out(1.6)' }, 20.35);
+
+// 3b. the delivery record: delivered May 22, seven days late
+tl.fromTo('#w-may22', { scaleX: 0 }, { scaleX: 1, duration: 0.45, ease: 'in-out-quart' }, 24.5)
+  .fromTo('#rx-del11', { opacity: 0 }, { opacity: 1, duration: 0.4 }, 24.5)
+  .fromTo('#w-del', { draw: 0 }, { draw: 1, duration: 0.7, ease: 'in-out-cubic' }, 24.9)
+  .from('#lab-del .tagline', { opacity: 0, x: -16, duration: 0.45, ease: 'power3.out' }, 25.65)
+  .from('#lab-del .note', { opacity: 0, y: 14, duration: 0.5, ease: 'power3.out' }, 25.95)
+  .to('#rc-amd11', { opacity: 0, duration: 0.3 }, 26.4)
+  .fromTo('#rx-amd11', { opacity: 0 }, { opacity: 1, duration: 0.4 }, 26.4)
+  .to('#c-amd11 .s-cur', { opacity: 0, y: -20, duration: 0.3, ease: 'power2.in' }, 26.4)
+  .fromTo('#s11b', { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: 'back.out(1.6)' }, 26.55);
+
+// 4. the whole page: every other link, then the answer
+tl.fromTo('.wire--faint', { draw: 0 }, { draw: 1, duration: 1.2, ease: 'in-out-cubic', stagger: 0.12 }, 30.0)
+  .fromTo('#ans', { y: 220, opacity: 0, filter: 'blur(16px)' }, { y: 0, opacity: 1, filter: 'blur(0px)', duration: 1.3, ease: 'expo.out' }, 31.6)
+  .fromTo('#answer ins', { backgroundColor: 'oklch(80% 0.09 274 / 0)' }, { backgroundColor: 'oklch(80% 0.09 274 / 0.24)', duration: 0.4, ease: 'power2.out' }, 37.3)
+  .fromTo('#q1', { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.6, ease: 'power3.out' }, 37.6)
+  .fromTo('#q2', { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.6, ease: 'power3.out' }, 38.3)
+  .fromTo('#q3', { opacity: 0, x: -30 }, { opacity: 1, x: 0, duration: 0.6, ease: 'power3.out' }, 39.0)
+  .fromTo('#foot .ok', { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.5, ease: 'power3.out' }, 39.9)
+  .fromTo('#n23', { textContent: 0 }, { textContent: 23, duration: 1.0, ease: 'expo.out' }, 40.0)
+  .fromTo('#foot .src', { opacity: 0, x: 24 }, { opacity: 1, x: 0, duration: 0.5, ease: 'power3.out' }, 41.4);
+
+// 5. the answer leaves; the check becomes the mark
+tl.to('#ans', { opacity: 0, scale: 0.97, filter: 'blur(10px)', x: -160, duration: 0.7, ease: 'power2.in' }, 44.4)
+  .fromTo('#mk1', { draw: 0 }, { draw: 1, duration: 0.9, ease: 'in-out-cubic' }, 45.1)
+  .fromTo('#mk2', { draw: 0 }, { draw: 1, duration: 0.4, ease: 'in-out-cubic' }, 45.7)
+  .fromTo('#mk3', { draw: 0 }, { draw: 1, duration: 0.5, ease: 'in-out-cubic' }, 46.0)
+  .fromTo('#wmword', { opacity: 0, x: -40, filter: 'blur(10px)' }, { opacity: 1, x: 0, filter: 'blur(0px)', duration: 0.9, ease: 'expo.out' }, 45.4)
+  .fromTo('#endline', { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 46.3)
+  .fromTo('#endurl', { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 46.7)
+  .fromTo('#urlline', { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: 'in-out-cubic' }, 47.6)
+  .fromTo('#shine', { xPercent: -120 }, { xPercent: 120, duration: 1.1, ease: 'in-out-sine' }, 48.1)
+  .fromTo('#wm', { scale: 0.985 }, { scale: 1.015, duration: 5, ease: 'sine.inOut' }, 45.3);
+</script>
+</body>
+</html>
