@@ -103,25 +103,103 @@
       panel.appendChild(frag);
     }
 
-    /* ---- wires ---- */
+    /* ---- wires ----
+       Connectors run like tracks: they leave a clip vertically, turn into the gutter between two lanes, and
+       cross any lane in between through a gap between its clips (or round its end), never across a clip.
+       Each crossing gets its own gap and each run its own height in the gutter, so no piece of wire floats
+       between clips it does not join. */
+    var laneEls = Array.prototype.slice.call(map.querySelectorAll('.lane'));
+    var laneIndex = {};
+    rows.forEach(function (row, i) { row.forEach(function (b) { laneIndex[b.dataset.clip] = i; }); });
+
+    function rounded(pts, radius) {
+      var clean = [pts[0]];
+      for (var i = 1; i < pts.length; i++) {
+        var q = clean[clean.length - 1];
+        if (Math.abs(pts[i][0] - q[0]) > 0.5 || Math.abs(pts[i][1] - q[1]) > 0.5) clean.push(pts[i]);
+      }
+      var d = 'M' + clean[0][0] + ' ' + clean[0][1];
+      for (var k = 1; k < clean.length - 1; k++) {
+        var p0 = clean[k - 1], p1 = clean[k], p2 = clean[k + 1];
+        var l1 = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]), l2 = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]);
+        var r = Math.min(radius, l1 / 2, l2 / 2);
+        var a = [p1[0] - (p1[0] - p0[0]) / l1 * r, p1[1] - (p1[1] - p0[1]) / l1 * r];
+        var b = [p1[0] + (p2[0] - p1[0]) / l2 * r, p1[1] + (p2[1] - p1[1]) / l2 * r];
+        d += ' L' + a[0] + ' ' + a[1] + ' Q' + p1[0] + ' ' + p1[1] + ' ' + b[0] + ' ' + b[1];
+      }
+      var last = clean[clean.length - 1];
+      return d + ' L' + last[0] + ' ' + last[1];
+    }
+
     function draw() {
       while (svg.firstChild) svg.removeChild(svg.firstChild);
       wires = [];
       if (getComputedStyle(svg).display === 'none') { mark(current, false); return; }
       var box = lanesEl.getBoundingClientRect();
+      var pad = parseFloat(getComputedStyle(lanesEl).paddingLeft) || 24;
+      var lanes = laneEls.map(function (l) {
+        var r = l.getBoundingClientRect(), name = l.querySelector('.lane__name');
+        return { top: r.top - box.top, bottom: r.bottom - box.top, labelRight: name ? name.getBoundingClientRect().right - box.left : 0 };
+      });
+      // where a wire may pass through each lane: the gaps between its clips, and both ends of the lane
+      var channels = rows.map(function (row) {
+        var rs = row.map(function (b) { return b.getBoundingClientRect(); });
+        var xs = [pad / 2, box.width - pad / 2];
+        var oneLine = rs.every(function (r) { return Math.abs(r.top - rs[0].top) < 1; });
+        if (oneLine) for (var i = 1; i < rs.length; i++) xs.push((rs[i - 1].right + rs[i].left) / 2 - box.left);
+        return xs.map(function (x) { return { x: x, used: 0 }; });
+      });
+      // a clip's attachment point: its centre, moved clear of the lane name when the wire uses the top edge
+      function attach(btn, lane, top) {
+        var r = btn.getBoundingClientRect();
+        var x = r.left + r.width / 2 - box.left, left = r.left - box.left, right = r.right - box.left;
+        if (top && x < lanes[lane].labelRight + 10) x = Math.min(lanes[lane].labelRight + 10, right - 8, Math.max(x, left + 8));
+        return [x, (top ? r.top : r.bottom) - box.top];
+      }
+      var runs = {}; // gutter index (between lane g-1 and lane g) -> the horizontal runs in it
+      var routes = [];
       data.links.forEach(function (l) {
         var a = byId[l.from], b = byId[l.to];
         if (!a || !b) return;
-        var ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect();
-        var down = ra.top > rb.top; // the source sits on a lower lane: leave from its top, arrive at the target's foot
-        var x1 = ra.left + ra.width / 2 - box.left, x2 = rb.left + rb.width / 2 - box.left;
-        var y1 = (down ? ra.top : ra.bottom) - box.top, y2 = (down ? rb.bottom : rb.top) - box.top;
-        var my = (y1 + y2) / 2;
+        var ia = laneIndex[l.from], ib = laneIndex[l.to];
+        if (ia === ib) return; // links always join two documents
+        var up = ia > ib, step = up ? -1 : 1;
+        var start = attach(a, ia, up), end = attach(b, ib, !up);
+        var pts = [start], x = start[0], segs = [];
+        for (var lane = ia; lane !== ib; lane += step) {
+          var gutter = up ? lane : lane + 1;
+          var nextLane = lane + step, nx = end[0];
+          if (nextLane !== ib) {
+            var best = null, cost = Infinity;
+            channels[nextLane].forEach(function (c) {
+              var v = Math.abs(c.x - x) + Math.abs(c.x - end[0]) + c.used * 1e4;
+              if (v < cost) { cost = v; best = c; }
+            });
+            best.used++;
+            nx = best.x;
+          }
+          var seg = { gutter: gutter, from: pts.length, y: 0 };
+          pts.push([x, 0], [nx, 0]);
+          segs.push(seg);
+          (runs[gutter] = runs[gutter] || []).push(seg);
+          x = nx;
+        }
+        pts.push(end);
+        routes.push({ link: l, pts: pts, segs: segs });
+      });
+      // spread the runs in each gutter over its height, a few pixels apart
+      Object.keys(runs).forEach(function (g) {
+        var list = runs[g], top = lanes[g - 1].bottom, bottom = lanes[g].top, mid = (top + bottom) / 2;
+        var room = Math.max(0, bottom - top - 16), gap = list.length > 1 ? Math.min(4, room / (list.length - 1)) : 0;
+        list.forEach(function (s, i) { s.y = mid + (i - (list.length - 1) / 2) * gap; });
+      });
+      routes.forEach(function (r) {
+        r.segs.forEach(function (s) { r.pts[s.from][1] = s.y; r.pts[s.from + 1][1] = s.y; });
         var p = document.createElementNS(NS, 'path');
-        p.setAttribute('d', 'M' + x1 + ' ' + y1 + ' C' + x1 + ' ' + my + ' ' + x2 + ' ' + my + ' ' + x2 + ' ' + y2);
-        p.setAttribute('class', 'wire wire--' + l.kind);
+        p.setAttribute('d', rounded(r.pts, 10));
+        p.setAttribute('class', 'wire wire--' + r.link.kind);
         svg.appendChild(p);
-        wires.push({ link: l, path: p });
+        wires.push({ link: r.link, path: p });
       });
       mark(current, false);
     }
