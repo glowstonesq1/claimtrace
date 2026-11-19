@@ -33,6 +33,10 @@ jobs:
         run: mypy
       - name: Tests (unit, API, security, privacy)
         run: pytest -q
+      - name: Evidence page data is rebuilt from the published runs (fails on any diff)
+        run: |
+          python scripts/build_site_data.py
+          git diff --exit-code -- apps/site/data apps/site/evidence/index.html
       - name: Evaluation smoke test (rules baseline, full core suite, no network)
         run: claimtrace eval run --suite core --model rules --out evals/runs/ci
       - name: Licence gate (no GPL/AGPL in runtime dependencies)
@@ -87,6 +91,12 @@ jobs:
           CLAIMTRACE_DB=/tmp/e2e.db claimtrace serve --port 8765 &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8765/health && break; sleep 1; done
           cd apps/web && npm i --no-save playwright@1.49.1 && BASE=http://127.0.0.1:8765 node e2e/smoke.mjs
+      - name: Evidence page end-to-end + accessibility (axe), static site
+        run: |
+          python scripts/build_site_data.py --check
+          python -m http.server 8766 --bind 127.0.0.1 -d apps/site &
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:8766/evidence/ >/dev/null && break; sleep 1; done
+          BASE=http://127.0.0.1:8766 node apps/site/evidence/e2e.mjs
 
   docker:
     runs-on: ubuntu-latest
