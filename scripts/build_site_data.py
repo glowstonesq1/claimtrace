@@ -345,14 +345,21 @@ def judge(r: dict, system: str) -> tuple[bool, list[str], object]:
 
 
 # ------------------------------------------------------------------ static HTML (no-JS view)
+def _2dp(v: float) -> str:
+    # Half-up on the stored 3-dp value, matching docs/evaluation.md (0.695 -> 0.70, not float's 0.69).
+    from decimal import ROUND_HALF_UP, Decimal
+
+    return str(Decimal(str(v)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+
+
 def fmt(v: float | None) -> str:
-    return "n/a" if v is None else f"{v:.2f}"
+    return "n/a" if v is None else _2dp(v)
 
 
 def fmt_ci(p: dict | None) -> str:
     if not p or p.get("v") is None or not p.get("ci"):
         return ""
-    return f"[{p['ci'][0]:.2f}, {p['ci'][1]:.2f}]"
+    return f"[{_2dp(p['ci'][0])}, {_2dp(p['ci'][1])}]"
 
 
 def fmt_range(p: dict | None) -> str:
