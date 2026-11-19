@@ -87,24 +87,43 @@ def find_quote(haystack: str, quote: str) -> tuple[int, int] | None:
 
 
 _ABBREV = re.compile(r"\b(?:e\.g|i\.e|etc|Ltd|Inc|Co|No|Mr|Ms|Dr|St|vs|cl|para|Sch|art)\.$", re.I)
-_SENT_SPLIT = re.compile(r"(?<=[.;!?])\s+(?=[A-Z(\"])")
+_CLAUSE_NO_END = re.compile(r"\b\d+\.$")
+# a sentence ends at . ; ! ? before a capital, a bracket or a quote, or before a numbered clause ("1.2 The")
+_SENT_SPLIT = re.compile(r"(?<=[.;!?])\s+(?=[A-Z(\"]|\d+(?:\.\d+)+\.?\s+[A-Z(\"])")
+# Longest "sentence" handed to extraction. Real clauses are far shorter; text with no sentence breaks at all
+# (a run-on export, a table flattened to one line) is cut at a word boundary so per-sentence work stays bounded
+# and analysis time stays linear in document length.
+MAX_SENTENCE_CHARS = 2000
+_TAIL = 24  # enough to see the longest abbreviation or clause number before a split point
+
+
+def _cut_long(start: int, seg: str, out: list[tuple[int, int, str]]) -> None:
+    while len(seg) > MAX_SENTENCE_CHARS:
+        window = seg[:MAX_SENTENCE_CHARS]
+        cut = max(window.rfind("; "), window.rfind(", "))
+        if cut < MAX_SENTENCE_CHARS // 2:
+            cut = window.rfind(" ")
+        cut = cut + 1 if cut > 0 else MAX_SENTENCE_CHARS
+        if seg[:cut].strip():
+            out.append((start, start + cut, seg[:cut]))
+        start, seg = start + cut, seg[cut:]
+    if seg.strip():
+        out.append((start, start + len(seg), seg))
 
 
 def sentences_with_offsets(text: str) -> list[tuple[int, int, str]]:
-    """Split a passage into sentences, returning (start, end, sentence) offsets."""
+    """Split a passage into sentences, returning (start, end, sentence) offsets. Linear in len(text)."""
     out: list[tuple[int, int, str]] = []
     start = 0
     for m in _SENT_SPLIT.finditer(text):
-        before = text[start : m.start()]
-        # don't split after abbreviations ("Co.") or clause numbers ("clause 2.")
-        if _ABBREV.search(before) or re.search(r"\b\d+\.$", before):
+        # don't split after abbreviations ("Co.") or clause numbers ("clause 2."); only the text just before the
+        # split point matters, so look at a short tail rather than the whole (possibly huge) run since `start`
+        tail = text[max(start, m.start() - _TAIL) : m.start()]
+        if _ABBREV.search(tail) or _CLAUSE_NO_END.search(tail):
             continue
-        seg = text[start : m.start()]
-        if seg.strip():
-            out.append((start, m.start(), seg))
+        _cut_long(start, text[start : m.start()], out)
         start = m.end()
-    if text[start:].strip():
-        out.append((start, len(text), text[start:]))
+    _cut_long(start, text[start:], out)
     return out
 
 

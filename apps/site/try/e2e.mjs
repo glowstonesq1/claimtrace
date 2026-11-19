@@ -12,7 +12,9 @@
 // a generated PDF and DOCX are read; export works; NO request leaves the local origin during the whole
 // flow (every request is routed and recorded; anything else is aborted and fails the test), and the CSP
 // blocks a deliberate cross-origin fetch from both the page and the engine worker; axe finds no serious or
-// critical issues; no horizontal scroll at 390 px; with JavaScript off the page says it needs it.
+// critical issues; no horizontal scroll at 390 px; with JavaScript off the page says it needs it; a call
+// past the watchdog limit, or a cancelled one, terminates the worker with a plain message and the next
+// action restarts it.
 
 import { execFileSync, spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -293,6 +295,48 @@ async function main() {
     await axe(mp, 'mobile');
     check(offM.length === 0, `390 px: no request left ${BASE} (${seenM.length} requests)`);
     await mob.close();
+
+    // ---- watchdog and Cancel ----------------------------------------------------------------------
+    // ?watchdog-ms shortens the page's 120 s limit for this test; it changes a timer, not the CSP. The slow
+    // file is one long run-on sentence of numbered obligations: within the size caps, but several seconds
+    // of work in Pyodide.
+    const seenS = [];
+    const offS = [];
+    const slowCtx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await guard(slowCtx, seenS, offS);
+    const sp = await slowCtx.newPage();
+    const slowErrors = [];
+    sp.on('pageerror', (e) => slowErrors.push(String(e)));
+    await sp.goto(`${BASE}/try/?watchdog-ms=3000`);
+    await sp.waitForSelector('body[data-engine="ready"]', { timeout: 180000 });
+    const slow = { name: 'slow.txt', mimeType: 'text/plain', buffer: Buffer.from('the Vendor shall deliver the item within 30 days; '.repeat(16000)) };
+    await sp.getByRole('button', { name: 'Load sample documents' }).click();
+    await sp.waitForSelector('.item', { timeout: 60000 });
+    await sp.setInputFiles('#file-input', slow);
+    await sp.getByRole('button', { name: 'Cancel' }).waitFor({ timeout: 10000 });
+    check(true, 'watchdog: Cancel shown while busy');
+    await sp.locator('#add-status', { hasText: 'This document took too long to read in the browser. Try a smaller file, or install ClaimTrace.' })
+      .waitFor({ timeout: 60000 });
+    check(true, 'watchdog: a long call is stopped with the plain message');
+    check(await sp.locator('body[data-engine="stopped"]').count() === 1, 'watchdog: the worker was terminated');
+    check(!(await sp.getByRole('button', { name: 'Cancel' }).isVisible()), 'watchdog: Cancel hidden again');
+    check(await sp.locator('.item').count() === 0, 'watchdog: the stale register is cleared');
+    check(!(await sp.locator('#load-samples').isDisabled()), 'watchdog: actions are enabled again');
+    await sp.getByRole('button', { name: 'Load sample documents' }).click();
+    await sp.waitForSelector('.item', { timeout: 180000 });
+    check(await sp.locator('body[data-engine="ready"]').count() === 1, 'watchdog: the next action restarts the engine and works');
+
+    await sp.setInputFiles('#file-input', slow);
+    await sp.getByRole('button', { name: 'Cancel' }).click();
+    await sp.locator('#add-status', { hasText: /^Stopped\./ }).waitFor({ timeout: 10000 });
+    check(await sp.locator('body[data-engine="stopped"]').count() === 1, 'cancel: the worker was terminated');
+    check(await sp.locator('.item').count() === 0, 'cancel: the register is cleared');
+    await sp.getByRole('button', { name: 'Load sample documents' }).click();
+    await sp.waitForSelector('.item', { timeout: 180000 });
+    check(await sp.locator('.item').count() >= 20, 'cancel: the next action restarts the engine and works');
+    check(slowErrors.length === 0, `watchdog and cancel: no page errors${slowErrors.length ? ': ' + slowErrors.join(' | ') : ''}`);
+    check(offS.length === 0, `watchdog and cancel: no request left ${BASE} (${seenS.length} requests)`);
+    await slowCtx.close();
   } finally {
     await browser.close();
     if (server) server.kill();

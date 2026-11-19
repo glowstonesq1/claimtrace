@@ -9,11 +9,19 @@ Check these documents with ClaimTrace: $ARGUMENTS
 If no folder or files were given, ask which folder to check (default: the current directory) before running.
 
 Use the `claimtrace` skill and follow its hard rules. If the runner reports `engine_not_installed`, follow the
-skill: ask the user once before `install --yes`; the install command is deliberately not pre-approved here. Run its runner on all the documents in one call:
+skill: ask the user once before `install --yes`; the install command is deliberately not pre-approved here.
+
+Run its runner on all the documents in one call, with `<paths>` replaced by the folder(s) or file(s) the user
+gave:
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/claimtrace/scripts/claimtrace_run.py" analyze $ARGUMENTS
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/claimtrace/scripts/claimtrace_run.py" analyze <paths>
 ```
+
+Put each path in single quotes, so a name with spaces stays one argument and the shell expands nothing in it:
+`'My Contracts'`, `'/home/me/Q3 audit/report.pdf'`. Write a single quote inside a path as `'\''`. The arguments
+above are the user's raw text: decide where each path starts and ends (a folder named `My Contracts` is one
+path), and never paste them into the command unquoted.
 
 (If `${CLAUDE_PLUGIN_ROOT}` is not set, the runner is at `skills/claimtrace/scripts/claimtrace_run.py` inside this
 plugin's folder.)

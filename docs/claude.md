@@ -131,11 +131,18 @@ never imports fastapi, uvicorn or httpx (a stub stands in for httpx where it is 
 
 ```bash
 python3 claimtrace_run.py analyze <files or folders...>     # register + cross_document findings
-python3 claimtrace_run.py ask "<question>" <files...>       # answer + verified citations
+python3 claimtrace_run.py ask --question-file - <files...> <<'CLAIMTRACE_QUESTION'   # answer + verified citations
+<question, unchanged>
+CLAIMTRACE_QUESTION
 python3 claimtrace_run.py verify <base> <other>             # one pair
 python3 claimtrace_run.py doctor                            # which engine would run, what is missing
 python3 claimtrace_run.py install --yes [--dry-run]         # only after the user agreed (see above)
 ```
+
+The question goes on stdin through a quoted heredoc so the shell never expands `$`, backticks or `$(...)` in what
+the user typed; the slash commands and SKILL.md tell Claude to do this and to single-quote every path
+(`tests/test_plugin_commands.py` runs the documented forms through `bash -c`). `ask '<question>' <files...>` still
+works for a person typing at a shell.
 
 Every quote in the output carries `quote_verified`, re-checked against the stored text. Items that fail the check
 are left out and counted (`dropped_unverified`). Exit codes: 0 ok, 2 usage (or install without --yes), 3 missing dependency, 4 bad input,
