@@ -102,3 +102,31 @@ def test_self_hosted_fonts_exist_and_are_licensed():
     families = set(re.findall(r"font-family:\s*['\"]([^'\"]+)['\"]", css))
     assert families == {"Bodoni Moda", "Geist", "Geist Mono"}
     assert len(list((SITE / "fonts").glob("OFL-*.txt"))) == 3
+
+
+def _plugin_zip_text(text: str) -> str:
+    """The part of a page or doc that describes claimtrace-plugin.zip: the paragraph that names it."""
+    paras = [p for p in re.split(r"\n\s*\n|</p>", text) if "claimtrace-plugin.zip" in p and "plugin-dir" in p]
+    assert paras, "no paragraph describes claimtrace-plugin.zip"
+    return re.sub(r"\s+", " ", " ".join(re.sub(r"<[^>]+>", "", p) for p in paras))
+
+
+def test_plugin_zip_requirements_are_stated_from_one_source() -> None:
+    """The zip bundles the engine and its pure-Python wheels, not the compiled packages; the get page and
+    docs/claude.md must say so, using the list scripts/build_skill_zip.py builds the zip's manifest from."""
+    import importlib.util
+
+    root = SITE.parents[1]
+    spec = importlib.util.spec_from_file_location("build_skill_zip", root / "scripts" / "build_skill_zip.py")
+    assert spec and spec.loader
+    builder = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(builder)
+    for source in (SITE / "get" / "index.html", root / "docs" / "claude.md"):
+        text = _plugin_zip_text(source.read_text(encoding="utf-8"))
+        assert "no install at all" not in text.lower(), f"{source.name}: false 'no install' claim"
+        for name in builder.NOT_BUNDLED:
+            assert name in text, f"{source.name}: does not say {name} must already be installed"
+        for name in builder.PURE_WHEELS:
+            assert name in text, f"{source.name}: does not say the zip bundles {name}"
+        assert "exit code 3" in text or "exits with code 3" in text, f"{source.name}: missing-dependency behaviour"
+        assert "install --yes" in text or "asks" in text, f"{source.name}: the install path is not described"
