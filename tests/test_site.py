@@ -102,3 +102,43 @@ def test_self_hosted_fonts_exist_and_are_licensed():
     families = set(re.findall(r"font-family:\s*['\"]([^'\"]+)['\"]", css))
     assert families == {"Bodoni Moda", "Geist", "Geist Mono"}
     assert len(list((SITE / "fonts").glob("OFL-*.txt"))) == 3
+
+
+def _plugin_zip_text(text: str) -> str:
+    """The part of a page or doc that describes claimtrace-plugin.zip: the paragraph that names it."""
+    paras = [p for p in re.split(r"\n\s*\n|</p>", text) if "claimtrace-plugin.zip" in p and "plugin-dir" in p]
+    assert paras, "no paragraph describes claimtrace-plugin.zip"
+    return re.sub(r"\s+", " ", " ".join(re.sub(r"<[^>]+>", "", p) for p in paras))
+
+
+def test_plugin_zip_requirements_are_stated_from_one_source() -> None:
+    """The zip bundles the engine and its pure-Python wheels, not the compiled packages; the get page and
+    docs/claude.md must say so, using the list scripts/build_skill_zip.py builds the zip's manifest from."""
+    import importlib.util
+
+    root = SITE.parents[1]
+    spec = importlib.util.spec_from_file_location("build_skill_zip", root / "scripts" / "build_skill_zip.py")
+    assert spec and spec.loader
+    builder = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(builder)
+    for source in (SITE / "get" / "index.html", root / "docs" / "claude.md"):
+        text = _plugin_zip_text(source.read_text(encoding="utf-8"))
+        assert "no install at all" not in text.lower(), f"{source.name}: false 'no install' claim"
+        for name in builder.NOT_BUNDLED:
+            assert name in text, f"{source.name}: does not say {name} must already be installed"
+        for name in builder.PURE_WHEELS:
+            assert name in text, f"{source.name}: does not say the zip bundles {name}"
+        assert "exit code 3" in text or "exits with code 3" in text, f"{source.name}: missing-dependency behaviour"
+        assert "install --yes" in text or "asks" in text, f"{source.name}: the install path is not described"
+
+
+def test_no_scored_once_claims() -> None:
+    """docs/evaluation.md records that both sealed sets were re-scored after the review fixes (v2-postfix, identical
+    numbers) and that the holdout was also scored at v0.1, so "scored once" is false wherever it appears."""
+    root = SITE.parents[1]
+    files = [root / "README.md", *sorted((root / "docs").glob("*.md")), root / "scripts" / "build_site_data.py",
+             *[p for p in SITE.rglob("*") if p.suffix in (".html", ".js", ".json") and "pyodide" not in p.parts
+               and "vendor" not in p.parts]]
+    claim = re.compile(r"(?<!re-)scored\s+(?:exactly\s+)?once|\bone\s+scoring\b|\bonly\s+scored\s+once", re.I)
+    found = [f"{p.relative_to(root)}: {m.group(0)}" for p in files for m in claim.finditer(p.read_text(encoding="utf-8"))]
+    assert not found, found

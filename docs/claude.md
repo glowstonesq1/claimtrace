@@ -117,8 +117,16 @@ environment there (`python -m venv`) and runs
 system changes. The plugin's slash commands do not pre-approve `install`, so Claude Code also asks for permission
 before running it. `install --yes --dry-run` shows the steps without running them. To remove it, delete the folder.
 If you prefer, install ClaimTrace yourself (`pipx install 'git+https://github.com/glowstonesq1/claimtrace@v0.3.0'`)
-or download the release's `claimtrace-plugin.zip`, which includes the engine, unzip it into a folder, and start
-Claude Code with `claude --plugin-dir <that folder>`.
+or use the release's `claimtrace-plugin.zip` (below).
+
+Or unzip the release's `claimtrace-plugin.zip` into a folder and start Claude Code with
+`claude --plugin-dir <that folder>`. The zip contains the plugin, the ClaimTrace engine and its pure-Python
+dependencies (pypdf, python-docx, defusedxml). It does not contain the compiled packages, which must already be
+installed for the `python3` that runs the runner (3.11 or newer): pydantic 2 with pydantic_core, and lxml for
+`.docx` files (the list is `NOT_BUNDLED` in `scripts/build_skill_zip.py`). If one is missing, the runner exits
+with code 3 (`"error": "missing_dependency"`) and a message naming the package and the `pip install` command;
+Claude shows it and installs nothing on its own. To have the plugin install them instead, ask Claude to run
+`claimtrace_run.py install --yes`, which creates the private engine described above with all of its dependencies.
 
 Maintainers: the tag `v0.3.0` must exist when this plugin version is published, and `INSTALL_TAG` in
 `claimtrace_run.py` moves with each release.

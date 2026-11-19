@@ -7,7 +7,7 @@ the benchmark was built and protected from the people who wrote the system, and 
 
 Protocol: a new amendment-only set (`evals/datasets/amendments-v2`, 50 cases) was written by a blind agent
 that never saw the code, committed with a SHA-256 manifest **before** the v0.2 engine was scored, and scored
-exactly once. The v0.2 engine was tuned only on the core set and its own unit fixtures; nobody tuning it
+without any tuning on it (re-scored once after the review fixes, below, with identical results). The v0.2 engine was tuned only on the core set and its own unit fixtures; nobody tuning it
 opened the sealed sets. The v0.1 engine (tag point `main@5e23b12`) was run on the same new set as a baseline.
 
 | Metric | v0.1 on amendments-v2 | **v0.2 on amendments-v2** | keyword floor | v0.1 holdout | **v0.2 holdout** |
@@ -29,7 +29,7 @@ tuning purposes; v0.3 needs another fresh one. Runs: `evals/runs/published/v2-*`
 `v1-amendments-v2-rules`.
 
 After the release review's correctness and security fixes (ReDoS, exact heading targets, hidden-text
-hardening), both sealed sets were re-scored once (`v2-postfix-*`): every metric is identical, so the
+hardening), both sealed sets were re-scored (`v2-postfix-*`; for the holdout this was its third scoring, after v0.1 and v0.2): every metric is identical, so the
 numbers above describe the shipped code.
 
 ## TL;DR (v0.1.0, rules baseline, no language model)

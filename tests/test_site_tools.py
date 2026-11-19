@@ -116,3 +116,39 @@ def test_the_real_site_links_resolve_after_injection(tmp_path: Path) -> None:
     assert inject_partials.main(["--site", str(site)]) == 0
     assert inject_partials.main(["--site", str(site), "--check"]) == 0
     assert check_links.check(site, {"try", "evidence"}) == []
+
+
+# ------------------------------------------------------------------------------------------- workflows
+
+WORKFLOWS = ROOT / ".github" / "workflows"
+
+
+def test_only_release_workflow_uploads_release_assets() -> None:
+    """ci.yml (on release) and release.yml (on tags) both uploaded the zips with --clobber and raced."""
+    assert "gh release upload" not in (WORKFLOWS / "ci.yml").read_text()
+    assert "gh release upload" in (WORKFLOWS / "release.yml").read_text()
+
+
+def test_pages_rebuilds_when_its_inputs_change() -> None:
+    text = (WORKFLOWS / "pages.yml").read_text()
+    paths = text.split("paths:", 1)[1].split("workflow_dispatch", 1)[0]
+    for needed in ('"examples/documents/**"', '"pyproject.toml"'):
+        assert needed in paths, f"pages.yml path filter misses {needed}"
+
+
+def test_pages_checks_links_after_building_the_try_bundle() -> None:
+    text = (WORKFLOWS / "pages.yml").read_text()
+    assert text.index("run: python scripts/build_try_bundle.py") < text.index("run: python scripts/check_links.py")
+
+
+def test_check_links_follows_json_manifests_fetched_by_scripts(tmp_path: Path) -> None:
+    site = tmp_path / "site"
+    (site / "try" / "samples").mkdir(parents=True)
+    (site / "try" / "index.html").write_text('<script type="module" src="try.js"></script>')
+    (site / "try" / "try.js").write_text("const names = await (await fetch('samples/index.json')).json();\n"
+                                         "await fetch('missing.json');\n")
+    (site / "try" / "samples" / "index.json").write_text('["a.md", "gone.md"]')
+    (site / "try" / "samples" / "a.md").write_text("# A")
+    errors = "\n".join(check_links.check(site, set(), require_built=True))
+    assert "gone.md" in errors and "a.md -> " not in errors
+    assert "missing.json" in errors

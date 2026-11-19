@@ -42,6 +42,11 @@ SKILL_NAME = "claimtrace"
 # subpackages the skill needs (import closure of ingestion + extraction + verification)
 EXCLUDE_PACKAGES = {"claimtrace.cli", "claimtrace.evaluation", "claimtrace.api"}
 PURE_WHEELS = ["pypdf", "python-docx", "defusedxml"]
+# Compiled packages the zips do NOT bundle; they must already be installed for the Python that runs the runner.
+# The get page and docs/claude.md state this list (tests/test_site.py checks them against it).
+NOT_BUNDLED = {"pydantic": "version 2; compiled; expected preinstalled",
+               "pydantic_core": "compiled (comes with pydantic); expected preinstalled",
+               "lxml": "compiled; needed for .docx only; expected preinstalled"}
 ZIP_LIMIT_BYTES = 8 * 1024 * 1024  # stay well under claude.ai's upload limit
 
 
@@ -136,8 +141,7 @@ def skill_tree(wheels: list[Path]) -> dict[str, bytes]:
         "engine": {"name": "claimtrace", "version": version, "git_commit": git_commit(),
                    "files": {rel: hashlib.sha256(src.read_bytes()).hexdigest() for rel, src in engine.items()}},
         "wheels": {w.name: hashlib.sha256(w.read_bytes()).hexdigest() for w in wheels},
-        "not_bundled": {"pydantic (+ pydantic_core)": "compiled; expected preinstalled",
-                        "lxml": "compiled; needed for .docx only; expected preinstalled"},
+        "not_bundled": NOT_BUNDLED,
     }
     files["vendor/MANIFEST.json"] = (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode()
     return files
