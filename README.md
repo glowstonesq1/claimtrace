@@ -60,7 +60,7 @@ v0.2 rules engine, no language model. Ranges are 95% bootstrap intervals.
 
 Benchmark: 140 core cases, 46 sealed holdout cases (scored at v0.1 and v0.2) and 50 sealed amendment cases
 (added in v0.2). The sealed sets were scored without tuning, and re-scored once after the v0.2 review fixes with
-identical results. Both sets are synthetic and were written by isolated agents that did not see the code. The
+identical results. Both sets are synthetic, written by a language model without access to the code. The
 holdout set was never opened before scoring.
 
 </details>
@@ -266,7 +266,7 @@ leaves it. Details: [docs/security.md](docs/security.md), [docs/privacy.md](docs
 | [`evals/`](evals/) | Test-set schema, datasets and published runs |
 | [`examples/`](examples/) | The four fictional sample documents and their outputs |
 | [`scripts/`](scripts/) | Site data, link checks, the browser bundle and the skill zips |
-| [`docs/`](docs/) | Architecture, evaluation, security, privacy, roadmap; [figure sources](docs/img/frames/) |
+| [`docs/`](docs/) | Architecture, evaluation, security, privacy, roadmap, project journey; [figure sources](docs/img/frames/) |
 
 ### Development
 
@@ -280,9 +280,18 @@ make eval                                  # run the core evaluation suite
 
 The [changelog](CHANGELOG.md) lists what changed in each release.
 
-### Roadmap, contributing, licence
+### Project journey
+
+ClaimTrace started (v0.1) as an offline rules engine with a sealed test set it was never tuned on. v0.2 made it
+better at amendments and published that four in ten amendment verdicts on unseen wording are still wrong. v0.3
+made it usable without installing (in the browser, in claude.ai, in Claude Code), and v0.4 redesigned the website.
+The short version, with how the numbers were kept honest: [docs/journey.md](docs/journey.md).
+
+### Roadmap and contributing
 
 - [Roadmap](docs/roadmap.md): an external held-out set, language-model baselines, table structure.
 - [Contributing](docs/contributing.md) and [good first issues](docs/good-first-issues.md).
-- [Design review](docs/design-review.md): the 11-reviewer panel and the 24 decisions behind v0.1.
-- Licensed under [Apache-2.0](LICENSE). See [NOTICE.md](NOTICE.md) for third-party components.
+
+### License and credits
+
+Apache-2.0 ([LICENSE](LICENSE)). Third-party components and their licences: [NOTICE.md](NOTICE.md).

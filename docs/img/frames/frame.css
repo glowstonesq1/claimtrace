@@ -1,4 +1,4 @@
-/* Figure frames for the README and docs. Dusk ledger: the site's tokens (apps/site/tokens.css), its fonts,
+/* Figure frames for the README and docs: the site's tokens (apps/site/tokens.css), its fonts,
    its evening sky and its smoked glass. Every colour goes through a token. */
 :root {
   --frame-w: 1200px;

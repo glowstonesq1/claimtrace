@@ -1,3 +1,5 @@
+/* Home page styles. Shared chrome (nav, footer, buttons) is in chrome.css; the evidence map is in graph.css;
+   tokens are in tokens.css. */
 @import url("./chrome.css");
 @import url("./graph.css");
 

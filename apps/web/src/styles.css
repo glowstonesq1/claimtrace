@@ -1,5 +1,4 @@
-/* Hallmark · shape: app screen · genre: modern-minimal · theme: custom (ClaimTrace reviewer tool) · posture: restrained · nav: one-line top bar, wordmark and three destinations · footer: one centred line of facts · hero: none, an app screen · job: read contracts and check quotes · font: system-ui stack, no web fonts (local-first, no network) · signature: the verbatim quote with its location */
-/* Hallmark · pre-emit critique: P4 H4 E4 S4 R5 V3 · weakest: V, the layout is the familiar list-plus-source split; kept because reviewers read the quote beside its source and the split is the job */
+/* Self-hosted reviewer UI. System font stack, no web fonts (local-first, no network). */
 
 /* ------------------------------------------------------------------ tokens */
 :root {

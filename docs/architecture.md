@@ -4,7 +4,7 @@ Describes commit 1899c3c; section 1 (module map) and section 8 (other hosts) are
 
 This document describes how the code is organised and how a request moves through it. It
 describes the code as it is. Where the code differs from `docs/product-spec.md` or
-`docs/design-review.md`, the difference is stated. ClaimTrace is a document-review aid, not
+the design decisions in [section 9](#9-design-decisions), the difference is stated. ClaimTrace is a document-review aid, not
 legal advice.
 
 ## 1. Module map
@@ -137,7 +137,7 @@ concrete.
 | `Store` | `core/store.py` | SQLite only. All reads and writes of documents, passages, objects, edges, runs, answers, verifications, reviews, tombstones and the egress log go through it. |
 | `LLMProvider` | `integrations/llm.py` (a `Protocol`: `name`, `model`, `host`, `external`, `complete_json(system, user) -> dict`) | `None` (rules only, the default), `OpenAICompatible` (OpenAI, Ollama `/v1`, vLLM, LM Studio, llama.cpp server), `FakeProvider` (tests). |
 
-Why there are no other seams yet (design-review §6.4, D11): no Postgres, graph-database or
+Why there are no other seams yet (D11 in section 9): no Postgres, graph-database or
 vector-store adapter exists, and building an interface with a single implementation would be
 speculative. Retrieval is a concrete BM25 class; extractors are plain functions called from
 `execute_run`. `Store` is a concrete class, not an abstract base; a second backend would
@@ -348,3 +348,50 @@ item whose quote does not re-check against the stored text and counts it (`dropp
 `evaluation` and `api`) plus the pure-Python wheels pinned in `requirements.lock`; pydantic and lxml are compiled
 and must already be present. `tests/test_skill_bundle.py` runs the built zip in a fresh virtual environment with
 sockets and subprocesses blocked.
+
+## 9. Design decisions
+
+These decisions were made in a design review before v0.1 and still hold unless a section above says otherwise.
+Code comments and other docs cite them as `design-review Dn` or just `Dn`.
+
+| ID | Decision | Rationale | Reversible? |
+|---|---|---|---|
+| D1 | The v0.1 demo and messaging lead with **amendment drift**: contract + amendment(s) → register showing what governs now, with original and amended text side by side. Other journeys work but are secondary. | It is the one job a chat tool does not do reliably; it needs persistent multi-document state and a review trail. | Yes, messaging only. |
+| D2 | Commitment status splits into `document_effect` (in_force, amended, replaced, deleted, superseded) and `lifecycle` (open, fulfilled, disputed, unknown). Lifecycle is **set only by a human**. The brief's single `status` is still exposed as a derived field for compatibility. | Contract reviewer: the two axes conflate. Answers open question 2. | Yes. |
+| D3 | Commitment adds `performer_party`, `modality` (must / must_not / may / reasonable_efforts), `deadline.kind` (absolute, relative, recurring, vague) with `anchor` + `offset`, and `exceptions` / `subject_to`. A date is computed only when the anchor is resolved. | Contract reviewer. Never guess dates. | Yes, additive. |
+| D4 | **Two-stage grounding check.** (1) The quote must occur verbatim, after whitespace/quote normalisation, in the cited passage. (2) A qualifier scan of that sentence and the next sentence for *except, unless, subject to, notwithstanding, provided that, save that, not*. A hit adds a caveat and caps confidence at medium. | Red team: a verbatim quote can be wrong in context. | Yes. |
+| D5 | Confidence stays categorical and rule-derived (high/medium/low/unknown, rules in `docs/commitment-model.md`). The UI shows plain wording ("Found in text — check §2.1") and every answer carries "Only covers the documents you uploaded". | End-user advocate: prevents over-trust. | Yes. |
+| D6 | Evidence checks (contract vs audit/evidence) never return a bare "consistent". The result is `evidence_located` plus `sufficiency: reviewer_judgement_required`; the UI says "Evidence found — you decide if it is enough". The verdict enum is unchanged; `consistent` in this mode means *the located text agrees with the stated term* and nothing more. | Audit reviewer. | Yes. |
+| D7 | Review decisions are **append-only** rows (reviewer name, self-declared flag, UTC time, prior state, target content hash). Current state is derived from the latest row. | Audit trail. | Yes. |
+| D8 | Each analysis/ask/verify stores a **run manifest**: document checksums, normalised-text hash, parser, normaliser, extractor and prompt versions, model, endpoint host, config. Exports embed it. | Reproducibility. | Yes. |
+| D9 | Normalised text is stored once per document with `text_sha256` and `normalizer_version`. Spans index into it. Re-analysis never mutates offsets; a parser change means a new document version. | Offset stability. | Yes. |
+| D10 | `POST /documents/{id}/analyze` returns **202 + AnalysisRun**. It runs in-process in a background thread. A unique key on (document, text hash, extractor version) gives idempotency. | Backend. | Yes. |
+| D11 | SQLite with `foreign_keys=ON`, WAL, `ON DELETE CASCADE`, numbered migrations from day one. A `Store` class is the single persistence seam. No Postgres adapter in v0.1. | Backend, maintainer. | Yes (seam exists). |
+| D12 | Parsing runs in a **subprocess with CPU, memory and time limits**. DOCX: defusedxml, per-member compression-ratio cap, reject macros/OLE/external relationships. PDF: reject encrypted files, `/JavaScript`, `/Launch` and `/EmbeddedFile`; detect scanned (no text layer) and say so loudly. | Security. | Yes. |
+| D13 | Server binds **127.0.0.1** by default. CORS allows the UI origin only. Unsafe methods require a same-origin `Origin`. An optional bearer token (`CLAIMTRACE_API_TOKEN`) is required whenever the bind is non-loopback. | Security. Localhost drive-by attacks. | Yes. |
+| D14 | External LLM providers (any non-loopback endpoint) need a global setting **and** a per-document `allow_external_llm` flag. Each send is logged locally (host, doc ID, byte count). A local Ollama endpoint needs only the global setting. | Privacy. | Yes. |
+| D15 | Delete removes all content and derived rows, then runs WAL checkpoint and VACUUM, leaving a content-free tombstone. A canary-string test greps the database file afterwards. Retention purge runs on a timer and at startup, keyed to upload time. | Privacy + audit. | Yes. |
+| D16 | No telemetry, no update checks, no CDN assets. Tests fail on any outbound socket in the default suite. | Privacy. | Yes. |
+| D17 | UI: **4 destinations** (Library, Document, Ask, Verify). Review is a filter and a count badge, not a page. Report and CSV are actions. Graph shown as an accessible path ("MSA §2.1 → replaced by Amendment 1 §1.1") plus a related-items table. The interactive force graph is deferred. | UX, end-user advocate, strategist. | Yes. |
+| D18 | Plain-language labels in the UI; API enums stay precise. Mapping: stated → "Stated", contradicted → "Conflicts", not_addressed → "Not mentioned", ambiguous → "Unclear — please read", needs_human_review → "Needs your review", partially_supported → "Partly supported". | End-user advocate. | Yes. |
+| D19 | React + Vite SPA built to static files and served by FastAPI. One process, one container, no Node at runtime. | UX, backend. | Yes. |
+| D20 | Two install paths: `pip install -e . && claimtrace serve` (no Docker) and `docker compose up`. A desktop bundle is deferred. | End-user advocate. | Yes. |
+| D21 | Apache-2.0. Parsers: pypdf (BSD), python-docx (MIT), defusedxml (PSF). A CI licence gate fails on GPL/AGPL. | Maintainer. | Yes. |
+| D22 | Eval metric definitions are fixed in `docs/evaluation.md` before the extractor is tuned. Report bootstrap 95% CIs and per-suite n. Include a trivial keyword baseline. At least 25% of QA cases have not-found gold. No "A beats B" claim inside the CIs. | ML researcher. | Yes. |
+| D23 | Bundled sample documents (CC0, fictional) and a "Load sample documents" button, so the first run shows value with zero uploads. | Maintainer, end-user advocate. | Yes. |
+| D24 | Verify is a pipeline: pair candidates by clause number, party, type and lexical overlap, then compare normalised fields (date, amount, duration, percentage, modality, polarity). Weak pairings become `needs_human_review`, never `consistent`. | ML researcher. A false clear is worse than a false alarm. | Yes. |
+
+### Ideas considered and rejected (for now)
+
+| Idea | Why rejected (for now) |
+|---|---|
+| Numeric confidence scores / ECE | No calibrated probability exists; n≈120 makes ECE noise. Categorical + per-bucket accuracy instead. |
+| Fine-tuned NLI model for contradiction | Data too small; typed field comparison plus an optional LLM is more auditable. |
+| Seven separately versioned Python packages | Release matrix no one maintains. One distribution, subpackages in the brief's layout, import direction tested. |
+| Next.js | Adds a Node server for a single-user, self-hosted tool. Vite SPA meets the "React" requirement. |
+| Interactive force-directed graph in v0.1 | Inaccessible, unreadable past ~50 nodes, no persona job depends on it. |
+| Separate "Review queue" page | Review is a state of items; a filter avoids drift between views. |
+| Auto-redaction of PII before LLM calls | Unreliable; gives false assurance. Per-document opt-in gate first. |
+| Clause "risk scores" | Reads as legal advice. |
+| PyMuPDF | AGPL-3.0 conflicts with Apache-2.0 distribution. |
+| SQLCipher / field encryption | No key management story in single-user v0.1; document disk encryption instead. |
