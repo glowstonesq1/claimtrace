@@ -27,6 +27,9 @@
 .clip-slot { display: flex; flex: 1 1 2.25rem; min-width: 2.25rem; }
 .clip-slot--replaced { min-width: 3.75rem; }
 .clip-slot--w2 { flex-grow: 2; } .clip-slot--w3 { flex-grow: 3; } .clip-slot--w4 { flex-grow: 4; } .clip-slot--w5 { flex-grow: 5; } .clip-slot--w6 { flex-grow: 6; }
+/* A clause alone on a wrapped row should not stretch across the whole lane. */
+.clip-slot { max-width: calc(var(--w, 1) * 7rem); }
+.clip-slot--w2 { --w: 2; } .clip-slot--w3 { --w: 3; } .clip-slot--w4 { --w: 4; } .clip-slot--w5 { --w: 5; } .clip-slot--w6 { --w: 6; }
 .clip { display: inline-flex; flex: 1; align-items: center; justify-content: center; gap: var(--space-2xs); min-height: 44px; padding: 0 var(--space-2xs); border: var(--rule-hair) solid var(--color-rule-2); border-radius: var(--radius-clip); background: var(--color-paper-3); box-shadow: var(--edge-light); color: var(--color-ink); font-size: var(--text-xs); cursor: pointer; transition: transform var(--dur-micro) var(--ease-out), box-shadow var(--dur-short) var(--ease-out), background-color var(--dur-short) var(--ease-out); }
 .clip .icon { width: 0.95em; height: 0.95em; opacity: 0.8; }
 .clip--in-force { border-color: color-mix(in oklab, var(--sig-current-mark) 55%, var(--color-sheet)); background: linear-gradient(180deg, var(--color-sheet), var(--sig-current-wash)); color: var(--sig-current); }
@@ -94,7 +97,7 @@
 /* Clause states beyond the home page's: needs review, the answer, "not mentioned" */
 .clip-slot--review { min-width: 3.75rem; }
 .clip--review { border-color: var(--sig-replaced-mark); background: linear-gradient(180deg, var(--color-sheet), var(--sig-replaced-wash)); color: var(--sig-replaced); }
-.clip-slot--answer, .clip-slot--absent { flex: 0 1 auto; }
+.clip-slot--answer, .clip-slot--absent { flex: 0 1 auto; max-width: none; }
 .clip--answer, .clip--absent { padding: 0 var(--space-sm); white-space: nowrap; }
 .clip--answer { border-color: var(--color-accent); background: var(--sig-current-wash); color: var(--color-accent); font-weight: 600; }
 .clip--absent { border-style: dashed; background: var(--color-sheet); color: var(--color-ink-2); }
