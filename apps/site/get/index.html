@@ -4,13 +4,13 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Get ClaimTrace: browser, Claude, Claude Code, local or Docker</title>
-<meta name="description" content="Five ways to use ClaimTrace, by situation: in your browser with nothing uploaded, as a Claude.ai skill, as a Claude Code plugin, installed locally, or with Docker. Exact steps, and where your documents go for each.">
+<title>Get ClaimTrace: in the browser, with Claude, or self-hosted</title>
+<meta name="description" content="Three ways to use ClaimTrace: in your browser with nothing uploaded, with Claude (a Claude.ai skill or a Claude Code plugin), or self-hosted with Docker or from source. Exact steps, what each needs, and where your documents go.">
 <link rel="canonical" href="https://glowstonesq1.github.io/claimtrace/get/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="ClaimTrace">
 <meta property="og:title" content="Get ClaimTrace">
-<meta property="og:description" content="Pick the way that fits: browser, Claude, Claude Code, terminal or Docker. Each path says where your documents go.">
+<meta property="og:description" content="Three ways: in the browser, with Claude, or self-hosted. Each says what it needs and where your documents go.">
 <meta property="og:url" content="https://glowstonesq1.github.io/claimtrace/get/">
 <meta property="og:image" content="https://glowstonesq1.github.io/claimtrace/media/claimtrace-promo.jpg">
 <meta property="og:image:alt" content="The ClaimTrace register beside the source contract.">
@@ -18,10 +18,14 @@
 <link rel="preload" href="../fonts/instrument-sans-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="../fonts/figtree-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../fonts.css">
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../pages.css">
 <script src="../head.js"></script>
 </head>
 <body>
+<svg class="visually-hidden" aria-hidden="true" focusable="false">
+  <symbol id="i-supports" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75"/><path d="M5.25 8.25l1.9 1.9 3.6-4.1"/></symbol>
+  <symbol id="i-review" viewBox="0 0 16 16"><path d="M8 2.25l6 11H2z"/><path d="M8 6.75v3"/><path d="M8 11.6v.1"/></symbol>
+</svg>
 <!-- nav -->
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav">
@@ -41,19 +45,30 @@
 <main id="main">
 
   <section class="page-head" aria-labelledby="get-title">
-    <div class="container page-head__grid">
-      <div>
-        <h1 id="get-title">Get ClaimTrace</h1>
-        <p class="lead">Pick the line that sounds like you. Each way says where your documents go.</p>
-      </div>
+    <div class="container">
+      <h1 id="get-title">Get ClaimTrace</h1>
+      <p class="lead">Three ways to run the same engine. Pick by where your documents may go.</p>
       <nav aria-label="Ways to get ClaimTrace">
-        <ul class="index">
-          <li><a href="#browser"><span class="index__label">I can’t install software</span><span class="index__what">Use it in your browser</span></a></li>
-          <li><a href="#claude"><span class="index__label">I use Claude</span><span class="index__what">Add the skill to Claude.ai</span></a></li>
-          <li><a href="#claude-code"><span class="index__label">I use Claude Code</span><span class="index__what">Install the plugin</span></a></li>
-          <li><a href="#install"><span class="index__label">I’m comfortable with a terminal</span><span class="index__what">Install it locally</span></a></li>
-          <li><a href="#docker"><span class="index__label">My IT team wants Docker</span><span class="index__what">Run it with Docker Compose</span></a></li>
-        </ul>
+        <ol class="paths">
+          <li><a class="path-card" href="#browser">
+            <span class="path-card__name">In the browser</span>
+            <span class="path-card__for">For anyone. No install, no account.</span>
+            <span class="path-card__row"><span class="path-card__k">Needs</span> A current desktop browser</span>
+            <span class="path-card__row"><span class="path-card__k">Documents</span> <span class="status status--supported"><svg class="icon" aria-hidden="true"><use href="#i-supports"/></svg>Stay in the tab</span></span>
+          </a></li>
+          <li><a class="path-card" href="#claude">
+            <span class="path-card__name">With Claude</span>
+            <span class="path-card__for">A skill for Claude.ai, or a plugin for Claude Code.</span>
+            <span class="path-card__row"><span class="path-card__k">Needs</span> A Claude plan with skills and code execution, or Claude Code</span>
+            <span class="path-card__row"><span class="path-card__k">Documents</span> <span class="status status--review"><svg class="icon" aria-hidden="true"><use href="#i-review"/></svg>Go to Anthropic</span></span>
+          </a></li>
+          <li><a class="path-card" href="#self-host">
+            <span class="path-card__name">Self-host</span>
+            <span class="path-card__for">The full app on your own machine or server.</span>
+            <span class="path-card__row"><span class="path-card__k">Needs</span> Docker, or Python 3.11+ and Node 20+</span>
+            <span class="path-card__row"><span class="path-card__k">Documents</span> <span class="status status--supported"><svg class="icon" aria-hidden="true"><use href="#i-supports"/></svg>Stay on your machine</span></span>
+          </a></li>
+        </ol>
       </nav>
     </div>
   </section>
@@ -61,19 +76,20 @@
   <section class="way" id="browser" aria-labelledby="browser-title">
     <div class="container way__grid">
       <div class="way__head">
-        <h2 id="browser-title">I can’t install software</h2>
-        <p>Use the try page. The real engine runs inside the browser tab, with no account.</p>
+        <h2 id="browser-title">In the browser</h2>
+        <p>The real engine runs inside the browser tab, with no account and nothing to install.</p>
+        <dl class="facts">
+          <div><dt>What it needs</dt><dd>A current desktop browser: Chrome, Edge, Firefox or Safari. The first visit downloads about 18 MB.</dd></div>
+          <div><dt>Where your documents go</dt><dd>Nowhere. Your file is read inside the tab and never uploaded. Close the tab and it is gone.</dd></div>
+        </dl>
       </div>
       <div class="way__body">
         <ol class="steps">
           <li><p>Open <a href="../try/">the try page</a> in a current desktop browser. The first visit downloads the engine, so give it a moment.</p></li>
           <li><p>Load the sample documents, or choose your own contract, amendment or report.</p></li>
-          <li><p>Build the register, ask a question, or check one document against another.</p></li>
+          <li><p>Read who owes what, ask a question, or check one document against another.</p></li>
         </ol>
-        <dl class="where">
-          <dt>Where your documents go</dt>
-          <dd>Nowhere. Your file is read inside the tab and never uploaded. Close the tab and it is gone.</dd>
-        </dl>
+        <p class="way__limit">The browser version uses the rules engine only: no language model, and no OCR for scanned PDFs.</p>
         <div class="actions"><a class="btn" href="../try/" aria-describedby="browser-private">Try it in your browser</a><p class="actions__note" id="browser-private">Nothing is uploaded.</p></div>
       </div>
     </div>
@@ -82,10 +98,15 @@
   <section class="way" id="claude" aria-labelledby="claude-title">
     <div class="container way__grid">
       <div class="way__head">
-        <h2 id="claude-title">I use Claude</h2>
-        <p>Add ClaimTrace to Claude.ai as a skill. Claude then runs the engine on documents you attach. Your plan needs skills and code execution; a work or school account may need an administrator to allow them.</p>
+        <h2 id="claude-title">With Claude</h2>
+        <p>Claude runs the engine for you on documents you attach, and answers with its quotes. Two ways in: a skill for Claude.ai, or a plugin for Claude Code.</p>
+        <dl class="facts">
+          <div><dt>What it needs</dt><dd>Claude.ai: a plan with skills and code execution; a work or school account may need an administrator to allow them. Claude Code: the plugin, and Python 3.11 or newer.</dd></div>
+          <div><dt>Where your documents go</dt><dd class="is-warn">To Anthropic. Do not use this path for documents you may not share with Anthropic.</dd></div>
+        </dl>
       </div>
       <div class="way__body">
+        <h3 class="way__sub">On Claude.ai, as a skill</h3>
         <ol class="steps">
           <li><p>Download <a href="https://github.com/glowstonesq1/claimtrace/releases/latest/download/claimtrace-skill.zip"><code>claimtrace-skill.zip</code></a> from the latest release. Do not unzip it.</p></li>
           <li><p>In Claude.ai’s settings, turn on code execution, then upload <code>claimtrace-skill.zip</code> as a skill and make sure it is switched on. The exact menu names can change; look for the skills and code execution settings.</p></li>
@@ -99,17 +120,8 @@
           <dd>To Anthropic. The files you attach, and the results, are processed by Claude under your plan’s terms, as in any chat. The engine runs in Claude’s code sandbox. Do not use this path for documents you may not share with Anthropic.</dd>
         </dl>
         <p class="way__more"><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/claude.md">Using ClaimTrace with Claude, in full</a></p>
-      </div>
-    </div>
-  </section>
 
-  <section class="way" id="claude-code" aria-labelledby="claude-code-title">
-    <div class="container way__grid">
-      <div class="way__head">
-        <h2 id="claude-code-title">I use Claude Code</h2>
-        <p>Install the plugin from this repository’s marketplace, then use its two commands or just ask.</p>
-      </div>
-      <div class="way__body">
+        <h3 class="way__sub" id="claude-code">In Claude Code, as a plugin</h3>
         <ol class="steps">
           <li><p>In Claude Code, add the marketplace:</p>
             <div class="cmd"><pre><code>/plugin marketplace add glowstonesq1/claimtrace</code></pre></div>
@@ -133,13 +145,35 @@
     </div>
   </section>
 
-  <section class="way" id="install" aria-labelledby="install-title">
+  <section class="way" id="self-host" aria-labelledby="self-title">
     <div class="container way__grid">
       <div class="way__head">
-        <h2 id="install-title">I’m comfortable with a terminal</h2>
-        <p>Run the full app on your own machine. Needs Python 3.11+ and Node 20+.</p>
+        <h2 id="self-title">Self-host</h2>
+        <p>The full app, with its web interface and command line, on your own machine or a server your IT team runs.</p>
+        <dl class="facts">
+          <div><dt>What it needs</dt><dd>Docker with Compose, or Python 3.11+ and Node 20+. Git to get the code.</dd></div>
+          <div><dt>Where your documents go</dt><dd>Nowhere else. Nothing leaves your machine by default, and a test enforces it.</dd></div>
+        </dl>
       </div>
       <div class="way__body">
+        <h3 class="way__sub" id="docker">With Docker Compose</h3>
+        <p>One Compose file. It serves on 127.0.0.1:8000 only, as a non-root user with a read-only filesystem.</p>
+        <ol class="steps">
+          <li><p>Get the code and start it:</p>
+            <div class="cmd"><pre><code>git clone https://github.com/glowstonesq1/claimtrace
+cd claimtrace
+docker compose up --build</code></pre></div>
+          </li>
+          <li><p>Open http://127.0.0.1:8000 and click Load sample documents.</p></li>
+          <li><p>Before you expose it beyond this host, read the security model. It refuses to listen on another address without CLAIMTRACE_API_TOKEN set.</p></li>
+        </ol>
+        <dl class="where">
+          <dt>Where your documents go</dt>
+          <dd>Into the claimtrace-data volume on that host, and nowhere else by default.</dd>
+        </dl>
+        <p class="way__more"><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/security.md">Security model, for your IT team</a></p>
+
+        <h3 class="way__sub" id="install">From source, in a terminal</h3>
         <ol class="steps">
           <li><p>Get the code and set it up:</p>
             <div class="cmd"><pre><code>git clone https://github.com/glowstonesq1/claimtrace
@@ -160,31 +194,6 @@ make dev</code></pre></div>
           <dd>Nowhere. Nothing leaves your machine by default, and a test enforces it. A hosted model, if you add one, sees only documents you approve.</dd>
         </dl>
         <p class="way__more"><a href="https://github.com/glowstonesq1/claimtrace#quickstart">The quickstart in the README</a></p>
-      </div>
-    </div>
-  </section>
-
-  <section class="way" id="docker" aria-labelledby="docker-title">
-    <div class="container way__grid">
-      <div class="way__head">
-        <h2 id="docker-title">My IT team wants Docker</h2>
-        <p>One Compose file. It serves on 127.0.0.1:8000 only, as a non-root user with a read-only filesystem.</p>
-      </div>
-      <div class="way__body">
-        <ol class="steps">
-          <li><p>Get the code and start it:</p>
-            <div class="cmd"><pre><code>git clone https://github.com/glowstonesq1/claimtrace
-cd claimtrace
-docker compose up --build</code></pre></div>
-          </li>
-          <li><p>Open http://127.0.0.1:8000 and click Load sample documents.</p></li>
-          <li><p>Before you expose it beyond this host, read the security model. It refuses to listen on another address without CLAIMTRACE_API_TOKEN set.</p></li>
-        </ol>
-        <dl class="where">
-          <dt>Where your documents go</dt>
-          <dd>Into the claimtrace-data volume on that host, and nowhere else by default.</dd>
-        </dl>
-        <p class="way__more"><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/security.md">Security model, for your IT team</a></p>
       </div>
     </div>
   </section>
