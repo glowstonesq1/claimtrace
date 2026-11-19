@@ -15,7 +15,8 @@ A redesign of the website, a new film and a rewritten README. The engine is unch
   Bodoni Moda and Geist.
 - **Home hero and numbers are build-time engine output**: the hero panel is the rules engine's result on
   `examples/documents` (`apps/site/data/samples.json`), and the numbers table shows each headline measure with
-  a 95% Wilson interval and the keyword floor.
+  its 95% interval (the evaluation report's bootstrap interval, or Wilson for counts), named in each row,
+  and the keyword floor.
 - **README** opens with the hero image, the three ways to use ClaimTrace, the honest numbers, the evidence map
   and the film; its figures (`docs/img/readme-*.png`) are designed frames made from the real site UI. The OCR
   install line now gives the real path (`.venv/bin/pip install -e '.[ocr]'` plus the `tesseract` package).
