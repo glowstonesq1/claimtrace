@@ -1,14 +1,15 @@
 ---
 description: Check a folder of contracts, amendments, audit reports or delivery records with ClaimTrace (register, cross-document findings, verified quotes)
 argument-hint: <folder or files>
-allowed-tools: Bash(python3 *claimtrace_run.py*), Bash(claimtrace --help), Read, Glob
+allowed-tools: Bash(python3 *claimtrace_run.py analyze *), Bash(python3 *claimtrace_run.py ask *), Bash(python3 *claimtrace_run.py doctor), Bash(claimtrace --help), Read, Glob
 ---
 
 Check these documents with ClaimTrace: $ARGUMENTS
 
 If no folder or files were given, ask which folder to check (default: the current directory) before running.
 
-Use the `claimtrace` skill and follow its hard rules. Run its runner on all the documents in one call:
+Use the `claimtrace` skill and follow its hard rules. If the runner reports `engine_not_installed`, follow the
+skill: ask the user once before `install --yes`; the install command is deliberately not pre-approved here. Run its runner on all the documents in one call:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/skills/claimtrace/scripts/claimtrace_run.py" analyze $ARGUMENTS

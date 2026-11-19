@@ -5,15 +5,18 @@
     claimtrace_run.py ask "<question>" <files or folders...>
     claimtrace_run.py verify <base file> <other file>
     claimtrace_run.py doctor
+    claimtrace_run.py install --yes [--dry-run]
 
-Everything runs in this process, in memory (SQLite ":memory:"). Nothing is written to disk and nothing is
-sent over the network: the engine is the rules engine, no language model is configured.
+Analysis runs in memory (SQLite ":memory:"). Nothing is written to disk and nothing is sent over the network:
+the engine is the rules engine, no language model is configured. The only command that uses the network is
+`install`, and it does nothing without --yes, which Claude passes only after the user agreed.
 
-Which engine runs (--engine, or $CLAIMTRACE_ENGINE; default auto):
-  installed  the `claimtrace` package that a locally installed `claimtrace` command runs with
-  bundled    the copy of the engine shipped in ../vendor (built by scripts/build_skill_zip.py),
-             or, in a source checkout of the ClaimTrace repository, its packages/ directory
-  auto       installed if a `claimtrace` command is on PATH and works, otherwise bundled
+Which engine runs (--engine, or $CLAIMTRACE_ENGINE; default auto, see choose_engine):
+  1. a working `claimtrace` command on PATH (its Python is used)
+  2. the private engine `install --yes` put in the plugin's data dir (ClaimTrace INSTALL_TAG, pinned)
+  3. the copy bundled in ../vendor (built by scripts/build_skill_zip.py; present in the release zips)
+  4. packages/ of a ClaimTrace source checkout this script lives in
+  5. none: exit 5, "needs_install" (nothing is installed automatically)
 
 ClaimTrace is a document-review aid, not legal advice.
 """
@@ -43,13 +46,16 @@ NOTICE = {
     "quotes": "Every quote below was re-checked against the stored document text (quote_verified). Items whose quote "
               "could not be re-checked are left out and counted in dropped_unverified.",
 }
-EXIT_USAGE, EXIT_DEPENDENCY, EXIT_INPUT = 2, 3, 4
+EXIT_USAGE, EXIT_DEPENDENCY, EXIT_INPUT, EXIT_NEEDS_INSTALL = 2, 3, 4, 5
+# The release a plugin installed from the marketplace may install, with the user's permission (see `install`).
+INSTALL_TAG = "v0.3.0"
+INSTALL_SPEC = f"claimtrace @ git+https://github.com/glowstonesq1/claimtrace@{INSTALL_TAG}"
 
 
 class RunnerError(Exception):
-    def __init__(self, code: str, message: str, exit_code: int = EXIT_INPUT) -> None:
+    def __init__(self, code: str, message: str, exit_code: int = EXIT_INPUT, extra: dict | None = None) -> None:
         super().__init__(message)
-        self.code, self.message, self.exit_code = code, message, exit_code
+        self.code, self.message, self.exit_code, self.extra = code, message, exit_code, extra or {}
 
 
 # ---------------------------------------------------------------------------------------------- engine
@@ -71,12 +77,85 @@ def _installed_python() -> str | None:
     if not parts:
         return None
     py = parts[1] if Path(parts[0]).name == "env" and len(parts) > 1 else parts[0]
+    return py if _has_claimtrace(py) else None
+
+
+def _has_claimtrace(py: str) -> bool:
     try:
         probe = subprocess.run([py, "-c", "import claimtrace; print(claimtrace.__version__)"],  # noqa: S603
                                capture_output=True, timeout=30, check=True, text=True)
     except (OSError, subprocess.SubprocessError):
-        return None
-    return py if probe.stdout.strip() else None
+        return False
+    return bool(probe.stdout.strip())
+
+
+def data_dir() -> Path:
+    """Where the plugin may keep a private engine: Claude Code's per-plugin data dir if it gives one."""
+    for var in ("CLAIMTRACE_PLUGIN_DATA", "CLAUDE_PLUGIN_DATA"):
+        if os.environ.get(var):
+            return Path(os.environ[var])
+    base = Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+    return base / "claimtrace-claude-plugin"
+
+
+def engine_venv() -> Path:
+    return data_dir() / f"engine-{INSTALL_TAG}"
+
+
+def _venv_bin(venv_dir: Path, name: str) -> Path:
+    return venv_dir / ("Scripts" if os.name == "nt" else "bin") / (name + (".exe" if os.name == "nt" else ""))
+
+
+def _venv_python() -> str | None:
+    """The private engine installed earlier with `install --yes`, if it is there and works."""
+    py = _venv_bin(engine_venv(), "python")
+    return str(py) if py.is_file() and _has_claimtrace(str(py)) else None
+
+
+def choose_engine(cli_python: str | None, venv_python: str | None, has_vendor: bool, checkout: bool) -> tuple[str, str | None]:
+    """The auto-mode decision, kept pure for tests: (source, python to re-run with or None).
+
+    installed CLI > private engine installed with the user's permission > bundled copy > source checkout >
+    none ("needs_install": the runner installs nothing itself; Claude must ask the user first)."""
+    if cli_python:
+        return "installed", cli_python
+    if venv_python:
+        return "plugin-venv", venv_python
+    if has_vendor:
+        return "bundled", None
+    if checkout:
+        return "source-checkout", None
+    return "needs_install", None
+
+
+def install_plan(venv_dir: Path) -> list[list[str]]:
+    py = str(_venv_bin(venv_dir, "python"))
+    return [[sys.executable, "-m", "venv", "--clear", str(venv_dir)],
+            [py, "-m", "pip", "install", "--disable-pip-version-check", "--no-input", INSTALL_SPEC]]
+
+
+def install(yes: bool, dry_run: bool) -> dict:
+    """Install the pinned release into the private venv. Only with --yes, which Claude passes only after the user
+    agreed in the conversation."""
+    venv_dir = engine_venv()
+    plan = install_plan(venv_dir)
+    out = {"command": "install", "spec": INSTALL_SPEC, "venv": str(venv_dir), "steps": [" ".join(c) for c in plan]}
+    if not yes:
+        raise RunnerError("consent_required", "Nothing was installed. Ask the user first; run `install --yes` only "
+                          f"after they agree. It would install {INSTALL_SPEC} into {venv_dir}.", EXIT_USAGE)
+    if dry_run:
+        return {"ok": True, "dry_run": True, **out}
+    if sys.version_info < (3, 11):  # noqa: UP036
+        raise RunnerError("python_too_old", "Installing the engine needs Python 3.11 or newer.", EXIT_DEPENDENCY)
+    venv_dir.parent.mkdir(parents=True, exist_ok=True)
+    for cmd in plan:
+        r = subprocess.run(cmd, capture_output=True, text=True, check=False)  # noqa: S603
+        if r.returncode != 0:
+            tail = (r.stderr or r.stdout).strip().splitlines()[-3:]
+            raise RunnerError("install_failed", f"Step failed: {' '.join(cmd)}: " + " / ".join(tail), EXIT_DEPENDENCY)
+    if not _has_claimtrace(plan[1][0]):
+        raise RunnerError("install_failed", "The engine was installed but cannot be imported.", EXIT_DEPENDENCY)
+    return {"ok": True, **out}
 
 
 def _source_checkout() -> Path | None:
@@ -139,7 +218,7 @@ def load_engine(mode: str) -> dict:
         if importlib.util.find_spec("claimtrace") is None:
             raise RunnerError("engine_not_found", "No installed claimtrace package is importable by this Python.",
                               EXIT_DEPENDENCY)
-        source = "installed"
+        source = os.environ.get("CLAIMTRACE_ENGINE_SOURCE", "installed")
     elif (VENDOR / "src" / "claimtrace" / "__init__.py").is_file():
         sys.path.insert(0, str(VENDOR / "src"))
         # pure-Python dependency wheels go LAST, so packages already installed in the sandbox win
@@ -166,7 +245,7 @@ def load_engine(mode: str) -> dict:
 
     # the parsing sandbox starts `python -I -m claimtrace.ingestion.worker`, which only finds an installed package
     return {"source": source, "version": claimtrace.__version__, "runner": RUNNER_VERSION,
-            "in_process_parse": source != "installed"}
+            "in_process_parse": source in ("bundled", "source-checkout")}
 
 
 # ---------------------------------------------------------------------------------------------- inputs
@@ -393,20 +472,48 @@ def parser() -> argparse.ArgumentParser:
     v.add_argument("base")
     v.add_argument("other")
     sub.add_parser("doctor", help="report which engine would run and whether its dependencies are present")
+    ins = sub.add_parser("install", help=f"install ClaimTrace {INSTALL_TAG} into a private venv (only with --yes, "
+                                         "after the user agreed)")
+    ins.add_argument("--yes", action="store_true", help="the user has agreed to this install")
+    ins.add_argument("--dry-run", action="store_true", help="show the steps, install nothing")
     return ap
 
 
+def needs_install_error() -> RunnerError:
+    venv_dir = engine_venv()
+    return RunnerError(
+        "engine_not_installed",
+        "The ClaimTrace engine is not installed here and no bundled copy is present. Nothing was installed. Ask the "
+        f"user once whether to install ClaimTrace {INSTALL_TAG} from GitHub into a private folder ({venv_dir}); "
+        "it needs network access and about 50 MB. Only if they agree, run this script with `install --yes`, then "
+        "run the original command again. Otherwise suggest the local app or the browser Try it page.",
+        EXIT_NEEDS_INSTALL,
+        {"needs_install": True, "install": {"tag": INSTALL_TAG, "spec": INSTALL_SPEC, "venv": str(venv_dir),
+                                            "command": f"python3 {Path(__file__).resolve()} install --yes",
+                                            "steps": [" ".join(c) for c in install_plan(venv_dir)]}},
+    )
+
+
+def auto_decision() -> tuple[str, str | None]:
+    return choose_engine(_installed_python(), _venv_python(),
+                         (VENDOR / "src" / "claimtrace" / "__init__.py").is_file(), _source_checkout() is not None)
+
+
 def run(args: argparse.Namespace) -> dict:
+    if args.cmd == "install":
+        return install(args.yes, args.dry_run)
     if args.cmd == "doctor":
         problems = check_dependencies()
+        decision, _ = auto_decision() if args.engine == "auto" else (args.engine, None)
         engine = None
-        if not problems:
+        if not problems and decision in ("bundled", "source-checkout", "installed"):
             try:
-                engine = load_engine(args.engine)
+                engine = load_engine("bundled" if decision == "source-checkout" else decision)
             except RunnerError as e:
                 problems.append(e.message)
-        return {"ok": not problems, "command": "doctor", "python": sys.version.split()[0], "engine": engine,
-                "installed_cli_python": _installed_python(), "problems": problems}
+        return {"ok": not problems and decision != "needs_install", "command": "doctor",
+                "python": sys.version.split()[0], "decision": decision, "engine": engine,
+                "installed_cli_python": _installed_python(), "plugin_venv": str(engine_venv()), "problems": problems}
     files = expand(args.paths if args.cmd in ("analyze", "ask") else [args.base, args.other])
     if args.cmd == "verify" and len(files) != 2:
         raise RunnerError("usage", "verify needs two different files.", EXIT_USAGE)
@@ -445,16 +552,21 @@ def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     try:
         args = parser().parse_args(argv)
-        if args.engine == "auto":
-            py = None if args.cmd == "doctor" or os.environ.get("CLAIMTRACE_RUNNER_CHILD") else _installed_python()
-            if py:  # re-run with the installed engine's interpreter, where its parser sandbox also works
-                env = {**os.environ, "CLAIMTRACE_RUNNER_CHILD": "1"}
+        if args.engine == "auto" and args.cmd not in ("doctor", "install"):
+            if os.environ.get("CLAIMTRACE_RUNNER_CHILD"):
+                decision, py = "bundled", None
+            else:
+                decision, py = auto_decision()
+            if py:  # re-run with that engine's interpreter, where its parser sandbox also works
+                env = {**os.environ, "CLAIMTRACE_RUNNER_CHILD": "1", "CLAIMTRACE_ENGINE_SOURCE": decision}
                 cmd = [py, str(Path(__file__).resolve()), "--engine", "installed", *_strip_engine(argv)]
                 return subprocess.run(cmd, env=env, check=False).returncode  # noqa: S603
+            if decision == "needs_install":
+                raise needs_install_error()
             args.engine = "bundled"
         out, code = run(args), 0
     except RunnerError as e:
-        out, code = {"ok": False, "error": e.code, "message": e.message}, e.exit_code
+        out, code = {"ok": False, "error": e.code, "message": e.message, **e.extra}, e.exit_code
         print(f"claimtrace_run: {e.message}", file=sys.stderr)
     json.dump(out, sys.stdout, indent=2, ensure_ascii=False, default=str)
     sys.stdout.write("\n")

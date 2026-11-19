@@ -99,14 +99,26 @@ The skill always calls `skills/claimtrace/scripts/claimtrace_run.py`, which prin
 1. **installed**: if a working `claimtrace` command is on your `PATH`, the runner re-runs itself with that
    command's Python, so it uses your installed version. Parsing then runs in ClaimTrace's resource-limited
    subprocess, as in the app.
-2. **bundled**: otherwise it uses the engine copy in `skills/claimtrace/vendor/` (in the release zips), with
-   in-process parsing.
-3. **source-checkout**: in a clone of this repository (`claude --plugin-dir plugins/claimtrace`), it uses
+2. **plugin-venv**: the private engine installed with your permission (see below), in the plugin's data folder
+   (`$CLAUDE_PLUGIN_DATA`, else `~/.local/share/claimtrace-claude-plugin/engine-v0.3.0`).
+3. **bundled**: the engine copy in `skills/claimtrace/vendor/` (in the release zips), with in-process parsing.
+4. **source-checkout**: in a clone of this repository (`claude --plugin-dir plugins/claimtrace`), it uses
    `packages/` directly.
+5. **none**: the runner stops with `engine_not_installed` (exit 5) and installs nothing.
 
-`vendor/` is built, not committed, so a plugin installed from the marketplace has no bundled engine. Install
-ClaimTrace (`pipx install 'git+https://github.com/glowstonesq1/claimtrace'`), or load the release's
-`claimtrace-plugin.zip`, which includes it: `claude --plugin-dir claimtrace-plugin.zip`.
+`vendor/` is built, not committed, so a plugin installed from the marketplace usually lands in case 5 on a machine
+without ClaimTrace. Claude then asks you once whether to install ClaimTrace **v0.3.0** (the git tag
+`v0.3.0`, pinned in the runner as `INSTALL_TAG`) from GitHub into that private folder. It needs network access and
+about 50 MB. Only if you agree does Claude run `claimtrace_run.py install --yes`, which creates a virtual
+environment there (`python -m venv`) and runs
+`pip install "claimtrace @ git+https://github.com/glowstonesq1/claimtrace@v0.3.0"` inside it; nothing else on your
+system changes. The plugin's slash commands do not pre-approve `install`, so Claude Code also asks for permission
+before running it. `install --yes --dry-run` shows the steps without running them. To remove it, delete the folder.
+If you prefer, install ClaimTrace yourself (`pipx install 'git+https://github.com/glowstonesq1/claimtrace@v0.3.0'`)
+or load the release's `claimtrace-plugin.zip`, which includes the engine: `claude --plugin-dir claimtrace-plugin.zip`.
+
+Maintainers: the tag `v0.3.0` must exist when this plugin version is published, and `INSTALL_TAG` in
+`claimtrace_run.py` moves with each release.
 
 Force an engine with `--engine installed|bundled` or `CLAIMTRACE_ENGINE`. `claimtrace_run.py doctor` reports what
 would run and what is missing. The runner uses an in-memory store (`:memory:`), configures no language model, and
@@ -118,11 +130,13 @@ never imports fastapi, uvicorn or httpx (a stub stands in for httpx where it is 
 python3 claimtrace_run.py analyze <files or folders...>     # register + cross_document findings
 python3 claimtrace_run.py ask "<question>" <files...>       # answer + verified citations
 python3 claimtrace_run.py verify <base> <other>             # one pair
-python3 claimtrace_run.py doctor
+python3 claimtrace_run.py doctor                            # which engine would run, what is missing
+python3 claimtrace_run.py install --yes [--dry-run]         # only after the user agreed (see above)
 ```
 
 Every quote in the output carries `quote_verified`, re-checked against the stored text. Items that fail the check
-are left out and counted (`dropped_unverified`). Exit codes: 0 ok, 2 usage, 3 missing dependency, 4 bad input.
+are left out and counted (`dropped_unverified`). Exit codes: 0 ok, 2 usage (or install without --yes), 3 missing dependency, 4 bad input,
+5 engine not installed.
 
 ### Build the zips
 

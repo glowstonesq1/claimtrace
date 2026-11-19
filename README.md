@@ -43,6 +43,8 @@ its amendments. They also cite text that isn't there. ClaimTrace is built around
 
 ## Quickstart
 
+**No install:** use ClaimTrace in claude.ai (skill zip) or Claude Code (`/plugin marketplace add glowstonesq1/claimtrace`, then `/plugin install claimtrace@claimtrace`); see [docs/claude.md](docs/claude.md).
+
 ### Option A — Python (no Docker)
 
 ```bash

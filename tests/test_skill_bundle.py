@@ -283,6 +283,67 @@ def test_claude_code_prefers_installed_cli(built: dict, tmp_path: Path) -> None:
     assert out["answer"]["answer"] == NOT_FOUND
 
 
+def _runner_module():  # type: ignore[no-untyped-def]
+    spec = importlib.util.spec_from_file_location(
+        "claimtrace_run_under_test", PLUGIN / "skills" / "claimtrace" / "scripts" / "claimtrace_run.py")
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def test_engine_decision_order() -> None:
+    choose = _runner_module().choose_engine
+    assert choose("/cli/python", "/venv/python", True, True) == ("installed", "/cli/python")
+    assert choose(None, "/venv/python", True, True) == ("plugin-venv", "/venv/python")
+    assert choose(None, None, True, True) == ("bundled", None)
+    assert choose(None, None, False, True) == ("source-checkout", None)
+    assert choose(None, None, False, False) == ("needs_install", None)
+
+
+def _marketplace_copy(tmp_path: Path) -> tuple[Path, dict]:
+    """The plugin as a marketplace install has it: no vendor/, not inside a source checkout, no CLI on PATH."""
+    plugin = tmp_path / "cache" / "claimtrace"
+    shutil.copytree(PLUGIN, plugin, ignore=shutil.ignore_patterns("vendor", "__pycache__"))
+    bare = tmp_path / "bare"
+    venv.EnvBuilder(with_pip=False, clear=True).create(bare)
+    env = {"PATH": str(_python(bare).parent), "HOME": str(tmp_path), "CLAIMTRACE_PLUGIN_DATA": str(tmp_path / "data")}
+    return plugin / "skills" / "claimtrace" / "scripts" / "claimtrace_run.py", env
+
+
+def _call(py: Path | str, runner: Path, env: dict, *args: str) -> tuple[int, dict]:
+    p = subprocess.run([str(py), str(runner), *args], capture_output=True, text=True, env=env, check=False, timeout=300)
+    return p.returncode, json.loads(p.stdout)
+
+
+def test_marketplace_install_without_engine_asks_and_installs_nothing(tmp_path: Path) -> None:
+    runner, env = _marketplace_copy(tmp_path)
+    py = _python(tmp_path / "bare")
+    code, out = _call(py, runner, env, "analyze", str(DOCS[0]))
+    assert code == 5 and out["error"] == "engine_not_installed" and out["needs_install"] is True
+    assert out["install"]["tag"] == "v0.3.0" and "@v0.3.0" in out["install"]["spec"]
+    assert "Ask the user" in out["message"] and "install --yes" in out["install"]["command"]
+    code, out = _call(py, runner, env, "install")
+    assert code == 2 and out["error"] == "consent_required"
+    code, out = _call(py, runner, env, "install", "--yes", "--dry-run")
+    assert code == 0 and out["dry_run"] and any("git+https://github.com/glowstonesq1/claimtrace@v0.3.0" in s
+                                                 for s in out["steps"])
+    assert not (tmp_path / "data").exists(), "nothing may be installed or created without consent"
+
+
+def test_marketplace_install_uses_private_engine_once_installed(tmp_path: Path) -> None:
+    pytest.importorskip("claimtrace")
+    runner, env = _marketplace_copy(tmp_path)
+    fake = tmp_path / "data" / "engine-v0.3.0" / "bin" / "python"  # stands in for the venv `install --yes` makes
+    fake.parent.mkdir(parents=True)
+    fake.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
+    fake.chmod(0o755)
+    code, out = _call(sys.executable, runner, env, "ask", "What is the liability cap?", *map(str, DOCS))
+    assert code == 0, out
+    assert out["engine"]["source"] == "plugin-venv" and out["engine"]["in_process_parse"] is False
+    assert out["answer"]["answer"] == NOT_FOUND
+
+
 def test_missing_pydantic_gives_clear_message(built: dict) -> None:
     bare = built["tmp"] / "bare"
     venv.EnvBuilder(with_pip=False, clear=True).create(bare)

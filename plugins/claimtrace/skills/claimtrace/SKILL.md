@@ -49,6 +49,14 @@ python3 <skill-folder>/scripts/claimtrace_run.py doctor
   `--engine bundled` before the subcommand.
 - **It needs no network and writes nothing to disk.** Everything is held in memory for the one run, so each call
   re-reads the files (a few seconds for typical documents).
+- **If the engine is not installed** (`"error": "engine_not_installed"`, exit code 5; this happens only in Claude
+  Code, when the plugin came from the marketplace and ClaimTrace is not installed): do not install anything yet.
+  Ask the user once, in plain words, whether to install ClaimTrace `install.tag` (a pinned release) from GitHub
+  into a private folder (`install.venv`), saying that it needs network access and about 50 MB, and that the
+  alternative is the local app or the browser Try it page. Only if they clearly agree, run
+  `python3 <skill-folder>/scripts/claimtrace_run.py install --yes`, then run the original command again. If they
+  decline or do not answer, do not ask again in this conversation and do not install by any other route (no
+  `pip install` of your own).
 - **If it fails** (`"ok": false`), show the user the `message` field in plain words. Exit code 3 means a missing
   dependency: `pydantic` (version 2) is needed for everything and `lxml` for `.docx`. Do not try to install
   packages from the internet unless the user asks; suggest the local app instead.

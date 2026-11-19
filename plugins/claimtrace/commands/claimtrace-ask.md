@@ -1,7 +1,7 @@
 ---
 description: Ask ClaimTrace a question about contracts, amendments or audit reports; answers only with verified verbatim quotes
 argument-hint: "<question>" <folder or files>
-allowed-tools: Bash(python3 *claimtrace_run.py*), Bash(claimtrace --help), Read, Glob
+allowed-tools: Bash(python3 *claimtrace_run.py analyze *), Bash(python3 *claimtrace_run.py ask *), Bash(python3 *claimtrace_run.py doctor), Bash(claimtrace --help), Read, Glob
 ---
 
 Answer with ClaimTrace: $ARGUMENTS
@@ -9,7 +9,8 @@ Answer with ClaimTrace: $ARGUMENTS
 The arguments are a question followed by the documents (files or a folder). If either is missing, ask for it;
 if only the documents are missing, suggest the current directory.
 
-Use the `claimtrace` skill and follow its hard rules. Run, with the question quoted exactly as the user wrote it:
+Use the `claimtrace` skill and follow its hard rules. If the runner reports `engine_not_installed`, follow the
+skill: ask the user once before `install --yes`; the install command is deliberately not pre-approved here. Run, with the question quoted exactly as the user wrote it:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/skills/claimtrace/scripts/claimtrace_run.py" ask "<question>" <folder or files>
