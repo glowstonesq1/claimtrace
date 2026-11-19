@@ -83,19 +83,20 @@
     <div class="container way__grid">
       <div class="way__head">
         <h2 id="claude-title">I use Claude</h2>
-        <p>Add ClaimTrace to Claude.ai as a skill. Claude then runs the engine on documents you attach.</p>
+        <p>Add ClaimTrace to Claude.ai as a skill. Claude then runs the engine on documents you attach. Your plan needs skills and code execution; a work or school account may need an administrator to allow them.</p>
       </div>
       <div class="way__body">
         <ol class="steps">
-          <li><p>Download the skill zip from <a href="https://github.com/glowstonesq1/claimtrace/releases/latest">the latest release on GitHub</a>.</p></li>
-          <li><p>In Claude.ai, open Settings, then Capabilities. Turn on code execution, then upload the zip under Skills.</p></li>
-          <li><p>Start a chat, attach your documents and ask, for example:</p>
-            <div class="cmd"><pre><code>Use ClaimTrace to check whether amendment-1 changed the delivery date in the contract.</code></pre></div>
+          <li><p>Download <a href="https://github.com/glowstonesq1/claimtrace/releases/latest/download/claimtrace-skill.zip"><code>claimtrace-skill.zip</code></a> from the latest release. Do not unzip it.</p></li>
+          <li><p>In Claude.ai’s settings, turn on code execution, then upload <code>claimtrace-skill.zip</code> as a skill and make sure it is switched on. The exact menu names can change; look for the skills and code execution settings.</p></li>
+          <li><p>Start a new chat, attach the contract and its amendments or reports in the same message, and ask, for example:</p>
+            <div class="cmd"><pre><code>Use ClaimTrace to check whether the amendment changed the delivery date in the contract.</code></pre></div>
           </li>
         </ol>
+        <p>The first time in a chat, Claude reminds you that attached documents are processed by Anthropic. Answers quote the documents word for word with section numbers. Amendment results need your check: on wording it had not seen before, the engine’s amendment verdicts were right 0.60 of the time.</p>
         <dl class="where">
           <dt>Where your documents go</dt>
-          <dd>To Anthropic. Files you attach are processed by Claude under your plan’s terms. Do not use this path for documents you may not share with Anthropic.</dd>
+          <dd>To Anthropic. The files you attach, and the results, are processed by Claude under your plan’s terms, as in any chat. The engine runs in Claude’s code sandbox. Do not use this path for documents you may not share with Anthropic.</dd>
         </dl>
         <p class="way__more"><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/claude.md">Using ClaimTrace with Claude, in full</a></p>
       </div>
@@ -106,23 +107,27 @@
     <div class="container way__grid">
       <div class="way__head">
         <h2 id="claude-code-title">I use Claude Code</h2>
-        <p>Install the plugin from this repository’s marketplace, then ask in any session.</p>
+        <p>Install the plugin from this repository’s marketplace, then use its two commands or just ask.</p>
       </div>
       <div class="way__body">
         <ol class="steps">
           <li><p>In Claude Code, add the marketplace:</p>
             <div class="cmd"><pre><code>/plugin marketplace add glowstonesq1/claimtrace</code></pre></div>
           </li>
-          <li><p>Install the plugin:</p>
+          <li><p>Install the plugin, and restart Claude Code if it asks:</p>
             <div class="cmd"><pre><code>/plugin install claimtrace@claimtrace</code></pre></div>
           </li>
-          <li><p>Point Claude at your documents and ask it to build the register, answer a question or check an amendment.</p></li>
+          <li><p>Check a folder, or ask one question:</p>
+            <div class="cmd"><pre><code>/claimtrace:claimtrace-check ./contracts
+/claimtrace:claimtrace-ask "Did the amendment change the delivery date?" ./contracts</code></pre></div>
+          </li>
         </ol>
+        <p>The plugin uses ClaimTrace if it is already installed. If not, Claude asks you once before installing ClaimTrace v0.3.0 from GitHub into a private folder for the plugin (about 50 MB, needs network), and installs nothing unless you agree. Claude Code also asks permission before it runs the install. Prefer no install at all? Unzip <a href="https://github.com/glowstonesq1/claimtrace/releases/latest/download/claimtrace-plugin.zip"><code>claimtrace-plugin.zip</code></a>, which includes the engine, and start Claude Code with <code>claude --plugin-dir</code> pointing at that folder.</p>
         <dl class="where">
           <dt>Where your documents go</dt>
-          <dd>The engine runs on your computer. Text Claude reads during the session goes to Anthropic, as with any Claude Code work.</dd>
+          <dd>The engine runs on your computer and the files stay on your disk. The quotes and results it prints, and any file Claude opens, go into the conversation and so to Anthropic, under your Claude plan or API terms.</dd>
         </dl>
-        <p class="way__more"><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/claude.md">Plugin details and commands</a></p>
+        <p class="way__more"><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/claude.md#for-developers-the-claude-code-plugin">Plugin details and commands</a></p>
       </div>
     </div>
   </section>

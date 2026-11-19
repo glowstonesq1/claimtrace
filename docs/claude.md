@@ -23,13 +23,15 @@ under your Claude plan's terms. If your documents must stay on your computer, us
 You need a Claude plan that offers Skills, with code execution turned on. Work and school accounts may need an
 administrator to allow skills.
 
-1. **Download the skill.** Open the latest release at
-   <https://github.com/glowstonesq1/claimtrace/releases/latest>. Under "Assets", download
-   **`claimtrace-skill.zip`**. Do not unzip it.
-2. **Turn on code execution.** In claude.ai, open **Settings → Capabilities** and turn on code execution (it
-   may be called "Code execution and file creation"). The skill runs a small program, so it needs this.
-3. **Upload the skill.** On the same page, under **Skills**, choose **Upload skill** and pick
-   `claimtrace-skill.zip`. "claimtrace" now appears in your list of skills. Make sure it is switched on.
+1. **Download the skill.** Download **`claimtrace-skill.zip`** from the latest release:
+   <https://github.com/glowstonesq1/claimtrace/releases/latest/download/claimtrace-skill.zip> (or open
+   <https://github.com/glowstonesq1/claimtrace/releases/latest> and find it under the release's assets). Do not
+   unzip it.
+2. **Turn on code execution.** In claude.ai's settings, turn on code execution. The skill runs a small program, so
+   it needs this. Menu names change from time to time, so look for the setting about code execution (and file
+   creation) rather than an exact label.
+3. **Upload the skill.** In the skills part of the settings, upload `claimtrace-skill.zip`. "claimtrace" then
+   appears in your list of skills. Make sure it is switched on.
 4. **Start a new chat and attach your documents.** Attach the contract and its amendments, audit reports or
    delivery records together (PDF with selectable text, Word .docx, Markdown or plain text). Attach all related
    documents in the same message, so the amendments are matched to the contract they change.
@@ -59,8 +61,8 @@ was 0.60 (95% interval 0.51 to 0.70, 105 cases). Claude says this whenever it re
 | "No readable text was found" (SCANNED) | The PDF is a scan without a text layer. The local app can read scans with OCR. |
 | The answer is "I could not find support…" | The engine found no supporting text. Try other words, or attach the missing document. |
 
-To update the skill, download the new `claimtrace-skill.zip` from the latest release, delete the old skill in
-**Settings → Capabilities → Skills**, and upload the new one.
+To update the skill, download the new `claimtrace-skill.zip` from the latest release, remove the old skill in
+the skills settings, and upload the new one.
 
 ## Where do my documents go?
 
@@ -115,7 +117,8 @@ environment there (`python -m venv`) and runs
 system changes. The plugin's slash commands do not pre-approve `install`, so Claude Code also asks for permission
 before running it. `install --yes --dry-run` shows the steps without running them. To remove it, delete the folder.
 If you prefer, install ClaimTrace yourself (`pipx install 'git+https://github.com/glowstonesq1/claimtrace@v0.3.0'`)
-or load the release's `claimtrace-plugin.zip`, which includes the engine: `claude --plugin-dir claimtrace-plugin.zip`.
+or download the release's `claimtrace-plugin.zip`, which includes the engine, unzip it into a folder, and start
+Claude Code with `claude --plugin-dir <that folder>`.
 
 Maintainers: the tag `v0.3.0` must exist when this plugin version is published, and `INSTALL_TAG` in
 `claimtrace_run.py` moves with each release.
