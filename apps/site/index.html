@@ -2,15 +2,21 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- Only this origin, plus cdnjs for the pinned GSAP scripts below. No inline script or style: keep
-     page scripts in files (head.js, slots.js, site.js). Fonts are self-hosted (fonts.css, SIL OFL). -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self'; font-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
+<!-- Only this origin: no third-party script, style, font or request. No inline script or style: page
+     scripts live in files (head.js, slots.js, site.js); GSAP is self-hosted in vendor/gsap. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ClaimTrace</title>
-<meta name="description" content="ClaimTrace is an open-source, local-first workspace for contracts, amendments and audit reports. It builds a commitment register, answers only with verified quotes and checks documents against each other.">
-<meta property="og:title" content="ClaimTrace">
-<meta property="og:description" content="Upload documents. Map commitments and obligations. Ask questions. Verify every answer against the exact source.">
-<meta property="og:image" content="media/register.png">
+<title>ClaimTrace: check contracts and amendments with verified quotes</title>
+<meta name="description" content="Open-source tool for contracts, amendments and audit reports. It maps who owes what, by when, answers only with verified quotes and checks documents against each other. Try it in your browser; nothing is uploaded.">
+<link rel="canonical" href="https://glowstonesq1.github.io/claimtrace/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="ClaimTrace">
+<meta property="og:title" content="ClaimTrace: did the amendment change the deadline?">
+<meta property="og:description" content="Maps who owes what, answers only with verified quotes, and checks documents against each other. Not legal advice.">
+<meta property="og:url" content="https://glowstonesq1.github.io/claimtrace/">
+<meta property="og:image" content="https://glowstonesq1.github.io/claimtrace/media/claimtrace-promo.jpg">
+<meta property="og:image:alt" content="The ClaimTrace register beside the source contract.">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preload" href="fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/geist-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="fonts.css">
@@ -18,17 +24,21 @@
 <script src="head.js"></script>
 </head>
 <body>
+<!-- nav -->
 <a class="skip" href="#main">Skip to content</a>
-
 <header class="nav">
   <div class="container nav__inner">
     <a class="wordmark" href="./" aria-label="ClaimTrace, home">ClaimTrace</a>
     <nav class="nav__links" aria-label="Primary">
-      <a href="#evaluation">Evaluation</a>
-      <a class="btn btn--quiet" href="https://github.com/glowstonesq1/claimtrace">Star on GitHub</a>
+      <a href="./try/" data-nav="try">Try</a>
+      <a href="./evidence/" data-nav="evidence">Evidence</a>
+      <a href="./get/" data-nav="get">Get it</a>
+      <a href="./docs/" data-nav="docs">Docs</a>
+      <a href="https://github.com/glowstonesq1/claimtrace">GitHub</a>
     </nav>
   </div>
 </header>
+<!-- /nav -->
 
 <main id="main">
 
@@ -36,11 +46,12 @@
     <div class="container hero__grid">
       <div class="hero__text">
         <h1 id="hero-title">Did the amendment change the deadline?</h1>
-        <p class="lead">Runs on your computer and answers only with quotes it has verified.</p>
+        <p class="lead">ClaimTrace maps who owes what, and answers only with verified quotes.</p>
         <div class="actions">
-          <a class="btn" href="#run">Run it locally</a>
-          <a class="btn btn--quiet" href="https://github.com/glowstonesq1/claimtrace">Star on GitHub</a>
+          <a class="btn" href="try/" aria-describedby="hero-private">Try it in your browser</a>
+          <p class="actions__note" id="hero-private">Nothing is uploaded.</p>
         </div>
+        <p class="hero__alt">Or <a href="get/#claude">use it with Claude</a>, or <a href="get/#install">install</a> it.</p>
       </div>
       <figure class="hero__figure">
         <div class="shot shot--hero" data-slot="hero" data-kind="product" data-alt="A commitment in the register, struck through and marked as replaced by the amendment">
@@ -52,10 +63,22 @@
     </div>
   </section>
 
-  <section class="promise" aria-labelledby="promise-title">
-    <div class="container">
-      <h2 id="promise-title" class="promise__text" data-scrub>Every claim is a quote. Amendments are first-class. Uncertainty is visible.</h2>
-      <p class="promise__note">With no supporting text, the answer is “I could not find support for this in the uploaded documents.”</p>
+  <section class="limits" aria-labelledby="limits-title">
+    <div class="container limits__grid">
+      <div>
+        <h2 id="limits-title" class="limits__statement" data-scrub>Every claim is a quote. Amendments are first-class. Uncertainty is visible.</h2>
+        <p class="limits__note">With no supporting text, the answer is “I could not find support for this in the uploaded documents.”</p>
+      </div>
+      <div class="limits__list">
+        <h3>What it will not do</h3>
+        <dl class="rows">
+          <div class="row"><dt>Give legal advice</dt><dd>No risk scores, no view on enforceability.</dd></div>
+          <div class="row is-weak"><dt>Get every amendment right</dt><dd>On wording it has not seen, 4 in 10 amendment checks are wrong. Check them yourself.</dd></div>
+          <div class="row"><dt>Read scanned PDFs</dt><dd>They are flagged, not read.</dd></div>
+          <div class="row"><dt>Replace your contract system</dt><dd>It is not a CLM and not a chatbot.</dd></div>
+        </dl>
+        <p class="next"><a href="#evaluation">See how it was measured</a></p>
+      </div>
     </div>
   </section>
 
@@ -106,37 +129,37 @@
           </figure>
         </li>
       </ol>
+      <p class="next"><a href="try/">Try all three on the samples</a></p>
     </div>
   </section>
 
-  <section class="features" aria-labelledby="features-title">
+  <section class="evaluation" id="evaluation" aria-labelledby="eval-title">
     <div class="container">
-      <h2 id="features-title">What it reads, checks and keeps</h2>
-      <div class="bento">
-        <article class="tile tile--a">
-          <h3>Questions across every document</h3>
-          <p>Answers cover only the documents you ticked.</p>
-          <div class="shot shot--tile" data-slot="tile-ask" data-kind="product" data-alt="The Ask screen with four documents ticked and a question typed">
-            <img src="media/ask-question.png" width="1152" height="413" loading="lazy"
-                 alt="The Ask screen: four sample documents ticked under Search in, the question Is customer data kept in the UK typed, and suggested questions below.">
-          </div>
-        </article>
-        <article class="tile tile--b">
-          <p class="tile__figure" aria-hidden="true">127.0.0.1</p>
-          <h3>Nothing leaves your machine</h3>
-          <p>Sends nothing out by default, and a test enforces it. A hosted model sees only documents you approve.</p>
-        </article>
-        <article class="tile tile--c">
-          <p class="tile__figure tile__figure--s" aria-hidden="true">.pdf .docx .md .txt</p>
-          <h3>PDF, DOCX, Markdown, plain text</h3>
-          <p>Exports Markdown, JSON, print-ready HTML and a deadline CSV.</p>
-        </article>
-        <article class="tile tile--d">
-          <h3>Or from the command line</h3>
-<pre class="snippet"><code>claimtrace ingest examples/documents/msa-v1.md
-claimtrace ingest examples/documents/amendment-1.md
-claimtrace ask "How many days does the customer have to pay invoices?"</code></pre>
-        </article>
+      <div class="eval__head">
+        <h2 id="eval-title">The numbers, including the bad ones</h2>
+        <p class="lead">Scored once on sealed cases nobody opened before the code was frozen.</p>
+      </div>
+      <div class="eval__body">
+        <table class="eval__table">
+          <caption class="visually-hidden">Version 0.2 rules engine on the sealed holdout set and the sealed amendment set, against a keyword baseline</caption>
+          <thead>
+            <tr><th scope="col">Measure</th><th scope="col" class="num">ClaimTrace</th><th scope="col" class="num">Keyword floor</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">Hallucination rate, lower is better</th><td class="num">0.00</td><td class="num">0.50</td></tr>
+            <tr><th scope="row">False all-clear rate, lower is better</th><td class="num">0.03</td><td class="num">0.29</td></tr>
+            <tr><th scope="row">Contradictions, precision and recall</th><td class="num">0.83 / 0.71</td><td class="num">0.00 recall</td></tr>
+            <tr class="is-weak"><th scope="row">Consistency checks</th><td class="num">0.81</td><td class="num">0.76</td></tr>
+            <tr class="is-weak"><th scope="row">Amendment checks, unfamiliar wording</th><td class="num">0.60</td><td class="num">0.06</td></tr>
+            <tr class="is-weak"><th scope="row">Amendment effect, unfamiliar wording</th><td class="num">0.71</td><td class="num">not scored</td></tr>
+          </tbody>
+        </table>
+        <div class="eval__notes">
+          <p>Four in ten amendment checks on unfamiliar wording are wrong. Check amendments yourself.</p>
+          <p>On consistency, a constant “consistent” guess does about as well. All cases are synthetic.</p>
+          <p class="eval__more"><a href="evidence/">Every number, with intervals</a></p>
+          <p><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md">How the test sets were built</a></p>
+        </div>
       </div>
     </div>
   </section>
@@ -151,97 +174,67 @@ claimtrace ask "How many days does the customer have to pay invoices?"</code></p
           <source src="media/claimtrace-promo.mp4" type="video/mp4">
         </video>
       </figure>
+      <p class="next"><a href="try/">Try the same samples</a></p>
     </div>
   </section>
 
-  <section class="evaluation" id="evaluation" aria-labelledby="eval-title">
+  <section class="paths" id="run" aria-labelledby="paths-title">
     <div class="container">
-      <div class="eval__head">
-        <h2 id="eval-title">The numbers, including the bad ones</h2>
-        <p class="lead">Scored on 46 sealed cases nobody opened before the code was frozen.</p>
-      </div>
-      <div class="eval__body">
-        <table class="eval__table">
-          <caption class="visually-hidden">Version 0.1 rules engine on the sealed holdout set, against a keyword baseline</caption>
-          <thead>
-            <tr><th scope="col">Measure</th><th scope="col" class="num">ClaimTrace</th><th scope="col" class="num">Keyword floor</th></tr>
-          </thead>
-          <tbody>
-            <tr><th scope="row">Hallucination rate, lower is better</th><td class="num">0.00</td><td class="num">0.50</td></tr>
-            <tr><th scope="row">False all-clear rate, lower is better</th><td class="num">0.03</td><td class="num">0.29</td></tr>
-            <tr><th scope="row">Contradictions, precision and recall</th><td class="num">0.82 / 0.64</td><td class="num">0.00 recall</td></tr>
-            <tr class="is-weak"><th scope="row">Consistency checks</th><td class="num">0.81</td><td class="num">0.76</td></tr>
-            <tr class="is-weak"><th scope="row">Amendment verification</th><td class="num">0.61</td><td class="num">0.00</td></tr>
-            <tr class="is-weak"><th scope="row">Amendment effect</th><td class="num">0.50</td><td class="num">not scored</td></tr>
-          </tbody>
-        </table>
-        <div class="eval__notes">
-          <p>Amendments scored 0.89 in development and 0.61 here. Check amendments yourself.</p>
-          <p>On consistency, a constant “consistent” guess does as well. All cases are synthetic.</p>
-          <p><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md">Every number, with intervals</a></p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="limits" aria-labelledby="limits-title">
-    <div class="container limits__grid">
-      <h2 id="limits-title">What it will not do</h2>
-      <dl class="rows">
-        <div class="row"><dt>Give legal advice</dt><dd>No risk scores, no view on enforceability.</dd></div>
-        <div class="row"><dt>Read scanned PDFs</dt><dd>They are flagged, not read.</dd></div>
-        <div class="row"><dt>Guess at a paraphrase</dt><dd>It answers “not found” instead.</dd></div>
-        <div class="row"><dt>Replace your contract system</dt><dd>It is not a CLM and not a chatbot.</dd></div>
-      </dl>
-    </div>
-  </section>
-
-  <section class="run" id="run" aria-labelledby="run-title">
-    <div class="container run__grid">
-      <div class="run__text">
-        <h2 id="run-title">Run it on your own machine</h2>
-        <p class="lead">Python 3.11+ and Node 20+, or Docker Compose. Then click Load sample documents.</p>
-        <div class="actions">
-          <a class="btn btn--invert" href="https://github.com/glowstonesq1/claimtrace">Star on GitHub</a>
-          <a class="btn btn--line" href="https://github.com/glowstonesq1/claimtrace#quickstart">Read the quickstart</a>
-        </div>
-      </div>
-      <div class="run__code">
-<pre><code>git clone https://github.com/glowstonesq1/claimtrace
-cd claimtrace
-make dev
-make serve        # http://127.0.0.1:8000
-
-# or
-docker compose up --build</code></pre>
+      <h2 id="paths-title">Pick how you want to run it</h2>
+      <div class="paths__grid">
+        <article class="path">
+          <h3>In your browser</h3>
+          <p>No install, no account. The engine runs in the tab.</p>
+          <p class="path__where">Your file is never uploaded.</p>
+          <div class="actions"><a class="btn btn--invert" href="try/">Try it in your browser</a></div>
+        </article>
+        <article class="path">
+          <h3>With Claude</h3>
+          <p>A skill for Claude.ai, or a plugin for Claude Code.</p>
+          <p class="path__where">Documents you share go to Anthropic.</p>
+          <div class="actions"><a href="get/#claude">Use it with Claude</a></div>
+        </article>
+        <article class="path">
+          <h3>On your computer</h3>
+          <p>Python and Node, or Docker Compose.</p>
+          <p class="path__where">Sends nothing out by default.</p>
+          <div class="actions"><a href="get/#install">Install</a></div>
+        </article>
       </div>
     </div>
   </section>
 
 </main>
 
+<!-- footer -->
 <footer class="foot">
   <div class="container">
     <p class="foot__mark">ClaimTrace</p>
-    <ul class="foot__links">
-      <li><a href="https://github.com/glowstonesq1/claimtrace">Source on GitHub</a></li>
-      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md">Evaluation</a></li>
-      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/roadmap.md">Roadmap</a></li>
-      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/security.md">Security</a></li>
-      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/privacy.md">Privacy</a></li>
-      <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/contributing.md">Contributing</a></li>
-    </ul>
-    <p class="foot__legal">Apache-2.0. Not legal advice. The sample documents are fictional.</p>
+    <div class="foot__cols">
+      <ul class="foot__links" aria-label="Site">
+        <li><a href="./try/">Try it in your browser</a></li>
+        <li><a href="./evidence/">Evidence</a></li>
+        <li><a href="./get/">Get it</a></li>
+        <li><a href="./docs/">Docs</a></li>
+        <li><a href="https://github.com/glowstonesq1/claimtrace">Source on GitHub</a></li>
+      </ul>
+      <ul class="foot__links" aria-label="Policies">
+        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/LICENSE">Licence: Apache-2.0</a></li>
+        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/SECURITY.md">Security policy</a></li>
+        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/privacy.md">Privacy</a></li>
+      </ul>
+    </div>
+    <p class="foot__legal">Not legal advice. ClaimTrace helps you read documents; it does not decide what is binding or what you should do. Every result quotes its source so you can check it. The sample documents are fictional.</p>
   </div>
 </footer>
+<!-- /footer -->
 
 <script src="slots.js"></script>
-<!-- GSAP 3.12.5 pinned with Subresource Integrity. The sha384 values were computed from the npm package
-     gsap@3.12.5 (dist/gsap.min.js, dist/ScrollTrigger.min.js); that cdnjs serves byte-identical files
-     could not be confirmed offline. If they ever differ, the browser refuses the script and site.js
-     keeps the static (no-animation) layout. -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js" integrity="sha384-Z3REaz79l2IaAZqJsSABtTbhjgOUYyV3p90XNnAPCSHg3EMTz1fouunq9WZRtj3d" crossorigin="anonymous" referrerpolicy="no-referrer" defer></script>
+<!-- GSAP 3.12.5, self-hosted: dist/gsap.min.js and dist/ScrollTrigger.min.js copied unchanged from the npm
+     package gsap@3.12.5 (GreenSock standard licence, header kept in each file). The SRI values are the
+     same sha384 the page used with cdnjs. Without them, site.js keeps the static layout. -->
+<script src="vendor/gsap/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" defer></script>
+<script src="vendor/gsap/ScrollTrigger.min.js" integrity="sha384-Z3REaz79l2IaAZqJsSABtTbhjgOUYyV3p90XNnAPCSHg3EMTz1fouunq9WZRtj3d" defer></script>
 <script src="site.js" defer></script>
 </body>
 </html>
