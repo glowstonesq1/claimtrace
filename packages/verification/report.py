@@ -11,6 +11,7 @@ import hashlib
 import html
 import io
 import json
+import re
 from datetime import UTC, datetime
 
 from claimtrace import __version__
@@ -231,9 +232,15 @@ def deadlines_csv(store: Store, doc_id: str) -> str:
 
 
 # ---------------------------------------------------------------- ICS (RFC 5545)
+# Control characters are not allowed in TEXT values (RFC 5545 §3.3.11): C0 except HTAB and the line
+# breaks handled below, DEL and C1.
+_ICS_CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]")
+
+
 def ics_escape(text: str) -> str:
-    """TEXT value escaping (RFC 5545 §3.3.11)."""
-    return (text.replace("\\", "\\\\").replace(";", "\;").replace(",", "\\,")
+    """TEXT value escaping (RFC 5545 §3.3.11); other control characters are removed."""
+    text = _ICS_CONTROL.sub("", text)
+    return (text.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,")
             .replace("\r\n", "\\n").replace("\n", "\\n").replace("\r", "\\n"))
 
 

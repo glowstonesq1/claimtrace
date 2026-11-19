@@ -107,3 +107,21 @@ def test_number_tolerant_pattern_matches_word_and_digit_forms():
     assert not rx.search("within 300 days")
     rx2 = re.compile(number_tolerant_pattern("forty-five (45) days"), re.I)
     assert rx2.search("pay within 45 days") and rx2.search("forty five days")
+
+
+def test_heading_target_needs_an_exact_heading_match():
+    """`The clause headed "Term"` must not delete §9 "Termination" (it used to, with needs_review=False)."""
+    base_md, amd_md, _ = _load(FIXTURES / "17_title_prefix_is_not_a_heading.case")
+    store, base_id, amd_id = _run(base_md, amd_md, "amendment")
+    ins = next(i for i in store.objects(AmendmentInstruction, amd_id) if i.target_section == "title:Term")
+    assert ins.resolved_section is None
+    assert ins.needs_review and any("Term" in r for r in ins.review_reasons)
+    assert {c.document_effect for c in store.objects(Commitment, base_id)} == {DocumentEffect.in_force}
+
+
+def test_heading_target_shared_by_two_clauses_is_ambiguous():
+    base_md, amd_md, _ = _load(FIXTURES / "18_title_ambiguous.case")
+    store, base_id, amd_id = _run(base_md, amd_md, "amendment")
+    ins = next(i for i in store.objects(AmendmentInstruction, amd_id) if i.target_section == "title:Payment")
+    assert ins.resolved_section is None and ins.needs_review
+    assert any("more than one" in r for r in ins.review_reasons), ins.review_reasons

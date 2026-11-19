@@ -56,11 +56,39 @@ GENESIS_HASH = "0" * 64
 _CHAIN_EXCLUDE = {"prev_hash", "hash"}
 
 
-def chain_hash(decision_json: str, prev_hash: str) -> str:
-    """sha256 over the canonical JSON (sorted keys, no whitespace, UTF-8) of {decision, prev_hash}."""
-    payload = {"decision": json.loads(decision_json), "prev_hash": prev_hash}
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+REDACTED_JSON = '{"redacted":true}'  # the only content a redacted decision may have (migration 002)
+
+
+def _canonical_sha256(value: object) -> str:
+    canonical = json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def content_hash(decision_json: str) -> str:
+    """sha256 over the canonical JSON (sorted keys, no whitespace, UTF-8) of a stored decision."""
+    return _canonical_sha256(json.loads(decision_json))
+
+
+def link_hash(content: str, prev_hash: str) -> str:
+    """A decision's chain hash from its content hash and the previous decision's hash."""
+    return _canonical_sha256({"content_hash": content, "prev_hash": prev_hash})
+
+
+def chain_hash(decision_json: str, prev_hash: str) -> str:
+    """hash = sha256(canonical {content_hash: sha256(canonical decision), prev_hash}).
+
+    Chaining the content *hash* lets a redacted decision (D15) keep verifying: redaction stores the
+    content hash and erases the content, and any other change to the row still breaks the chain.
+    """
+    return link_hash(content_hash(decision_json), prev_hash)
+
+
+def _target_of(decision_json: str) -> tuple[object, object]:
+    try:
+        d = json.loads(decision_json)
+    except ValueError:
+        return None, None
+    return (d.get("target_kind"), d.get("target_id")) if isinstance(d, dict) else (None, None)
 
 
 class NotFound(Exception):
@@ -91,20 +119,30 @@ class Store:
             for f in files:
                 version = int(f.name.split("_", 1)[0])
                 if version > current:
-                    # executescript manages its own transaction; keep schema + version atomic
-                    self.conn.executescript(f"BEGIN;\n{f.read_text()}\nINSERT INTO schema_version VALUES ({version});\nCOMMIT;")
-                    if version == 2 and current >= 1:
-                        self._chain_legacy_reviews()
+                    # Schema change, data backfill and version bump commit together or not at all: a crash
+                    # in between must not leave version 2 with v0.1 review rows that are never chained.
+                    # (isolation_level=None: executescript does not commit the open transaction itself.)
+                    self.conn.executescript(f"BEGIN;\n{f.read_text()}")
+                    try:
+                        if version == 2 and current >= 1:
+                            self._chain_legacy_reviews()
+                        self.conn.execute("INSERT INTO schema_version VALUES (?)", (version,))
+                    except BaseException:
+                        self.conn.execute("ROLLBACK")
+                        raise
+                    self.conn.execute("COMMIT")
+                    current = version
 
     def _chain_legacy_reviews(self) -> None:
-        """One-time: chain v0.1 review rows (no hashes yet) in insertion order."""
-        with self.tx() as c:
-            prev = GENESIS_HASH
-            for rid, js, h in c.execute("SELECT id, json, hash FROM reviews ORDER BY rowid").fetchall():
-                if h is None:
-                    h = chain_hash(js, prev)
-                    c.execute("UPDATE reviews SET prev_hash=?, hash=? WHERE id=?", (prev, h, rid))
-                prev = h
+        """One-time: chain v0.1 review rows (no hashes yet) in insertion order. Runs inside the
+        migration's transaction."""
+        c = self.conn
+        prev = GENESIS_HASH
+        for rid, js, h in c.execute("SELECT id, json, hash FROM reviews ORDER BY rowid").fetchall():
+            if h is None:
+                h = chain_hash(js, prev)
+                c.execute("UPDATE reviews SET prev_hash=?, hash=? WHERE id=?", (prev, h, rid))
+            prev = h
 
     @contextmanager
     def tx(self, immediate: bool = False) -> Iterator[sqlite3.Connection]:
@@ -360,20 +398,35 @@ class Store:
         return out
 
     def verify_review_chain(self) -> dict:
-        """Recompute every link. Reports the first decision whose content, hash or link does not match."""
-        rows = self._rows("SELECT id, json, prev_hash, hash, redacted FROM reviews ORDER BY rowid")
+        """Recompute every link. Reports the first decision whose content, hash or link does not match.
+
+        A redacted decision (D15) must hold exactly the redaction marker and a blank target; its link is
+        recomputed from the stored content hash of the erased decision, so a forged "redaction" that
+        changes anything else breaks the chain.
+        """
+        rows = self._rows(
+            "SELECT id, json, prev_hash, hash, redacted, content_hash, target_kind, target_id FROM reviews ORDER BY rowid"
+        )
         prev = GENESIS_HASH
         redacted = 0
-        for rid, js, prev_hash, h, red in rows:
+        for rid, js, prev_hash, h, red, stored_content, kind, target in rows:
             reason = None
             if prev_hash != prev:
                 reason = "link to the previous decision does not match (a decision was removed, reordered or altered)"
             elif h is None:
                 reason = "decision has no hash"
             elif red:
-                redacted += 1  # erased under D15: content is gone, only the link can be checked
+                redacted += 1
+                if js != REDACTED_JSON or kind != "redacted" or target != "" or not stored_content:
+                    reason = "redacted decision was altered (it must hold only the redaction marker)"
+                elif link_hash(stored_content, prev_hash) != h:
+                    reason = "redacted decision does not match its hash (its content hash was altered)"
+            elif stored_content is not None:
+                reason = "decision carries a content hash but is not redacted (it was altered)"
             elif chain_hash(js, prev_hash) != h:
                 reason = "decision content does not match its hash (it was edited)"
+            elif _target_of(js) != (kind, target):
+                reason = "decision's target columns do not match its content (it was re-targeted)"
             if reason:
                 return {"ok": False, "checked": len(rows), "redacted": redacted, "first_broken_id": rid,
                         "reason": reason, "head": None}
@@ -421,12 +474,18 @@ class Store:
             n_reviews = 0
             for i in range(0, len(targets), 500):
                 chunk = targets[i : i + 500]
-                # erase content but keep id and hashes so the review chain still verifies
-                n_reviews += c.execute(
-                    "UPDATE reviews SET json='{\"redacted\":true}', target_kind='redacted', target_id='', redacted=1 "
-                    f"WHERE redacted=0 AND target_id IN ({','.join('?' * len(chunk))})",
+                # erase content but keep id, time and hashes, and record the erased content's hash, so the
+                # review chain still verifies (and still detects any other change)
+                rows = c.execute(
+                    f"SELECT id, json FROM reviews WHERE redacted=0 AND target_id IN ({','.join('?' * len(chunk))})",
                     chunk,
-                ).rowcount
+                ).fetchall()
+                for rid, js in rows:
+                    n_reviews += c.execute(
+                        "UPDATE reviews SET json=?, target_kind='redacted', target_id='', redacted=1, content_hash=? "
+                        "WHERE id=?",
+                        (REDACTED_JSON, content_hash(js), rid),
+                    ).rowcount
             if obj_ids:
                 for i in range(0, len(obj_ids), 500):
                     chunk = obj_ids[i : i + 500]

@@ -128,3 +128,81 @@ def test_cli_reviews_verify(tmp_path, capsys):
     store.conn.close()
     assert cli(["--db", db, "reviews", "verify"]) == 1
     assert "rev_2" in capsys.readouterr().out
+
+
+# ---- redaction cannot forge content; legacy chaining is atomic with the version bump (code review)
+
+REDACTED_JSON = '{"redacted":true}'
+
+
+def test_forged_redaction_is_detected(store):
+    """`UPDATE reviews SET redacted=1, json='{forged}'` used to verify ok: redacted rows skipped content checks."""
+    _three(store)
+    _force(store, "UPDATE reviews SET redacted=1, json='{\"decision\":\"reject\"}' WHERE id='rev_2'")
+    res = store.verify_review_chain()
+    assert not res["ok"] and res["first_broken_id"] == "rev_2"
+
+
+def test_redaction_with_a_fake_content_hash_is_detected(store):
+    _three(store)
+    _force(store, "UPDATE reviews SET redacted=1, json=?, target_kind='redacted', target_id='', content_hash=? "
+                  "WHERE id='rev_2'", (REDACTED_JSON, "f" * 64))
+    res = store.verify_review_chain()
+    assert not res["ok"] and res["first_broken_id"] == "rev_2"
+
+
+def test_retargeted_live_decision_is_detected(store):
+    _three(store)
+    _force(store, "UPDATE reviews SET target_id='ans_other' WHERE id='rev_2'")
+    res = store.verify_review_chain()
+    assert not res["ok"] and res["first_broken_id"] == "rev_2"
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "UPDATE reviews SET redacted=1, json='{\"decision\":\"reject\"}' WHERE id='rev_2'",
+        "UPDATE reviews SET redacted=1, json='{\"redacted\":true}', target_kind='redacted', target_id='ans_9' "
+        "WHERE id='rev_2'",
+        "UPDATE reviews SET redacted=1, json='{\"redacted\":true}', target_kind='redacted', target_id='', "
+        "at='1999-01-01' WHERE id='rev_2'",
+    ],
+)
+def test_triggers_only_allow_a_blank_redaction(store, sql):
+    _three(store)
+    with pytest.raises(sqlite3.DatabaseError):
+        store.conn.execute(sql)
+
+
+def _v01_db(path: str, n: int = 3) -> None:
+    conn = sqlite3.connect(path, isolation_level=None)
+    sql = resources.files("claimtrace.core").joinpath("migrations").joinpath("001_init.sql").read_text()
+    conn.executescript(f"BEGIN;\nCREATE TABLE schema_version (version INTEGER NOT NULL);\n{sql}\n"
+                       "INSERT INTO schema_version VALUES (1);\nCOMMIT;")
+    for i in range(1, n + 1):
+        r = _rev(i)
+        conn.execute("INSERT INTO reviews(id, target_kind, target_id, json, at) VALUES (?,?,?,?,?)",
+                     (r.id, r.target_kind, r.target_id, r.model_dump_json(exclude={"prev_hash", "hash"}), r.at.isoformat()))
+    conn.close()
+
+
+def test_crash_while_chaining_legacy_rows_leaves_the_database_unmigrated(tmp_path, monkeypatch):
+    """A crash between migration 002 and the legacy backfill used to leave version 2 with unchained rows
+    that were never chained afterwards."""
+    db = str(tmp_path / "old.db")
+    _v01_db(db)
+
+    def crash(self: Store) -> None:
+        raise RuntimeError("simulated crash during the legacy backfill")
+
+    monkeypatch.setattr(Store, "_chain_legacy_reviews", crash)
+    with pytest.raises(RuntimeError):
+        Store(db)
+    monkeypatch.undo()
+    conn = sqlite3.connect(db)
+    assert conn.execute("SELECT MAX(version) FROM schema_version").fetchone()[0] == 1
+    conn.close()
+    store = Store(db)  # the retry migrates and chains everything
+    res = store.verify_review_chain()
+    assert res["ok"] and res["checked"] == 3
+    assert store.conn.execute("SELECT COUNT(*) FROM reviews WHERE hash IS NULL").fetchone()[0] == 0

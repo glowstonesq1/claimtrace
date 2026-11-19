@@ -19,6 +19,7 @@ Licensed under the Apache License, Version 2.0 (see LICENSE).
 | defusedxml | PSF-2.0 |
 | httpx | BSD-3-Clause |
 | React, React DOM (web UI) | MIT |
+| Bodoni Moda, Geist, Geist Mono fonts (project site, `apps/site/fonts`, via @fontsource 5.3.0) | SIL OFL 1.1 (licence texts alongside) |
 
 Development-only tools (pytest, ruff, mypy, reportlab, Vite, TypeScript, axe-core, Playwright) are not
 distributed with the application.

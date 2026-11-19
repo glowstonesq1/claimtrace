@@ -48,6 +48,18 @@ export function DocumentView({ id }: { id: string }) {
     if (s.document_id !== id) { window.location.hash = `#/doc/${s.document_id}?p=${s.passage_id}`; return; }
     requestAnimationFrame(() => document.getElementById(`p-${s.passage_id}`)?.scrollIntoView({ block: "center" }));
   };
+  // Graph selection: highlight the selected item's own passage (or nothing) without moving the page;
+  // only the source pane scrolls, so arrow-key navigation stays put.
+  const select = (s: Span | null) => {
+    if (!s || s.document_id !== id || !s.passage_id) { setHighlight(null); return; }
+    setHighlight(s);
+    requestAnimationFrame(() => {
+      const box = sourceRef.current, el = document.getElementById(`p-${s.passage_id}`);
+      if (!box || !el) return;
+      const top = el.getBoundingClientRect().top - box.getBoundingClientRect().top;
+      if (top < 0 || top > box.clientHeight - el.offsetHeight) box.scrollTop += top - box.clientHeight / 3;
+    });
+  };
   const parties = useMemo(() => Array.from(new Set(items.map((c) => c.obliging_party).filter(Boolean))) as string[], [items]);
   const visible = items.filter((c) =>
     (!f.party || c.obliging_party === f.party) && (!f.type || c.type === f.type) &&
@@ -144,7 +156,7 @@ export function DocumentView({ id }: { id: string }) {
             </>
           )}
           {tab === "relationships" && graph && (<>
-            <RelationshipGraph graph={graph} docId={id} items={items} passages={passages} onShow={show} />
+            <RelationshipGraph graph={graph} docId={id} items={items} passages={passages} onShow={show} onSelect={select} />
             <Relationships graph={graph} items={items} />
           </>)}
           {tab === "checks" && (

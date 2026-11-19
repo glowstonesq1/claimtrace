@@ -140,7 +140,7 @@ numbered files in `core/migrations/`; `schema_version` records the applied numbe
 | answer_documents | answer_id, document_id (PK both) | answers and documents ON DELETE CASCADE |
 | verification_runs | id PK, base_document_id, other_document_id, json, created_at | both documents ON DELETE CASCADE |
 | findings | id PK, run_id, json | verification_runs ON DELETE CASCADE |
-| reviews | id PK, target_kind, target_id, json, at, prev_hash, hash, redacted (v0.2, migration 002) | none |
+| reviews | id PK, target_kind, target_id, json, at, prev_hash, hash, redacted, content_hash (v0.2, migration 002) | none |
 | tombstones | document_id PK, checksum, deleted_at, reason, counts (JSON) | none |
 | egress_log | id autoincrement, document_id, host, bytes, purpose, at | none |
 | schema_version | version | none |
@@ -180,13 +180,15 @@ Review decisions are append-only and, since v0.2 (migration `002_review_chain.sq
 **hash-chained** in insertion order:
 
 ```
-prev_hash = hash of the previous decision (or 64 zeros for the first)
-hash      = sha256( canonical_json({"decision": <decision>, "prev_hash": prev_hash}) )
+prev_hash    = hash of the previous decision (or 64 zeros for the first)
+content_hash = sha256( canonical_json(<decision>) )
+hash         = sha256( canonical_json({"content_hash": content_hash, "prev_hash": prev_hash}) )
 ```
 
 `<decision>` is the stored decision JSON (id, target_kind, target_id, decision, note, reviewer,
 reviewer_verified, prior_status, target_hash, at) without the hash fields; canonical JSON
-means sorted keys, `(",", ":")` separators, UTF-8 (`store.chain_hash`). `Store.add_review` reads
+means sorted keys, `(",", ":")` separators, UTF-8 (`store.chain_hash`). The link commits to the
+content *hash* so that a redacted decision can still be verified (below). `Store.add_review` reads
 the last hash and inserts inside one `BEGIN IMMEDIATE` transaction. API responses include
 `prev_hash` and `hash`.
 
@@ -197,9 +199,18 @@ removed or reordered decision, breaks at the next link.
 
 Triggers refuse `UPDATE` and `DELETE` on `reviews`, except (a) the one-time backfill that
 chains v0.1 rows when migration 002 runs on an existing database, and (b) erasure for
-document deletion (D15): the row's content is replaced by `{"redacted":true}` and its target
-cleared, but its id and hashes stay, so the chain still links (`redacted` counts these; their
-content can no longer be checked). Erased rows are not returned by `GET /reviews/{target_id}`.
+document deletion (D15): the row's content is replaced by exactly `{"redacted":true}`, its target
+cleared (`target_kind='redacted'`, `target_id=''`) and the erased decision's `content_hash`
+stored; its id, `at` and hashes cannot change. Verification requires that exact marker and blank
+target on every redacted row and recomputes its `hash` from the stored `content_hash`, so a forged
+"redaction" (other content, a re-target, a made-up content hash) breaks the chain at that row.
+`redacted` counts these rows. Erased rows are not returned by `GET /reviews/{target_id}`. A live
+row whose `target_kind`/`target_id` columns disagree with its JSON is also reported.
+
+The v0.1 backfill runs in the same transaction as migration 002 and the schema-version bump, so a
+crash part-way leaves the database at version 1 and the next start migrates again. (Migration 002
+was changed in place before release; a database created by a pre-release v0.2 build reports its
+chain as broken and should be recreated.)
 
 Limits: the chain is tamper-*evident*, not tamper-proof. Someone with write access to the
 database file can rewrite every hash from the edited row onward, or drop the newest rows; to

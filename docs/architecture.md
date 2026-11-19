@@ -199,9 +199,12 @@ Checks inside the parsers (D12):
   medium confidence, need review and carry a caveat. Without the binary or packages, or with
   `CLAIMTRACE_OCR=off`, scanned PDFs get exactly the v0.1 `SCANNED:` warning; an OCR failure keeps
   the text layer and adds a warning. The engine is a seam (`OcrFunc(pdf_bytes, pages) ->
-  {page: (text, confidence)}`) passed as `IngestOptions(ocr=...)` for in-process parsing; the
-  sandbox worker uses the installed engine and its CPU/memory limits apply to OCR too, so very
-  long scans may hit the 30 s CPU limit.
+  {page: (text, confidence)}`) passed as `IngestOptions(ocr=...)` (a module-level function; default:
+  the installed engine). In the sandbox, the text layer is parsed first under the usual limits; OCR
+  then runs as a separate sandboxed step (`sandbox.ocr_sandboxed`) with a per-page budget
+  (`OCR_PAGE_SECONDS`, plus start-up time, within `OCR_TOTAL_SECONDS`). A page that overruns or
+  crashes is skipped with an `OCR: ... time limit` / `OCR failed` warning and the document is kept
+  (with `SCANNED:` if little text remains), so a long scan is never rejected for OCR time.
 - After parsing, `pipeline.ingest_bytes` adds an `INJECTION:` warning listing sections whose
   text matches `looks_like_injection`, and a `SCANNED:` warning if no passages were found.
 

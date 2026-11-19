@@ -272,12 +272,14 @@ NUMBER_WORDS: dict[str, int] = {w: n for n in range(100) if (w := number_words(n
 _NUMWORDS = dict(NUMBER_WORDS)
 _NUMWORDS.update({"hundred": 100, "a": 1, "an": 1})
 _NUM = r"(?:\d+|" + "|".join(sorted((re.escape(k) for k in _NUMWORDS), key=len, reverse=True)) + r")"
+# Whitespace runs are matched possessively (`\s*+`): adjacent `\s*` around optional groups backtracked
+# quadratically on long runs (ReDoS).
 RELATIVE_RE = re.compile(
     rf"\b(?:within|no\s+later\s+than|not\s+later\s+than|not\s+more\s+than|at\s+least|before\s+the\s+expiry\s+of|"
-    rf"by\s+no\s+later\s+than|on\s+or\s+before\s+the\s+date\s+falling)?\s*(?P<n>{_NUM})\s*(?:\((?:\d+)\)\s*)?"
-    rf"(?P<unit_kind>business|working|calendar|banking)?\s*(?P<unit>hours?|days?|weeks?|months?|years?)['’]?"
-    rf"(?:\s+(?:written\s+)?notice)?"
-    rf"(?:\s+(?P<rel>of|after|from|following|before|prior\s+to|following\s+receipt\s+of|of\s+receipt\s+of)\s+"
+    rf"by\s+no\s+later\s+than|on\s+or\s+before\s+the\s+date\s+falling)?\s*+(?P<n>{_NUM})\s*+(?:\((?:\d+)\)\s*+)?"
+    rf"(?P<unit_kind>business|working|calendar|banking)?\s*+(?P<unit>hours?|days?|weeks?|months?|years?)['’]?"
+    rf"(?:\s++(?:written\s++)?notice)?"
+    rf"(?:\s++(?P<rel>of|after|from|following|before|prior\s+to|following\s+receipt\s+of|of\s+receipt\s+of)\s++"
     rf"(?P<anchor>[^,;.]{{3,80}}))?",
     re.I,
 )

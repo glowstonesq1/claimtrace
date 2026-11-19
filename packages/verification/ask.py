@@ -33,7 +33,7 @@ from claimtrace.core.models import (
     Verdict,
     excluded_from_llm,
 )
-from claimtrace.core.store import Store
+from claimtrace.core.store import NotFound, Store
 from claimtrace.core.text import find_quote, tokens
 from claimtrace.extraction import patterns as P
 from claimtrace.integrations.llm import LLMError, LLMProvider
@@ -43,6 +43,10 @@ from .compare import compare_values, places, topic_overlap
 from .verify import verify_documents
 
 NOT_FOUND = "I could not find support for this in the uploaded documents."
+SUSPECT_NOTE = (
+    "Some cited text is hidden from a reader (white, tiny, off-page or hidden-formatted) or reads like "
+    "instructions to an AI; it is not used as support. Check the original document."
+)
 SCOPE_NOTE = "Only covers the documents searched; documents you have not uploaded (e.g. later amendments) are not reflected."
 ANSWER_PROMPT_VERSION = "answer-v1"
 _QWORDS = set(
@@ -212,8 +216,11 @@ def answer_question(
         ans.citations = [c for c in ans.citations if c.verified]
         ans.caveats.append("Some citations could not be verified against the stored text and were removed.")
         ans.needs_review = True
-    if ans.status != AnswerStatus.not_addressed and not any(c.role in ("supports", "conflicts") for c in ans.citations):
+    hidden_only = ans.status == AnswerStatus.needs_human_review and any(c.note == _SUSPECT_CITE for c in ans.citations)
+    if (ans.status != AnswerStatus.not_addressed and not hidden_only
+            and not any(c.role in ("supports", "conflicts") for c in ans.citations)):
         ans.status, ans.answer_text, ans.confidence = AnswerStatus.not_addressed, NOT_FOUND, Confidence.unknown
+    _guard_suspect_citations(store, ans)
     ans.run_manifest = {
         "claimtrace_version": __version__,
         "composer": "llm" if ans.run_manifest.get("llm") else "rules",
@@ -222,6 +229,39 @@ def answer_question(
     }
     store.save_answer(ans)
     return ans
+
+
+_SUSPECT_CITE = "Hidden or instruction-like text: shown for review, not used as support"
+
+
+def _suspect(store: Store, passage_id: str, cache: dict[str, bool]) -> bool:
+    if passage_id not in cache:
+        try:
+            cache[passage_id] = excluded_from_llm(store.get_passage(passage_id))
+        except NotFound:
+            cache[passage_id] = False
+    return cache[passage_id]
+
+
+def _guard_suspect_citations(store: Store, ans: Answer) -> None:
+    """Whatever path produced the answer, a citation of hidden or injection-suspect text never counts as
+    support: it is demoted to context, and the answer needs review at low confidence."""
+    cache: dict[str, bool] = {}
+    suspect = [c for c in ans.citations if c.role != "checked_not_supporting" and _suspect(store, c.span.passage_id, cache)]
+    if not suspect:
+        return
+    for c in suspect:
+        if c.role == "supports":
+            c.role, c.note = "context", _SUSPECT_CITE
+    ans.needs_review = True
+    if ans.confidence != Confidence.unknown:
+        ans.confidence = Confidence.low
+    if ans.status in (AnswerStatus.stated, AnswerStatus.implied) and not any(
+        c.role in ("supports", "conflicts") for c in ans.citations
+    ):
+        ans.status = AnswerStatus.needs_human_review
+    if SUSPECT_NOTE not in ans.caveats:
+        ans.caveats.insert(0, SUSPECT_NOTE)
 
 
 def _new(
@@ -296,7 +336,24 @@ def _lookup(ctx: _Ctx, question: str, provider: LLMProvider | None) -> Answer:
         llm_ans = _llm_compose(ctx, question, [ctx.passages[h.id] for h in good[:4]], provider)
         if llm_ans is not None:
             return llm_ans
-    best = good[0]
+    # Hidden or instruction-like passages are never the primary support for an answer (they are also
+    # never sent to a model). If only such passages match, say so and ask for review.
+    visible = [h for h in good if not excluded_from_llm(ctx.passages[h.id])]
+    if not visible:
+        sp = ctx.passages[good[0].id]
+        span = _passage_span(ctx, sp)
+        return _new(
+            question,
+            list(ctx.docs),
+            AnswerStatus.needs_human_review,
+            f"The only text matching this question is in {_loc(span)}, which is hidden from a reader or reads like "
+            "instructions to an AI. It is not treated as an answer; check the original document.",
+            Confidence.low,
+            [_cite(span, "context", _SUSPECT_CITE)],
+            caveats=[SUSPECT_NOTE],
+            needs_review=True,
+        )
+    best = visible[0]
     p = ctx.passages[best.id]
     doc = ctx.docs[p.document_id]
     # choose the commitment or sentence in the passage that best matches

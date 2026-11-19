@@ -28,6 +28,10 @@ returning "needs review"/"not addressed" where a change was real. The sealed set
 tuning purposes; v0.3 needs another fresh one. Runs: `evals/runs/published/v2-*` and
 `v1-amendments-v2-rules`.
 
+After the release review's correctness and security fixes (ReDoS, exact heading targets, hidden-text
+hardening), both sealed sets were re-scored once (`v2-postfix-*`): every metric is identical, so the
+numbers above describe the shipped code.
+
 ## TL;DR (v0.1.0, rules baseline, no language model)
 
 - **Grounding holds**: 0.00 hallucination rate and 1.00 "not found" recall on both sets; every quote is

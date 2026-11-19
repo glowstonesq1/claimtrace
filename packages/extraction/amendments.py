@@ -17,155 +17,162 @@ from dataclasses import dataclass
 from .patterns import NUMBER_WORDS, number_words
 
 # ------------------------------------------------------------------ building blocks
-_N = r"\d+(?:\.\d+)*(?:\s*\([a-z0-9]{1,4}\))*"
+_N = r"\d+(?:\.\d+)*(?:\s*+\([a-z0-9]{1,4}\))*"
 _CL = r"(?:sub-?clauses?|clauses?|sections?|paragraphs?|articles?)"
 _SCHED = r"(?:schedule|annex|appendix|exhibit)"
 # "Clause 10 (Non-Solicitation)", "Clause 4.4 (as renumbered)" - the parenthesis is descriptive only
-_PAREN = r"(?:\s*\((?:as\s+(?:re)?numbered|as\s+amended|[A-Z][^()\"“”]{1,60})\))?"
-_OF = r"(?:\s+of\s+(?:the\s+|this\s+)?(?:[A-Z][\w ]{1,60}?|agreement|contract|deed))?"
+_PAREN = r"(?:\s*+\((?:as\s++(?:re)?numbered|as\s++amended|[A-Z][^()\"“”]{1,60})\))?"
+# a title never ends in, or contains a run of, whitespace: keeps the following `\s++` linear
+_OF = r"(?:\s++of\s++(?:the\s++|this\s++)?(?:[A-Z](?:\w| (?=\w)){1,60}?|agreement|contract|deed))?"
 _TARGET = (
-    rf"(?:{_CL}\s+(?P<sec>{_N}){_PAREN}"
-    rf"|(?P<sched>{_SCHED}\s+(?:\d+|[A-Z])\b)"
-    rf"|(?:the\s+)?(?:clause|section|paragraph|article)\s+(?:headed|entitled|titled|named|called)\s+"
+    rf"(?:{_CL}\s++(?P<sec>{_N}){_PAREN}"
+    rf"|(?P<sched>{_SCHED}\s++(?:\d+|[A-Z])\b)"
+    rf"|(?:the\s++)?(?:clause|section|paragraph|article)\s++(?:headed|entitled|titled|named|called)\s++"
     rf"[\"“](?P<title>[^\"”]{{2,60}})[\"”]"
-    rf"|the\s+[\"“](?P<title2>[^\"”]{{2,60}})[\"”]\s+(?:clause|section)\b(?!\s+\d)"
+    rf"|the\s++[\"“](?P<title2>[^\"”]{{2,60}})[\"”]\s++(?:clause|section)\b(?!\s++\d)"
     rf"){_OF}"
 )
-_AUX = r"(?:(?:is|are|shall|will|should|must|is\s+to|are\s+to)\s+(?:be\s+)?)?(?:hereby\s+)?(?:now\s+)?"
+_AUX = r"(?:(?:is|are|shall|will|should|must|is\s++to|are\s++to)\s++(?:be\s++)?)?(?:hereby\s++)?(?:now\s++)?"
 _QUOTE = r"[\"“](?P<new>[^\"”]{2,3000})[\"”]"
 _FOLLOW = r"(?P<follows>:\s*$)"  # the replacement text is in the next passage
-_ENTIRE = r"(?:\s+in\s+(?:its|their)\s+entirety)?"
+_ENTIRE = r"(?:\s++in\s++(?:its|their)\s++entirety)?"
 
 
 def _val(name: str) -> str:
     """A quoted phrase, or a short unquoted one ("90 days", "99.5%")."""
-    return rf"(?:[\"“](?P<{name}>[^\"”]{{0,200}}?)[\"”]|(?P<{name}u>(?:[^\"”,;.:]|[.,](?=\d)){{1,60}}?))"
+    # Unquoted: whitespace only singly and before a word character, so the value cannot start inside, end
+    # in, or span a whitespace run - otherwise lazy expansion against the next `\s++` is quadratic (ReDoS).
+    return (rf"(?:[\"“](?P<{name}>[^\"”]{{0,200}}?)[\"”]"
+            rf"|(?P<{name}u>(?:[^\s\"”,;.:]|[.,](?=\d)|\s(?=[^\s\"”,;.:]|[.,]\d)){{1,60}}?))")
 
 
 _WORDS = (
-    r"(?:the\s+)?(?:(?:reference|references)\s+to\s+(?:the\s+)?|words?\s+|figures?\s+|number\s+|amount\s+|sum\s+|"
-    r"period\s+(?:of\s+)?|date\s+|percentage\s+|expression\s+)?"
+    r"(?:the\s++)?(?:(?:reference|references)\s++to\s++(?:the\s++)?|words?\s++|figures?\s++|number\s++|amount\s++|sum\s++|"
+    r"period\s++(?:of\s++)?|date\s++|percentage\s++|expression\s++)?"
 )
-_END = r"\s*(?=[.;]|$|\s+(?:and|in\s+(?:its|their)\s+place)\b)"
+# End of a modify value: `\s*(?=[.;]|$|\s+(?:and|...))` with every whitespace run consumed atomically.
+_END = r"(?:\s*+(?=[.;]|$)|[^\S\n]*+(?=$)|(?=\s++(?:and|in\s++(?:its|their)\s++place)\b))"
+# End of a sentence: `\s*(?:[.;]|$)` (MULTILINE `$` may also sit before the first newline of a run).
+_EOS = r"(?:\s*+[.;]|\s*+$|[^\S\n]*+$)"
 
 _RE = re.IGNORECASE | re.MULTILINE
 
 REPLACE_RE = re.compile(
-    rf"{_TARGET}\s+{_AUX}(?:deleted{_ENTIRE}\s+and\s+(?:replaced|substituted){_ENTIRE}\s+(?:with|by)"
-    rf"|replaced{_ENTIRE}\s+(?:with|by)|amended\s+(?:and\s+restated\s+)?(?:to\s+read|so\s+as\s+to\s+read|so\s+that\s+it\s+reads|"
-    rf"as\s+follows)|restated\s+(?:to\s+read|as\s+follows)|varied\s+(?:to\s+read|as\s+follows)|changed\s+to|"
-    rf"substituted\s+(?:with|by)|read\s+as(?!\s+if)(?:\s+follows)?|reads?(?:\s+as\s+follows)?)"
-    rf"(?:\s+the\s+following)?(?:\s+(?:new\s+)?(?:clause|section|paragraph)\s+[\d.]+)?\s*(?:,|:)?\s*(?:{_QUOTE}|{_FOLLOW})",
+    rf"{_TARGET}\s++{_AUX}(?:deleted{_ENTIRE}\s++and\s++(?:replaced|substituted){_ENTIRE}\s++(?:with|by)"
+    rf"|replaced{_ENTIRE}\s++(?:with|by)|amended\s++(?:and\s++restated\s++)?(?:to\s++read|so\s++as\s++to\s++read|so\s++that\s++it\s++reads|"
+    rf"as\s++follows)|restated\s++(?:to\s++read|as\s++follows)|varied\s++(?:to\s++read|as\s++follows)|changed\s++to|"
+    rf"substituted\s++(?:with|by)|read\s++as(?!\s++if)(?:\s++follows)?|reads?(?:\s++as\s++follows)?)"
+    rf"(?:\s++the\s++following)?(?:\s++(?:new\s++)?(?:clause|section|paragraph)\s++[\d.]+)?\s*+(?:,|:)?\s*+(?:{_QUOTE}|{_FOLLOW})",
     _RE,
 )
 IMPERATIVE_REPLACE_RE = re.compile(
-    rf"\b(?:delete|replace)\s+{_TARGET}\s+(?:and\s+(?:replace|substitute)\s+(?:it|them)\s+)?(?:with|by)"
-    rf"(?:\s+the\s+following)?\s*:?\s*(?:{_QUOTE}|{_FOLLOW})",
+    rf"\b(?:delete|replace)\s++{_TARGET}\s++(?:and\s++(?:replace|substitute)\s++(?:it|them)\s++)?(?:with|by)"
+    rf"(?:\s++the\s++following)?\s*+:?\s*+(?:{_QUOTE}|{_FOLLOW})",
     _RE,
 )
 SUBSTITUTED_FOR_RE = re.compile(
-    rf"(?:the\s+following|a\s+new\s+(?:clause|section)(?:\s+[\d.]+)?)\s+{_AUX}substituted\s+for\s+{_TARGET}\s*:?\s*"
+    rf"(?:the\s++following|a\s++new\s++(?:clause|section)(?:\s++[\d.]+)?)\s++{_AUX}substituted\s++for\s++{_TARGET}\s*+:?\s*+"
     rf"(?:{_QUOTE}|{_FOLLOW})",
     _RE,
 )
 # "Schedule 2 is replaced by the schedule set out in the Annex" - the new text is elsewhere in the amendment
 SCHEDULE_REPLACE_RE = re.compile(
-    rf"(?P<sched>{_SCHED}\s+(?:\d+|[A-Z])\b){_OF}\s+{_AUX}(?:deleted{_ENTIRE}\s+and\s+)?(?:replaced|substituted)"
-    rf"{_ENTIRE}\s+(?:with|by)\s+(?P<where>[^\"“.;]{{3,160}})",
+    rf"(?P<sched>{_SCHED}\s++(?:\d+|[A-Z])\b){_OF}\s++{_AUX}(?:deleted{_ENTIRE}\s++and\s++)?(?:replaced|substituted)"
+    rf"{_ENTIRE}\s++(?:with|by)\s++(?P<where>[^\"“.;]{{3,160}})",
     _RE,
 )
 INSERT_AT_RE = re.compile(
-    rf"(?:the\s+following\s+|a\s+)?(?:new\s+)?(?:clause|section|paragraph)(?:\s+(?P<sec>{_N}))?\s+{_AUX}(?:added|inserted)"
-    rf"\s+(?:immediately\s+)?(?P<pos>after|before|following)\s+{_CL}\s+(?P<anchor>{_N}){_OF}"
-    rf"(?:\s+as\s+(?:a\s+new\s+)?(?:clause|section|paragraph)\s+(?P<sec2>{_N}))?(?:\s*,?\s*as\s+follows)?\s*:?\s*"
+    rf"(?:the\s++following\s++|a\s++)?(?:new\s++)?(?:clause|section|paragraph)(?:\s++(?P<sec>{_N}))?\s++{_AUX}(?:added|inserted)"
+    rf"\s++(?:immediately\s++)?(?P<pos>after|before|following)\s++{_CL}\s++(?P<anchor>{_N}){_OF}"
+    rf"(?:\s++as\s++(?:a\s++new\s++)?(?:clause|section|paragraph)\s++(?P<sec2>{_N}))?(?:\s*+,?\s*+as\s++follows)?\s*+:?\s*+"
     rf"(?:{_QUOTE}|{_FOLLOW})",
     _RE,
 )
 INSERT_IMPERATIVE_RE = re.compile(
-    rf"\b(?:insert|add)\s+(?:the\s+following\s+)?(?:(?:a\s+)?new\s+)?(?:(?:clause|section|paragraph)(?:\s+(?P<sec>{_N}))?\s+)?"
-    rf"(?:immediately\s+)?(?P<pos>after|before|following)\s+{_CL}\s+(?P<anchor>{_N}){_OF}\s*:?\s*(?:{_QUOTE}|{_FOLLOW})",
+    rf"\b(?:insert|add)\s++(?:the\s++following\s++)?(?:(?:a\s++)?new\s++)?(?:(?:clause|section|paragraph)(?:\s++(?P<sec>{_N}))?\s++)?"
+    rf"(?:immediately\s++)?(?P<pos>after|before|following)\s++{_CL}\s++(?P<anchor>{_N}){_OF}\s*+:?\s*+(?:{_QUOTE}|{_FOLLOW})",
     _RE,
 )
 INSERT_AFTER_LEAD_RE = re.compile(
-    rf"(?:immediately\s+)?(?P<pos>after|before|following)\s+{_CL}\s+(?P<anchor>{_N}){_OF},?\s+(?:insert|add|there\s+"
-    rf"(?:is|are|shall\s+be)\s+(?:inserted|added))(?:\s+the\s+following)?(?:\s+(?:new\s+)?(?:clause|section)"
-    rf"(?:\s+(?P<sec>{_N}))?)?\s*:?\s*(?:{_QUOTE}|{_FOLLOW})",
+    rf"(?:immediately\s++)?(?P<pos>after|before|following)\s++{_CL}\s++(?P<anchor>{_N}){_OF},?\s++(?:insert|add|there\s++"
+    rf"(?:is|are|shall\s++be)\s++(?:inserted|added))(?:\s++the\s++following)?(?:\s++(?:new\s++)?(?:clause|section)"
+    rf"(?:\s++(?P<sec>{_N}))?)?\s*+:?\s*+(?:{_QUOTE}|{_FOLLOW})",
     _RE,
 )
 INSERT_RE = re.compile(
-    rf"(?:the\s+following|a\s+new)\s+(?:new\s+)?(?:clause|section|paragraph)?\s*{_AUX}(?:added|inserted)"
-    rf"(?:\s+(?:to|into)\s+(?:the\s+)?\w+)?\s+as\s+(?:a\s+new\s+)?(?:clause|section|paragraph)\s+"
-    rf"(?P<sec>\d+(?:\.\d+)*)\s*:?\s*(?:{_QUOTE}|{_FOLLOW})",
+    rf"(?:the\s++following|a\s++new)\s++(?:new\s++)?(?:clause|section|paragraph)?\s*+{_AUX}(?:added|inserted)"
+    rf"(?:\s++(?:to|into)\s++(?:the\s++)?\w+)?\s++as\s++(?:a\s++new\s++)?(?:clause|section|paragraph)\s++"
+    rf"(?P<sec>\d+(?:\.\d+)*)\s*+:?\s*+(?:{_QUOTE}|{_FOLLOW})",
     _RE,
 )
 INSERT_RE2 = re.compile(
-    rf"(?:a\s+new\s+)?(?:clause|section)\s+(?P<sec>\d+(?:\.\d+)*)\s+{_AUX}(?:added|inserted)"
-    rf"[^:\"“]{{0,60}}:?\s*(?:{_QUOTE}|{_FOLLOW})",
+    rf"(?:a\s++new\s++)?(?:clause|section)\s++(?P<sec>\d+(?:\.\d+)*)\s++{_AUX}(?:added|inserted)"
+    rf"[^:\"“]{{0,60}}:?\s*+(?:{_QUOTE}|{_FOLLOW})",
     _RE,
 )
 DELETE_RE = re.compile(
-    rf"{_TARGET}\s+{_AUX}(?:deleted|removed|struck(?:\s+out)?|revoked|omitted|cancelled){_ENTIRE}"
-    rf"(?!\s+and\s+(?:replaced|substituted))"
-    rf"(?:\s+(?:with\s+effect\s+)?from\s+[^.;]{{1,40}})?"
-    rf"(?:\s+and\s+(?:shall\s+|will\s+)?(?:have\s+no\s+further\s+effect|is\s+of\s+no\s+further\s+effect|"
-    rf"shall\s+cease\s+to\s+apply|no\s+longer\s+applies))?\s*(?:[.;]|$)",
+    rf"{_TARGET}\s++{_AUX}(?:deleted|removed|struck(?:\s++out)?|revoked|omitted|cancelled){_ENTIRE}"
+    rf"(?!\s++and\s++(?:replaced|substituted))"
+    rf"(?:\s++(?:with\s++effect\s++)?from\s++[^.;]{{1,40}})?"
+    rf"(?:\s++and\s++(?:shall\s++|will\s++)?(?:have\s++no\s++further\s++effect|is\s++of\s++no\s++further\s++effect|"
+    rf"shall\s++cease\s++to\s++apply|no\s++longer\s++applies))?{_EOS}",
     _RE,
 )
 CEASE_RE = re.compile(
-    rf"{_TARGET}\s+(?:shall|will|is\s+to)\s+(?:cease\s+to\s+(?:apply|have\s+effect)|no\s+longer\s+(?:apply|have\s+effect)|"
-    rf"have\s+no\s+further\s+(?:force\s+or\s+)?effect)(?:\s+(?:with\s+effect\s+)?(?:from|on)\s+[^.;]{{1,40}})?\s*(?:[.;]|$)",
+    rf"{_TARGET}\s++(?:shall|will|is\s++to)\s++(?:cease\s++to\s++(?:apply|have\s++effect)|no\s++longer\s++(?:apply|have\s++effect)|"
+    rf"have\s++no\s++further\s++(?:force\s++or\s++)?effect)(?:\s++(?:with\s++effect\s++)?(?:from|on)\s++[^.;]{{1,40}})?{_EOS}",
     _RE,
 )
-IMPERATIVE_DELETE_RE = re.compile(rf"\bdelete\s+{_TARGET}\s*(?:[.;]|$)", _RE)
+IMPERATIVE_DELETE_RE = re.compile(rf"\bdelete\s++{_TARGET}{_EOS}", _RE)
 
-_CHANGE = r"(?:replaced|substituted|amended|changed|deleted\s+and\s+replaced)"
+_CHANGE = r"(?:replaced|substituted|amended|changed|deleted\s++and\s++replaced)"
 MODIFY_IN_RE = re.compile(  # In clause 5.2, the words "30 days" are replaced by "45 days".
-    rf"\bin\s+{_TARGET},?\s+{_WORDS}{_val('old')}\s+{_AUX}{_CHANGE}\s+(?:with|by|to)\s+(?:the\s+words\s+)?{_val('new')}{_END}",
+    rf"\bin\s++{_TARGET},?\s++{_WORDS}{_val('old')}\s++{_AUX}{_CHANGE}\s++(?:with|by|to)\s++(?:the\s++words\s++)?{_val('new')}{_END}",
     _RE,
 )
 MODIFY_BECOMES_RE = re.compile(  # In clause 5.2, "30 days" becomes "45 days".
-    rf"\bin\s+{_TARGET},?\s+{_WORDS}{_val('old')}\s+(?:becomes|shall\s+become|will\s+become)\s+{_val('new')}{_END}",
+    rf"\bin\s++{_TARGET},?\s++{_WORDS}{_val('old')}\s++(?:becomes|shall\s++become|will\s++become)\s++{_val('new')}{_END}",
     _RE,
 )
 MODIFY_WORDS_IN_RE = re.compile(  # The words "30 days" in clause 5.2 are replaced by "45 days".
-    rf"{_WORDS}{_val('old')}\s+in\s+{_TARGET}\s+{_AUX}{_CHANGE}\s+(?:with|by|to)\s+(?:the\s+words\s+)?{_val('new')}{_END}",
+    rf"{_WORDS}{_val('old')}\s++in\s++{_TARGET}\s++{_AUX}{_CHANGE}\s++(?:with|by|to)\s++(?:the\s++words\s++)?{_val('new')}{_END}",
     _RE,
 )
 MODIFY_BY_DELETING_RE = re.compile(  # Clause 5.2 is amended by deleting "30 days" and inserting "45 days".
-    rf"{_TARGET}\s+{_AUX}(?:amended|varied)\s+by\s+(?:deleting|removing|striking(?:\s+out)?)\s+{_WORDS}{_val('old')}\s+"
-    rf"and\s+(?:inserting|substituting|adding|replacing\s+(?:it|them)\s+with)(?:\s+in\s+(?:its|their)\s+place)?\s+"
-    rf"(?:the\s+words\s+)?{_val('new')}{_END}",
+    rf"{_TARGET}\s++{_AUX}(?:amended|varied)\s++by\s++(?:deleting|removing|striking(?:\s++out)?)\s++{_WORDS}{_val('old')}\s++"
+    rf"and\s++(?:inserting|substituting|adding|replacing\s++(?:it|them)\s++with)(?:\s++in\s++(?:its|their)\s++place)?\s++"
+    rf"(?:the\s++words\s++)?{_val('new')}{_END}",
     _RE,
 )
 MODIFY_BY_REPLACING_RE = re.compile(  # Clause 5.2 is amended by replacing "30 days" with "45 days".
-    rf"{_TARGET}\s+{_AUX}(?:amended|varied)\s+by\s+(?:replacing|changing|increasing|reducing|decreasing|extending|"
-    rf"shortening)\s+{_WORDS}{_val('old')}\s+(?:with|by|to)\s+(?:the\s+words\s+)?{_val('new')}{_END}",
+    rf"{_TARGET}\s++{_AUX}(?:amended|varied)\s++by\s++(?:replacing|changing|increasing|reducing|decreasing|extending|"
+    rf"shortening)\s++{_WORDS}{_val('old')}\s++(?:with|by|to)\s++(?:the\s++words\s++)?{_val('new')}{_END}",
     _RE,
 )
 MODIFY_SUBSTITUTING_FOR_RE = re.compile(  # Clause 3.1 is amended by substituting "£1,400" for "£1,250".
-    rf"{_TARGET}\s+{_AUX}(?:amended|varied)\s+by\s+substituting\s+{_WORDS}{_val('new')}\s+for\s+{_WORDS}{_val('old')}{_END}",
+    rf"{_TARGET}\s++{_AUX}(?:amended|varied)\s++by\s++substituting\s++{_WORDS}{_val('new')}\s++for\s++{_WORDS}{_val('old')}{_END}",
     _RE,
 )
 MODIFY_READ_AS_IF_RE = re.compile(  # Clause 2 shall be read as if "X" were replaced by "Y" / were deleted.
-    rf"{_TARGET}\s+{_AUX}(?:read|construed|interpreted)\s+as\s+if\s+{_WORDS}{_val('old')}\s+(?:were|was|had\s+been)\s+"
-    rf"(?:(?:replaced|substituted)\s+(?:with|by)\s+(?:the\s+words\s+)?{_val('new')}|(?P<gone>deleted|omitted|removed))",
+    rf"{_TARGET}\s++{_AUX}(?:read|construed|interpreted)\s++as\s++if\s++{_WORDS}{_val('old')}\s++(?:were|was|had\s++been)\s++"
+    rf"(?:(?:replaced|substituted)\s++(?:with|by)\s++(?:the\s++words\s++)?{_val('new')}|(?P<gone>deleted|omitted|removed))",
     _RE,
 )
 MODIFY_IMPERATIVE_RE = re.compile(  # In clause 5.2, delete "30 days" and insert "45 days" / replace "a" with "b".
-    rf"\bin\s+{_TARGET},?\s+(?:delete\s+{_WORDS}{_val('old')}\s+and\s+(?:insert|substitute)|replace\s+{_WORDS}{_val('old2')}"
-    rf"\s+with)\s+{_val('new')}{_END}",
+    rf"\bin\s++{_TARGET},?\s++(?:delete\s++{_WORDS}{_val('old')}\s++and\s++(?:insert|substitute)|replace\s++{_WORDS}{_val('old2')}"
+    rf"\s++with)\s++{_val('new')}{_END}",
     _RE,
 )
 RENUMBER_RE = re.compile(
-    rf"{_CL}\s+(?P<a>{_N})(?:\s+(?P<rng>to|and|-|–)\s+(?P<b>{_N}))?{_OF}\s+{_AUX}(?:re-?numbered)\s+(?:as\s+)?"
-    rf"(?:{_CL}\s+)?(?P<c>{_N})(?:\s+(?:to|and|-|–)\s+(?P<d>{_N}))?",
+    rf"{_CL}\s++(?P<a>{_N})(?:\s++(?P<rng>to|and|-|–)\s++(?P<b>{_N}))?{_OF}\s++{_AUX}(?:re-?numbered)\s++(?:as\s++)?"
+    rf"(?:{_CL}\s++)?(?P<c>{_N})(?:\s++(?:to|and|-|–)\s++(?P<d>{_N}))?",
     _RE,
 )
 # Document-level: "This Agreement amends and restates the Services Agreement in its entirety"
 RESTATE_RE = re.compile(
-    r"\bamend(?:s|ing)\s+and\s+restat(?:es|ing)\s+(?!(?:clause|section|schedule|paragraph)s?\b)"
-    r"|^\s*amended\s+and\s+restated\b|\brestates?\s+(?:the\s+[^.;]{1,80}?)?\s*in\s+(?:its|their)\s+entirety"
-    r"|\bsupersedes?\s+and\s+replaces?\s+the\s+[^.;]{1,80}?\s+in\s+(?:its|their)\s+entirety",
+    r"\bamend(?:s|ing)\s++and\s++restat(?:es|ing)\s++(?!(?:clause|section|schedule|paragraph)s?\b)"
+    r"|^\s*+amended\s++and\s++restated\b|\brestates?\s++(?:the\s++[^.;]{1,80}?)?\s*+in\s++(?:its|their)\s++entirety"
+    r"|\bsupersedes?\s++and\s++replaces?\s++the\s++[^.;]{1,80}?\s++in\s++(?:its|their)\s++entirety",
     re.I,
 )
 

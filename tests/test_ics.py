@@ -103,3 +103,23 @@ def test_cli_report_ics(store, tmp_path, capsys):
     assert cli(["--db", db, "report", doc_id, "--format", "ics"]) == 0
     out = capsys.readouterr().out
     assert out.startswith("BEGIN:VCALENDAR") and out.count("BEGIN:VEVENT") == 3
+
+
+def test_ics_escape_strips_control_characters():
+    assert ics_escape("a;b,c\\d") == "a\;b\\,c\\\\d"
+    raw = "pay\x00 the\x07 fee\x1b[31m now\x7f;\x85 ok\tthen\nnext"
+    out = ics_escape(raw)
+    assert out == "pay the fee[31m now\; ok\tthen\\nnext"
+    assert not any(ord(ch) < 0x20 and ch != "\t" or 0x7F <= ord(ch) <= 0x9F for ch in out)
+
+
+def test_report_module_has_no_invalid_escape_sequences():
+    import warnings
+    from pathlib import Path
+
+    import claimtrace.verification.report as report
+
+    src = Path(report.__file__).read_text()
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # "\;" is a SyntaxWarning (an error in a future Python)
+        compile(src, report.__file__, "exec")

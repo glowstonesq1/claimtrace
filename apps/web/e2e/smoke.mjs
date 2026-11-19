@@ -12,6 +12,10 @@ const failures = [];
 const check = (cond, msg) => { if (!cond) failures.push(msg); console.log(`${cond ? "ok  " : "FAIL"} ${msg}`); };
 
 async function axe(page, name) {
+  // Measure the settled page: colour contrast read mid-fade (entrance animations) is a false failure.
+  await page.waitForFunction(() => document.getAnimations()
+    .every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Infinity), null, { timeout: 5000 })
+    .catch(() => undefined);
   await page.addScriptTag({ content: axeSource });
   const res = await page.evaluate(async () => await window.axe.run(document, { resultTypes: ["violations"] }));
   const serious = res.violations.filter((v) => ["serious", "critical"].includes(v.impact));
@@ -59,6 +63,43 @@ const focused = await page.evaluate(() => document.activeElement?.getAttribute("
 check(/^§/.test(focused), "ArrowRight moves from a party to a connected commitment");
 await page.keyboard.press("Enter");
 check(await page.locator("aside mark").isVisible(), "Enter on a graph node highlights its source text");
+// Selecting another node (click, arrow keys, or a link in the detail pane) must move the source highlight
+// to that node's own passage, or clear it - never leave the previous node's passage highlighted.
+const squeeze = (s) => (s ?? "").replace(/[\s"“”'’]+/g, " ").trim().toLowerCase();
+const highlightNow = async (label) => {
+  const marks = page.locator("aside mark");
+  if (!(await marks.count())) return true;  // no highlight is consistent too
+  const text = squeeze(await marks.first().innerText());
+  return text.length > 0 && squeeze(label).includes(text);
+};
+const highlightMatches = async (label) => {  // the highlight follows the selection on the next render
+  for (const end = Date.now() + 2000; Date.now() < end; await page.waitForTimeout(50)) if (await highlightNow(label)) return true;
+  return highlightNow(label);
+};
+const shownLabel = focused;
+const cmtNodes = page.locator(".graph [data-node].commitment");
+let other = null;
+for (let i = (await cmtNodes.count()) - 1; i >= 0 && !other; i--) {
+  const label = await cmtNodes.nth(i).getAttribute("aria-label");
+  if (label !== shownLabel) other = { node: cmtNodes.nth(i), label };
+}
+check(!!other, "graph has a second commitment to select");
+if (other) {
+  await other.node.click();
+  check(await highlightMatches(other.label), "clicking a graph node highlights its own source passage (or none)");
+  check(!(await page.locator("aside mark").count()) || !(await highlightNow(shownLabel)) || squeeze(shownLabel) === squeeze(other.label),
+    "the previously shown node's passage is no longer highlighted");
+  await page.keyboard.press("ArrowUp");
+  const up = await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? "");
+  check(await highlightMatches(up), "arrow-key selection keeps the source highlight on the selected node");
+  const linkBtn = page.locator(".graph-detail ul button").first();
+  if (await linkBtn.count()) {
+    await linkBtn.click();
+    const sel = await page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? "");
+    check(await highlightMatches(sel), "following a detail-pane link keeps the highlight on the selected node");
+  }
+  await other.node.click();
+}
 check((await page.locator("table").count()) > 0, "relationship list fallback still shown");
 await axe(page, "Document relationships");
 
