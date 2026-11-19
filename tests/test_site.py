@@ -197,3 +197,16 @@ def test_og_image_alt_describes_the_film_poster() -> None:
             alt = re.search(r'og:image:alt" content="([^"]+)"', text)
             assert alt and alt.group(1) == poster_alt.group(1), page.relative_to(SITE)
     assert pages >= 3
+
+
+def test_film_fallback_is_hidden_until_the_film_is_missing() -> None:
+    """The poster image sits behind a working video, so it has no alt and is aria-hidden; site.js gives it its
+    description back (and unhides it) when the frame is marked .is-missing."""
+    home = (SITE / "index.html").read_text(encoding="utf-8")
+    img = re.search(r'<img class="film__fallback"[^>]*>', home, re.S)
+    assert img
+    tag = img.group(0)
+    assert re.search(r'\salt=""', tag) and 'aria-hidden="true"' in tag and re.search(r'data-alt="[^"]{20,}"', tag)
+    script = (SITE / "site.js").read_text(encoding="utf-8")
+    missing = script.split("var missing = function () {")[1].split("};")[0]
+    assert "dataset.alt" in missing and "removeAttribute('aria-hidden')" in missing
