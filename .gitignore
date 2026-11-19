@@ -30,3 +30,4 @@ apps/promo/public/audio/
 # Claude skill / plugin builds (scripts/build_skill_zip.py)
 dist/
 plugins/claimtrace/skills/claimtrace/vendor/
+!apps/site/data/
