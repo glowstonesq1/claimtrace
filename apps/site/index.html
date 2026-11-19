@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <!-- Only this origin: no third-party script, style, font or request. No inline script or style: page
-     scripts live in files (head.js, slots.js, site.js); GSAP is self-hosted in vendor/gsap. -->
+     scripts live in files (head.js, slots.js, map.js, site.js); GSAP is self-hosted in vendor/gsap. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; media-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClaimTrace: check contracts and amendments with verified quotes</title>
@@ -14,193 +14,225 @@
 <meta property="og:title" content="ClaimTrace: did the amendment change the deadline?">
 <meta property="og:description" content="Maps who owes what, answers only with verified quotes, and checks documents against each other. Not legal advice.">
 <meta property="og:url" content="https://glowstonesq1.github.io/claimtrace/">
-<meta property="og:image" content="https://glowstonesq1.github.io/claimtrace/media/claimtrace-promo.jpg">
+<meta property="og:image" content="https://glowstonesq1.github.io/claimtrace/media/claimtrace-film-poster.jpg">
 <meta property="og:image:alt" content="The ClaimTrace register beside the source contract.">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preload" href="fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="fonts/geist-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/instrument-sans-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/figtree-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="styles.css">
 <script src="head.js"></script>
 </head>
-<body>
+<body class="home">
+<!-- Status icons for the hero panel and the evidence map: a status is always a word and an icon. -->
+<svg class="visually-hidden" aria-hidden="true" focusable="false">
+  <symbol id="i-replaced" viewBox="0 0 16 16"><path d="M2.5 5.5h9.5M9.5 3l2.5 2.5L9.5 8"/><path d="M13.5 10.5H4M6.5 8L4 10.5 6.5 13"/></symbol>
+  <symbol id="i-contradicts" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75"/><path d="M5.75 5.75l4.5 4.5M10.25 5.75l-4.5 4.5"/></symbol>
+  <symbol id="i-partly" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75"/><path class="icon-fill" d="M8 2.25v11.5a5.75 5.75 0 0 0 0-11.5z"/></symbol>
+  <symbol id="i-supports" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75"/><path d="M5.25 8.25l1.9 1.9 3.6-4.1"/></symbol>
+  <symbol id="i-review" viewBox="0 0 16 16"><path d="M8 2.25l6 11H2z"/><path d="M8 6.75v3"/><path d="M8 11.6v.1"/></symbol>
+  <symbol id="i-inforce" viewBox="0 0 16 16"><rect x="2.75" y="2.75" width="10.5" height="10.5" rx="2"/><path d="M5.25 8.25l1.9 1.9 3.6-4.1"/></symbol>
+  <symbol id="i-evidence" viewBox="0 0 16 16"><path d="M4 2.5h5.5L12 5v8.5H4z"/><path d="M6.25 8h3.5M6.25 10.5h3.5"/></symbol>
+</svg>
 <!-- nav -->
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav">
   <div class="container nav__inner">
-    <a class="wordmark" href="./" aria-label="ClaimTrace, home">ClaimTrace</a>
+    <a class="wordmark" href="./" aria-label="ClaimTrace, home"><svg class="icon wordmark__mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5"/><path d="M8.5 14.5l2.5 2.5 4.5-5"/></svg>ClaimTrace</a>
     <nav class="nav__links" aria-label="Primary">
-      <a href="./try/" data-nav="try">Try</a>
+      <a href="./#how" data-nav="how">How it works</a>
       <a href="./evidence/" data-nav="evidence">Evidence</a>
       <a href="./get/" data-nav="get">Get it</a>
       <a href="./docs/" data-nav="docs">Docs</a>
-      <a href="https://github.com/glowstonesq1/claimtrace">GitHub</a>
     </nav>
+    <a class="btn nav__try" href="./try/" data-nav="try">Try it</a>
   </div>
 </header>
 <!-- /nav -->
 
 <main id="main">
 
-  <section class="hero" aria-labelledby="hero-title">
+  <!-- 1. What it does: the dusk band, the head on the left, the engine's own result on the right -->
+  <section class="hero dusk" aria-labelledby="hero-title">
+    <div class="hero__sky" aria-hidden="true"></div>
+    <div class="hero__field" aria-hidden="true" data-field></div>
     <div class="container hero__grid">
       <div class="hero__text">
         <h1 id="hero-title">Did the amendment change the deadline?</h1>
         <p class="lead">ClaimTrace maps who owes what, and answers only with verified quotes.</p>
         <div class="actions">
-          <a class="btn" href="try/" aria-describedby="hero-private">Try it in your browser</a>
-          <p class="actions__note" id="hero-private">Nothing is uploaded.</p>
+          <a class="btn btn--invert" href="try/" aria-describedby="hero-private">Try it on the sample contract</a>
+          <a class="btn btn--glass" href="get/#claude">Use it with Claude</a>
         </div>
-        <p class="hero__alt">Or <a href="get/#claude">use it with Claude</a>, or <a href="get/#install">install</a> it.</p>
+        <p class="hero__note" id="hero-private">Runs in your browser. Nothing is uploaded.</p>
       </div>
-      <figure class="hero__figure">
-        <div class="shot shot--hero" data-slot="hero" data-kind="product" data-alt="A commitment in the register, struck through and marked as replaced by the amendment">
-          <img src="media/register-amended.png" width="696" height="612" fetchpriority="high"
-               alt="Register entry for clause 2.1: the delivery date of March 31, 2026 is struck through, marked Replaced by amendment, with a note quoting the new date of May 15, 2026.">
-        </div>
-        <figcaption>Clause 2.1 of the sample contract, replaced by Amendment No. 1.</figcaption>
+      <figure class="hero__panel" aria-labelledby="hero-panel-cap">
+<!-- build:hero -->
+<div class="ledger glass">
+  <div class="ledger__head">
+    <p class="ledger__title">Sample contract, checked</p>
+    <p class="ledger__meta">Four documents, rules engine 0.3.0, no network</p>
+  </div>
+  <ol class="ledger__rows">
+<li class="ledger__row ledger__row--lead">
+  <p class="ledger__line"><span class="ledger__sec num">2.1</span>
+    <span class="ledger__what"><del>March 31, 2026</del> <ins>May 15, 2026</ins></span>
+    <span class="status status--replaces"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Replaced</span></p>
+  <figure class="ledger__quote ledger__quote--old"><figcaption>Contract §2.1</figcaption>
+    <blockquote>The Vendor shall deliver the Phase 1 System no later than <del>March 31, 2026</del>.</blockquote></figure>
+  <figure class="ledger__quote ledger__quote--new"><figcaption>Amendment No. 1 §1.1</figcaption>
+    <blockquote>Clause 2.1 of the Agreement is deleted and replaced with: &quot;The Vendor shall deliver the Phase 1 System no later than <ins>May 15, 2026</ins>.&quot;</blockquote></figure>
+  <p class="ledger__after"><span class="status status--contradicts"><svg class="icon" aria-hidden="true"><use href="#i-contradicts"/></svg>Contradicted</span> <span>Delivery record §1.1: Done on 22 May 2026, after the deadline of 15 May 2026 (7 days late).</span></p>
+</li>
+<li class="ledger__row"><p class="ledger__line"><span class="ledger__sec num">3.2</span><span class="ledger__what"><del>30 days</del> <ins>45 days</ins></span><span class="status status--replaces"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Replaced</span></p><p class="ledger__src">Amendment No. 1 §1.2</p></li>
+<li class="ledger__row"><p class="ledger__line"><span class="ledger__sec num">5.3</span><span class="ledger__what"><del>48 hours</del> <ins>72 hours</ins></span><span class="status status--replaces"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Replaced</span></p><p class="ledger__src">Amendment No. 1 §1.3</p></li>
+<li class="ledger__row"><p class="ledger__line"><span class="ledger__sec num">4.1</span><span class="ledger__what">Measured 99.1% is below the committed 99.5%.</span><span class="status status--contradicts"><svg class="icon" aria-hidden="true"><use href="#i-contradicts"/></svg>Contradicted</span></p><p class="ledger__src">Audit report §2.5</p></li>
+<li class="ledger__row"><p class="ledger__line"><span class="ledger__sec num">5.2</span><span class="ledger__what">Location differs: commitment refers to United Kingdom; other document says Ireland.</span><span class="status status--contradicts"><svg class="icon" aria-hidden="true"><use href="#i-contradicts"/></svg>Contradicted</span></p><p class="ledger__src">Audit report §2.2</p></li>
+  </ol>
+  <p class="ledger__foot">23 of 23 quotes match the source text character for character.</p>
+</div>
+<!-- /build:hero -->
+        <figcaption id="hero-panel-cap" class="hero__cap">The rules engine on the four sample documents, run when the site is built: its results, not a screenshot.</figcaption>
       </figure>
     </div>
   </section>
 
-  <section class="limits" aria-labelledby="limits-title">
-    <div class="container limits__grid">
-      <div>
-        <h2 id="limits-title" class="limits__statement" data-scrub>Every claim is a quote. Amendments are first-class. Uncertainty is visible.</h2>
-        <p class="limits__note">With no supporting text, the answer is “I could not find support for this in the uploaded documents.”</p>
-      </div>
-      <div class="limits__list">
-        <h3>What it will not do</h3>
-        <dl class="rows">
-          <div class="row"><dt>Give legal advice</dt><dd>No risk scores, no view on enforceability.</dd></div>
-          <div class="row is-weak"><dt>Get every amendment right</dt><dd>On wording it has not seen, 4 in 10 amendment checks are wrong. Check them yourself.</dd></div>
-          <div class="row"><dt>Read scanned PDFs</dt><dd>They are flagged, not read.</dd></div>
-          <div class="row"><dt>Replace your contract system</dt><dd>It is not a CLM and not a chatbot.</dd></div>
-        </dl>
-        <p class="next"><a href="#evaluation">See how it was measured</a></p>
-      </div>
-    </div>
-  </section>
-
-  <section class="walk" id="how" aria-labelledby="walk-title" data-walk>
+  <!-- 2. How it decides: the evidence map -->
+  <section class="how" id="how" aria-labelledby="how-title">
     <div class="container">
-      <h2 id="walk-title" class="walk__head">From contract to checked answer</h2>
-      <ol class="walk__steps">
-        <li class="walk__step">
-          <div class="walk__text">
-            <h3>Who owes what, by when</h3>
-            <p>Obligations, deadlines and conditions, each tied to the exact characters it came from.</p>
-          </div>
-          <figure class="walk__fig">
-            <div class="shot" data-slot="walk-register" data-kind="product" data-alt="The commitment register beside the source text, the quoted clause highlighted">
-              <img src="media/register.png" width="1280" height="900" loading="lazy"
-                   alt="The register: filters for who must act and kind, a replaced delivery commitment on the left, and the contract text on the right with clause 2.1 highlighted.">
-            </div>
-          </figure>
-        </li>
-        <li class="walk__step">
-          <div class="walk__text">
-            <h3>Ask, and get quotes back</h3>
-            <p>Answers lead with the wording in force. When documents disagree, you see both quotes.</p>
-          </div>
-          <figure class="walk__fig">
-            <div class="shot" data-slot="walk-ask" data-kind="product" data-alt="An answer marked Documents disagree, with two quoted sources">
-              <img src="media/ask-answer.png" width="1152" height="792" loading="lazy"
-                   alt="Answer to Is customer data kept in the UK: marked Documents disagree, quoting the contract clause against transfers outside the United Kingdom and the audit report stating data is hosted in Dublin, Ireland.">
-            </div>
-          </figure>
-        </li>
-        <li class="walk__step">
-          <div class="walk__text">
-            <h3>Check one document against another</h3>
-            <p>Contract against amendment, audit report or delivery record.</p>
-          </div>
-          <figure class="walk__fig">
-            <div class="shot shot--code">
-              <div class="verify">
-                <p class="verify__cmd"><code>$ claimtrace verify &lt;contract&gt; &lt;audit report&gt;</code></p>
-                <ol class="verify__list">
-                  <li><span class="verify__verdict">contradicted, high</span><span class="verify__quote">The Vendor shall ensure the Phase 1 System is available 99.5% …</span><span class="verify__why">Measured 99.1% is below the committed 99.5%.</span></li>
-                  <li><span class="verify__verdict">contradicted, high</span><span class="verify__quote">The Vendor shall not transfer Customer data outside the United Kingdom …</span><span class="verify__why">Location differs: commitment refers to United Kingdom; other document says Ireland.</span></li>
-                </ol>
-              </div>
-            </div>
-            <figcaption>The README example, in columns.</figcaption>
-          </figure>
-        </li>
-      </ol>
-      <p class="next"><a href="try/">Try all three on the samples</a></p>
+      <div class="how__head">
+        <h2 id="how-title">Every finding points back to a clause</h2>
+        <p class="lead">One lane per sample document. Choose a clause to read its words and see what replaces, supports or contradicts it.</p>
+      </div>
+      <ul class="legend" aria-label="Kinds of link">
+        <li class="legend__item legend__item--replaces"><svg class="legend__wire" viewBox="0 0 32 8" aria-hidden="true"><path d="M0 4h32"/></svg>Replaces or changes</li>
+        <li class="legend__item legend__item--supports"><svg class="legend__wire" viewBox="0 0 32 8" aria-hidden="true"><path d="M0 4h32"/></svg>Supports</li>
+        <li class="legend__item legend__item--partly"><svg class="legend__wire" viewBox="0 0 32 8" aria-hidden="true"><path d="M0 4h32"/></svg>Partly supports</li>
+        <li class="legend__item legend__item--contradicts"><svg class="legend__wire" viewBox="0 0 32 8" aria-hidden="true"><path d="M0 4h32"/></svg>Contradicts</li>
+        <li class="legend__item legend__item--review"><svg class="legend__wire" viewBox="0 0 32 8" aria-hidden="true"><path d="M0 4h32"/></svg>Needs review</li>
+      </ul>
+      <div class="map" data-map role="group" aria-labelledby="how-title" aria-describedby="map-keys">
+        <p class="visually-hidden" id="map-keys">Each clause is a button. Arrow keys move along a document and between documents; the panel shows the clause in focus and what links to it.</p>
+<!-- build:map -->
+<div class="map__lanes" data-map-lanes>
+  <svg class="map__wires" aria-hidden="true" focusable="false"></svg>
+  <div class="lane" data-lane="msa"><p class="lane__name" id="lane-msa">Contract</p><ul class="lane__track" aria-labelledby="lane-msa"><li class="clip-slot clip-slot--w2 clip-slot--replaced"><button type="button" class="clip clip--replaced is-linked" data-clip="msa-2.1" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 2.1, replaced"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg><span class="num">2.1</span></button></li><li class="clip-slot clip-slot--w2 clip-slot--in-force"><button type="button" class="clip clip--in-force is-linked" data-clip="msa-2.2" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 2.2, in force"><span class="num">2.2</span></button></li><li class="clip-slot clip-slot--w3 clip-slot--in-force"><button type="button" class="clip clip--in-force" data-clip="msa-2.3" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 2.3, in force"><span class="num">2.3</span></button></li><li class="clip-slot clip-slot--w2 clip-slot--in-force"><button type="button" class="clip clip--in-force is-linked" data-clip="msa-3.1" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 3.1, in force"><span class="num">3.1</span></button></li><li class="clip-slot clip-slot--w2 clip-slot--replaced"><button type="button" class="clip clip--replaced is-linked" data-clip="msa-3.2" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 3.2, replaced"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg><span class="num">3.2</span></button></li><li class="clip-slot clip-slot--w2 clip-slot--in-force"><button type="button" class="clip clip--in-force" data-clip="msa-3.3" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 3.3, in force"><span class="num">3.3</span></button></li><li class="clip-slot clip-slot--w3 clip-slot--in-force"><button type="button" class="clip clip--in-force is-linked" data-clip="msa-4.1" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 4.1, in force"><span class="num">4.1</span></button></li><li class="clip-slot clip-slot--w3 clip-slot--in-force"><button type="button" class="clip clip--in-force" data-clip="msa-4.2" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 4.2, in force"><span class="num">4.2</span></button></li><li class="clip-slot clip-slot--w2 clip-slot--in-force"><button type="button" class="clip clip--in-force is-linked" data-clip="msa-5.1" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 5.1, in force"><span class="num">5.1</span></button></li><li class="clip-slot clip-slot--w3 clip-slot--in-force"><button type="button" class="clip clip--in-force is-linked" data-clip="msa-5.2" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 5.2, in force"><span class="num">5.2</span></button></li><li class="clip-slot clip-slot--w1 clip-slot--replaced"><button type="button" class="clip clip--replaced is-linked" data-clip="msa-5.3" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 5.3, replaced"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg><span class="num">5.3</span></button></li><li class="clip-slot clip-slot--w3 clip-slot--in-force"><button type="button" class="clip clip--in-force is-linked" data-clip="msa-5.4" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 5.4, in force"><span class="num">5.4</span></button></li><li class="clip-slot clip-slot--w5 clip-slot--in-force"><button type="button" class="clip clip--in-force" data-clip="msa-6.1" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 6.1, in force"><span class="num">6.1</span></button></li><li class="clip-slot clip-slot--w3 clip-slot--in-force"><button type="button" class="clip clip--in-force" data-clip="msa-6.2" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 6.2, in force"><span class="num">6.2</span></button></li><li class="clip-slot clip-slot--w2 clip-slot--in-force"><button type="button" class="clip clip--in-force" data-clip="msa-7.2" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 7.2, in force"><span class="num">7.2</span></button></li><li class="clip-slot clip-slot--w4 clip-slot--in-force"><button type="button" class="clip clip--in-force" data-clip="msa-7.3" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 7.3, in force"><span class="num">7.3</span></button></li><li class="clip-slot clip-slot--w4 clip-slot--in-force"><button type="button" class="clip clip--in-force" data-clip="msa-8.1" aria-pressed="false" aria-controls="map-panel" aria-label="Contract section 8.1, in force"><span class="num">8.1</span></button></li></ul></div>
+<div class="lane" data-lane="amd"><p class="lane__name" id="lane-amd">Amendment No. 1</p><ul class="lane__track" aria-labelledby="lane-amd"><li class="clip-slot clip-slot--w3 clip-slot--in-force"><button type="button" class="clip clip--in-force is-linked" data-clip="amd-1.1" aria-pressed="false" aria-controls="map-panel" aria-label="Amendment No. 1 section 1.1, in force"><span class="num">1.1</span></button></li><li class="clip-slot clip-slot--w3 clip-slot--in-force"><button type="button" class="clip clip--in-force is-linked" data-clip="amd-1.2" aria-pressed="false" aria-controls="map-panel" aria-label="Amendment No. 1 section 1.2, in force"><span class="num">1.2</span></button></li><li class="clip-slot clip-slot--w4 clip-slot--in-force"><button type="button" class="clip clip--in-force is-linked" data-clip="amd-1.3" aria-pressed="false" aria-controls="map-panel" aria-label="Amendment No. 1 section 1.3, in force"><span class="num">1.3</span></button></li><li class="clip-slot clip-slot--w5 clip-slot--in-force"><button type="button" class="clip clip--in-force" data-clip="amd-1.4" aria-pressed="false" aria-controls="map-panel" aria-label="Amendment No. 1 section 1.4, in force"><span class="num">1.4</span></button></li><li class="clip-slot clip-slot--w3 clip-slot--in-force"><button type="button" class="clip clip--in-force is-linked" data-clip="amd-2.1" aria-pressed="false" aria-controls="map-panel" aria-label="Amendment No. 1 section 2.1, in force"><span class="num">2.1</span></button></li></ul></div>
+<div class="lane" data-lane="audit"><p class="lane__name" id="lane-audit">Audit report</p><ul class="lane__track" aria-labelledby="lane-audit"><li class="clip-slot clip-slot--w1 clip-slot--evidence"><button type="button" class="clip clip--evidence is-linked" data-clip="audit-2.1" aria-pressed="false" aria-controls="map-panel" aria-label="Audit report section 2.1"><span class="num">2.1</span></button></li><li class="clip-slot clip-slot--w2 clip-slot--evidence"><button type="button" class="clip clip--evidence is-linked" data-clip="audit-2.2" aria-pressed="false" aria-controls="map-panel" aria-label="Audit report section 2.2"><span class="num">2.2</span></button></li><li class="clip-slot clip-slot--w3 clip-slot--evidence"><button type="button" class="clip clip--evidence is-linked" data-clip="audit-2.3" aria-pressed="false" aria-controls="map-panel" aria-label="Audit report section 2.3"><span class="num">2.3</span></button></li><li class="clip-slot clip-slot--w5 clip-slot--evidence"><button type="button" class="clip clip--evidence is-linked" data-clip="audit-2.4" aria-pressed="false" aria-controls="map-panel" aria-label="Audit report section 2.4"><span class="num">2.4</span></button></li><li class="clip-slot clip-slot--w1 clip-slot--evidence"><button type="button" class="clip clip--evidence is-linked" data-clip="audit-2.5" aria-pressed="false" aria-controls="map-panel" aria-label="Audit report section 2.5"><span class="num">2.5</span></button></li></ul></div>
+<div class="lane" data-lane="delivery"><p class="lane__name" id="lane-delivery">Delivery record</p><ul class="lane__track" aria-labelledby="lane-delivery"><li class="clip-slot clip-slot--w1 clip-slot--evidence"><button type="button" class="clip clip--evidence is-linked" data-clip="delivery-1.1" aria-pressed="false" aria-controls="map-panel" aria-label="Delivery record section 1.1"><span class="num">1.1</span></button></li><li class="clip-slot clip-slot--w4 clip-slot--evidence"><button type="button" class="clip clip--evidence is-linked" data-clip="delivery-2.1" aria-pressed="false" aria-controls="map-panel" aria-label="Delivery record section 2.1"><span class="num">2.1</span></button></li></ul></div>
+</div>
+<div class="map__panel" id="map-panel" aria-live="polite">
+<p class="map__where"><span class="map__doc">Contract</span> <span class="num map__sec">§2.1</span></p>
+<p class="map__heading">Delivery</p>
+<p class="map__state map__state--replaced"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Replaced</p>
+<blockquote class="map__quote">The Vendor shall deliver the Phase 1 System no later than March 31, 2026.</blockquote>
+<p class="map__file">Verbatim from <span class="num">msa-v1.md</span></p>
+<h3 class="map__links-title">Links</h3>
+<ul class="map__links"><li class="map__link"><span class="status status--replaces"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Replaced</span><span class="map__link-text">Replaced by <button type="button" class="cite" data-go="amd-1.1">Amendment No. 1 §1.1</button><span class="map__note">Changed by the amendment (§2.1). Date differs: 31 Mar 2026 vs 15 May 2026.</span></span></li></ul>
+</div>
+<details class="wire-list">
+  <summary>Every link the engine found, as a list (11)</summary>
+  <ul><li class="wire-list__item wire-list__item--replaces"><span class="status status--replaces"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Replaced</span> <span><span class="wire-list__pair">Contract §2.1, replaced by Amendment No. 1 §1.1.</span> <span class="wire-list__note">Changed by the amendment (§2.1). Date differs: 31 Mar 2026 vs 15 May 2026.</span></span></li><li class="wire-list__item wire-list__item--partly"><span class="status status--partly"><svg class="icon" aria-hidden="true"><use href="#i-partly"/></svg>Partly supported</span> <span><span class="wire-list__pair">Contract §2.2, partly supported by Delivery record §2.1.</span> <span class="wire-list__note">Part of the commitment is supported, but the other document also reports an exception or gap: &quot;Weekly written progress reports were received from the Vendor from January 2026 until Acceptance, except for the weeks of March 9 and March 16, 2026.&quot;</span></span></li><li class="wire-list__item wire-list__item--changes"><span class="status status--changes"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Changed</span> <span><span class="wire-list__pair">Contract §3.1, changed by Amendment No. 1 §2.1.</span> <span class="wire-list__note">Changed by the amendment (§2.1). Amount differs: 120,000 vs 110,000.</span></span></li><li class="wire-list__item wire-list__item--replaces"><span class="status status--replaces"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Replaced</span> <span><span class="wire-list__pair">Contract §3.2, replaced by Amendment No. 1 §1.2.</span> <span class="wire-list__note">Changed by the amendment (§3.2). Period differs: 30 vs 45 days.</span></span></li><li class="wire-list__item wire-list__item--contradicts"><span class="status status--contradicts"><svg class="icon" aria-hidden="true"><use href="#i-contradicts"/></svg>Contradicted</span> <span><span class="wire-list__pair">Contract §4.1, contradicted by Audit report §2.5.</span> <span class="wire-list__note">Measured 99.1% is below the committed 99.5%.</span></span></li><li class="wire-list__item wire-list__item--supports"><span class="status status--supports"><svg class="icon" aria-hidden="true"><use href="#i-supports"/></svg>Supported</span> <span><span class="wire-list__pair">Contract §5.1, supported by Audit report §2.1.</span> <span class="wire-list__note">Matching text was located in the other document.</span></span></li><li class="wire-list__item wire-list__item--contradicts"><span class="status status--contradicts"><svg class="icon" aria-hidden="true"><use href="#i-contradicts"/></svg>Contradicted</span> <span><span class="wire-list__pair">Contract §5.2, contradicted by Audit report §2.2.</span> <span class="wire-list__note">Location differs: commitment refers to United Kingdom; other document says Ireland.</span></span></li><li class="wire-list__item wire-list__item--replaces"><span class="status status--replaces"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Replaced</span> <span><span class="wire-list__pair">Contract §5.3, replaced by Amendment No. 1 §1.3.</span> <span class="wire-list__note">Changed by the amendment (§5.3).</span></span></li><li class="wire-list__item wire-list__item--partly"><span class="status status--partly"><svg class="icon" aria-hidden="true"><use href="#i-partly"/></svg>Partly supported</span> <span><span class="wire-list__pair">Contract §5.4, partly supported by Audit report §2.4.</span> <span class="wire-list__note">Part of the commitment is supported, but the other document also reports an exception or gap: &quot;However, two shared break-glass accounts were found without multi-factor authentication.&quot;</span></span></li><li class="wire-list__item wire-list__item--contradicts"><span class="status status--contradicts"><svg class="icon" aria-hidden="true"><use href="#i-contradicts"/></svg>Contradicted</span> <span><span class="wire-list__pair">Amendment No. 1 §1.1, contradicted by Delivery record §1.1.</span> <span class="wire-list__note">Done on 22 May 2026, after the deadline of 15 May 2026 (7 days late).</span></span></li><li class="wire-list__item wire-list__item--review"><span class="status status--review"><svg class="icon" aria-hidden="true"><use href="#i-review"/></svg>Needs review</span> <span><span class="wire-list__pair">Amendment No. 1 §1.3, needs review against Audit report §2.3.</span> <span class="wire-list__note">Same period (72 hours) but a different starting point: &quot;becoming aware of it&quot; vs &quot;confirming a breach&quot;. The clock may start later.</span></span></li></ul>
+</details>
+<!-- /build:map -->
+      </div>
+      <p class="next"><a href="try/">Run the same check on your own documents</a></p>
     </div>
   </section>
 
+  <!-- 3. How to use it: three paths as tabs (all three show, stacked, without scripting) -->
+  <section class="use" id="use" aria-labelledby="use-title">
+    <div class="container use__grid">
+      <div class="use__head">
+        <h2 id="use-title">Three ways to run it</h2>
+        <p class="lead">Same engine, same quotes. Pick where your documents may go.</p>
+      </div>
+      <div class="tabs" data-tabs>
+        <div class="tabs__list" role="tablist" aria-label="Ways to run ClaimTrace">
+          <button type="button" class="tabs__tab" role="tab" id="tab-browser" aria-controls="path-browser" aria-selected="true">In the browser</button>
+          <button type="button" class="tabs__tab" role="tab" id="tab-claude" aria-controls="path-claude" aria-selected="false" tabindex="-1">With Claude</button>
+          <button type="button" class="tabs__tab" role="tab" id="tab-self" aria-controls="path-self" aria-selected="false" tabindex="-1">Self-host</button>
+        </div>
+        <div class="tabs__panel path" id="path-browser" role="tabpanel" aria-labelledby="tab-browser" tabindex="0">
+          <h3>In the browser</h3>
+          <p>No install, no account. The engine runs in the tab.</p>
+          <p class="path__where"><svg class="icon" aria-hidden="true"><use href="#i-supports"/></svg>Your file is never uploaded.</p>
+          <div class="actions"><a class="btn" href="try/">Try it in your browser</a></div>
+        </div>
+        <div class="tabs__panel path" id="path-claude" role="tabpanel" aria-labelledby="tab-claude" tabindex="0">
+          <h3>With Claude</h3>
+          <p>A skill for Claude.ai, or a plugin for Claude Code.</p>
+          <p class="path__where"><svg class="icon" aria-hidden="true"><use href="#i-review"/></svg>Documents you share go to Anthropic.</p>
+          <div class="actions"><a class="btn btn--quiet" href="get/#claude">Use it with Claude</a></div>
+        </div>
+        <div class="tabs__panel path" id="path-self" role="tabpanel" aria-labelledby="tab-self" tabindex="0">
+          <h3>Self-host</h3>
+          <p>Docker Compose, or Python 3.11+ and Node 20+. It serves on 127.0.0.1 only.</p>
+          <div class="cmd"><pre><code>git clone https://github.com/glowstonesq1/claimtrace
+cd claimtrace
+docker compose up --build</code></pre></div>
+          <p class="path__where"><svg class="icon" aria-hidden="true"><use href="#i-supports"/></svg>Sends nothing out by default.</p>
+          <div class="actions"><a class="btn btn--quiet" href="get/#install">Install it</a></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. How good it is: the numbers with intervals, and what it will not do -->
   <section class="evaluation" id="evaluation" aria-labelledby="eval-title">
     <div class="container">
       <div class="eval__head">
         <h2 id="eval-title">The numbers, including the bad ones</h2>
-        <p class="lead">Scored without tuning on sealed cases nobody opened before the code was frozen; re-scored once after the review fixes, with identical results.</p>
+        <p class="lead">Scored on sealed cases nobody opened before the code was frozen, with 95% intervals.</p>
       </div>
       <div class="eval__body">
-        <table class="eval__table">
-          <caption class="visually-hidden">Version 0.2 rules engine on the sealed holdout set and the sealed amendment set, against a keyword baseline</caption>
-          <thead>
-            <tr><th scope="col">Measure</th><th scope="col" class="num">ClaimTrace</th><th scope="col" class="num">Keyword floor</th></tr>
-          </thead>
-          <tbody>
-            <tr><th scope="row">Hallucination rate, lower is better</th><td class="num">0.00</td><td class="num">0.50</td></tr>
-            <tr><th scope="row">False all-clear rate, lower is better</th><td class="num">0.03</td><td class="num">0.29</td></tr>
-            <tr><th scope="row">Contradictions, precision and recall</th><td class="num">0.83 / 0.71</td><td class="num">0.00 recall</td></tr>
-            <tr class="is-weak"><th scope="row">Consistency checks</th><td class="num">0.81</td><td class="num">0.76</td></tr>
-            <tr class="is-weak"><th scope="row">Amendment checks, unfamiliar wording</th><td class="num">0.60</td><td class="num">0.06</td></tr>
-            <tr class="is-weak"><th scope="row">Amendment effect, unfamiliar wording</th><td class="num">0.71</td><td class="num">not scored</td></tr>
-          </tbody>
-        </table>
-        <div class="eval__notes">
-          <p>Four in ten amendment checks on unfamiliar wording are wrong. Check amendments yourself.</p>
-          <p>On consistency, a constant “consistent” guess does about as well. All cases are synthetic.</p>
-          <p class="eval__more"><a href="evidence/">Every number, with intervals</a></p>
-          <p><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md">How the test sets were built</a></p>
+        <div class="nums__wrap">
+          <table class="nums">
+            <caption class="visually-hidden">Version 0.2 rules engine on the sealed holdout set and the sealed amendment set, with 95% intervals, against a keyword baseline</caption>
+            <thead>
+              <tr><th scope="col">Measure</th><th scope="col">ClaimTrace</th><th scope="col">95% interval</th><th scope="col">Keyword floor</th></tr>
+            </thead>
+            <tbody>
+<!-- build:numbers -->
+<tr><th scope="row">Makes up an answer, lower is better</th><td class="num nums__v">0.00</td><td class="nums__iv"><svg class="iv" width="100%" height="18" role="img"><title>Makes up an answer, lower is better: 0.00, 95% interval 0.00 to 0.32, n=8</title><line class="iv__axis" x1="0" x2="100%" y1="9" y2="9"/><rect class="iv__range" x="0.0%" y="5" width="32.4%" height="8" rx="4"/><circle class="iv__point" cx="0.0%" cy="9" r="4.5"/></svg><span class="num">0.00 to 0.32, n=8</span></td><td class="num">0.50</td></tr>
+<tr><th scope="row">Wrongly says all clear, lower is better</th><td class="num nums__v">0.03</td><td class="nums__iv"><svg class="iv" width="100%" height="18" role="img"><title>Wrongly says all clear, lower is better: 0.03, 95% interval 0.01 to 0.11, n=63</title><line class="iv__axis" x1="0" x2="100%" y1="9" y2="9"/><rect class="iv__range" x="0.9%" y="5" width="10.0%" height="8" rx="4"/><circle class="iv__point" cx="3.2%" cy="9" r="4.5"/></svg><span class="num">0.01 to 0.11, n=63</span></td><td class="num">0.29</td></tr>
+<tr><th scope="row">Finds the contradictions (recall)</th><td class="num nums__v">0.71<span class="nums__sub">precision 0.83</span></td><td class="nums__iv"><svg class="iv" width="100%" height="18" role="img"><title>Finds the contradictions (recall): 0.71, 95% interval 0.45 to 0.88, n=14</title><line class="iv__axis" x1="0" x2="100%" y1="9" y2="9"/><rect class="iv__range" x="45.4%" y="5" width="42.9%" height="8" rx="4"/><circle class="iv__point" cx="71.4%" cy="9" r="4.5"/></svg><span class="num">0.45 to 0.88, n=14</span></td><td class="num">0.00</td></tr>
+<tr class="is-weak"><th scope="row">Consistency checks</th><td class="num nums__v">0.81</td><td class="nums__iv"><svg class="iv" width="100%" height="18" role="img"><title>Consistency checks: 0.81, 95% interval 0.62 to 0.95, n=21</title><line class="iv__axis" x1="0" x2="100%" y1="9" y2="9"/><rect class="iv__range" x="61.9%" y="5" width="33.3%" height="8" rx="4"/><circle class="iv__point" cx="81.0%" cy="9" r="4.5"/></svg><span class="num">0.62 to 0.95, n=21</span></td><td class="num">0.76</td></tr>
+<tr class="is-weak"><th scope="row">Amendment checks, unfamiliar wording</th><td class="num nums__v">0.60</td><td class="nums__iv"><svg class="iv" width="100%" height="18" role="img"><title>Amendment checks, unfamiliar wording: 0.60, 95% interval 0.51 to 0.70, n=105</title><line class="iv__axis" x1="0" x2="100%" y1="9" y2="9"/><rect class="iv__range" x="50.5%" y="5" width="19.0%" height="8" rx="4"/><circle class="iv__point" cx="60.0%" cy="9" r="4.5"/></svg><span class="num">0.51 to 0.70, n=105</span></td><td class="num">0.06</td></tr>
+<tr class="is-weak"><th scope="row">Amendment effect, unfamiliar wording</th><td class="num nums__v">0.71</td><td class="nums__iv"><svg class="iv" width="100%" height="18" role="img"><title>Amendment effect, unfamiliar wording: 0.71, 95% interval 0.62 to 0.80, n=91</title><line class="iv__axis" x1="0" x2="100%" y1="9" y2="9"/><rect class="iv__range" x="61.5%" y="5" width="18.7%" height="8" rx="4"/><circle class="iv__point" cx="71.4%" cy="9" r="4.5"/></svg><span class="num">0.62 to 0.80, n=91</span></td><td class="num">not scored</td></tr>
+<!-- /build:numbers -->
+            </tbody>
+          </table>
+        </div>
+        <div class="limits">
+          <h3>What it will not do</h3>
+          <dl class="rows">
+            <div class="row"><dt>Give legal advice</dt><dd>No risk scores, no view on enforceability.</dd></div>
+            <div class="row is-weak"><dt>Get every amendment right</dt><dd>On wording it has not seen, 4 in 10 amendment checks are wrong. Check them yourself.</dd></div>
+            <div class="row"><dt>Read scanned PDFs</dt><dd>They are flagged, not read.</dd></div>
+            <div class="row"><dt>Replace your contract system</dt><dd>It is not a CLM and not a chatbot.</dd></div>
+          </dl>
+          <p class="limits__note">With no supporting text the answer is “I could not find support for this in the uploaded documents.” On consistency, always saying “consistent” does about as well. All cases are synthetic.</p>
         </div>
       </div>
+      <p class="next"><a href="evidence/">Every number, with every case</a><a class="next__alt" href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md">How the test sets were built</a></p>
     </div>
   </section>
 
+  <!-- 5. The film (one take, made with givemotion from apps/film; the poster stands in if the video fails) -->
   <section class="film" aria-labelledby="film-title">
-    <div class="container">
-      <h2 id="film-title">Watch ClaimTrace at work</h2>
+    <div class="container film__grid">
+      <div class="film__head">
+        <h2 id="film-title">Watch it check the samples</h2>
+        <p>The same four documents, one continuous take: the question, the amendment, the contradictions, the answer.</p>
+      </div>
       <figure class="film__frame" data-film>
-        <img class="film__fallback" src="media/film-fallback.png" width="1280" height="720" loading="lazy"
-             alt="The Ask screen with the four sample documents selected: a contract, its amendment, a vendor security audit report and a delivery record.">
-        <video class="film__video" controls preload="metadata" playsinline poster="media/claimtrace-promo.jpg">
-          <source src="media/claimtrace-promo.mp4" type="video/mp4">
+        <img class="film__fallback" src="media/claimtrace-film-poster.jpg" width="1920" height="1080" loading="lazy"
+             alt="The answer card from the film: Amendment No. 1 §1.1 moved the deadline from March 31, 2026 to May 15, 2026, with three verbatim quotes and 23 of 23 quotes matching the source text.">
+        <video class="film__video" controls preload="metadata" playsinline poster="media/claimtrace-film-poster.jpg">
+          <source src="media/claimtrace-film.mp4" type="video/mp4">
         </video>
       </figure>
-      <p class="next"><a href="try/">Try the same samples</a></p>
-    </div>
-  </section>
-
-  <section class="paths" id="run" aria-labelledby="paths-title">
-    <div class="container">
-      <h2 id="paths-title">Pick how you want to run it</h2>
-      <div class="paths__grid">
-        <article class="path">
-          <h3>In your browser</h3>
-          <p>No install, no account. The engine runs in the tab.</p>
-          <p class="path__where">Your file is never uploaded.</p>
-          <div class="actions"><a class="btn btn--invert" href="try/">Try it in your browser</a></div>
-        </article>
-        <article class="path">
-          <h3>With Claude</h3>
-          <p>A skill for Claude.ai, or a plugin for Claude Code.</p>
-          <p class="path__where">Documents you share go to Anthropic.</p>
-          <div class="actions"><a href="get/#claude">Use it with Claude</a></div>
-        </article>
-        <article class="path">
-          <h3>On your computer</h3>
-          <p>Python and Node, or Docker Compose.</p>
-          <p class="path__where">Sends nothing out by default.</p>
-          <div class="actions"><a href="get/#install">Install</a></div>
-        </article>
-      </div>
     </div>
   </section>
 
@@ -209,10 +241,11 @@
 <!-- footer -->
 <footer class="foot">
   <div class="container">
-    <p class="foot__mark">ClaimTrace</p>
+    <p class="foot__mark"><svg class="icon wordmark__mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5"/><path d="M8.5 14.5l2.5 2.5 4.5-5"/></svg>ClaimTrace</p>
     <div class="foot__cols">
       <ul class="foot__links" aria-label="Site">
         <li><a href="./try/">Try it in your browser</a></li>
+        <li><a href="./#how">How it works</a></li>
         <li><a href="./evidence/">Evidence</a></li>
         <li><a href="./get/">Get it</a></li>
         <li><a href="./docs/">Docs</a></li>
@@ -231,10 +264,11 @@
 
 <script src="slots.js"></script>
 <!-- GSAP 3.12.5, self-hosted: dist/gsap.min.js and dist/ScrollTrigger.min.js copied unchanged from the npm
-     package gsap@3.12.5 (GreenSock standard licence, header kept in each file). The SRI values are the
-     same sha384 the page used with cdnjs. Without them, site.js keeps the static layout. -->
+     package gsap@3.12.5 (GreenSock standard licence, header kept in each file), SRI-pinned. It only staggers
+     the hero rows in once; without it (or with reduced motion) the page is already complete. -->
 <script src="vendor/gsap/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" defer></script>
 <script src="vendor/gsap/ScrollTrigger.min.js" integrity="sha384-Z3REaz79l2IaAZqJsSABtTbhjgOUYyV3p90XNnAPCSHg3EMTz1fouunq9WZRtj3d" defer></script>
+<script src="map.js" defer></script>
 <script src="site.js" defer></script>
 </body>
 </html>

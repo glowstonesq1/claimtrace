@@ -35,7 +35,7 @@ jobs:
       - name: Evidence page data is rebuilt from the published runs (fails on any diff)
         run: |
           python scripts/build_site_data.py
-          git diff --exit-code -- apps/site/data apps/site/evidence/index.html
+          git diff --exit-code -- apps/site/data apps/site/evidence/index.html apps/site/index.html
       - name: Evaluation smoke test (rules baseline, full core suite, no network)
         run: claimtrace eval run --suite core --model rules --out evals/runs/ci
       - name: Licence gate (no GPL/AGPL in runtime dependencies)

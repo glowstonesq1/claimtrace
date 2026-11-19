@@ -10,27 +10,41 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Try ClaimTrace</title>
 <meta name="description" content="Run the ClaimTrace engine in your browser on the sample documents or your own files. Your files are read by code running in the tab and are never uploaded.">
-<link rel="preload" href="../fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../fonts/geist-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../fonts/instrument-sans-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../fonts/figtree-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../fonts.css">
 <link rel="stylesheet" href="../chrome.css">
 <link rel="stylesheet" href="try.css">
 <script src="../head.js"></script>
 <script type="module" src="try.js"></script>
 </head>
-<body>
+<body class="try">
+<!-- Status icons: a status is always a word and an icon, never colour alone. -->
+<svg class="visually-hidden" aria-hidden="true" focusable="false">
+  <symbol id="i-replaced" viewBox="0 0 16 16"><path d="M2.5 5.5h9.5M9.5 3l2.5 2.5L9.5 8"/><path d="M13.5 10.5H4M6.5 8L4 10.5 6.5 13"/></symbol>
+  <symbol id="i-contradicts" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75"/><path d="M5.75 5.75l4.5 4.5M10.25 5.75l-4.5 4.5"/></symbol>
+  <symbol id="i-partly" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75"/><path class="icon-fill" d="M8 2.25v11.5a5.75 5.75 0 0 0 0-11.5z"/></symbol>
+  <symbol id="i-supports" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75"/><path d="M5.25 8.25l1.9 1.9 3.6-4.1"/></symbol>
+  <symbol id="i-review" viewBox="0 0 16 16"><path d="M8 2.25l6 11H2z"/><path d="M8 6.75v3"/><path d="M8 11.6v.1"/></symbol>
+  <symbol id="i-inforce" viewBox="0 0 16 16"><rect x="2.75" y="2.75" width="10.5" height="10.5" rx="2"/><path d="M5.25 8.25l1.9 1.9 3.6-4.1"/></symbol>
+  <symbol id="i-none" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.75"/><path d="M5.5 8h5"/></symbol>
+  <symbol id="i-load" viewBox="0 0 16 16"><path d="M8 2.25a5.75 5.75 0 1 1-5.75 5.75"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 16 16"><rect x="3" y="7" width="10" height="6.75" rx="1.5"/><path d="M5.25 7V5a2.75 2.75 0 0 1 5.5 0v2"/></symbol>
+  <symbol id="i-upload" viewBox="0 0 16 16"><path d="M8 10.5V2.75M5 5.5l3-3 3 3"/><path d="M2.75 10v2.25c0 .55.45 1 1 1h8.5c.55 0 1-.45 1-1V10"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 16 16"><path d="M4 2.5h5.5L12 5v8.5H4z"/><path d="M6.25 8h3.5M6.25 10.5h3.5"/></symbol>
+</svg>
 <!-- nav -->
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav">
   <div class="container nav__inner">
-    <a class="wordmark" href="../" aria-label="ClaimTrace, home">ClaimTrace</a>
+    <a class="wordmark" href="../" aria-label="ClaimTrace, home"><svg class="icon wordmark__mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5"/><path d="M8.5 14.5l2.5 2.5 4.5-5"/></svg>ClaimTrace</a>
     <nav class="nav__links" aria-label="Primary">
-      <a href="../try/" data-nav="try" aria-current="page">Try</a>
+      <a href="../#how" data-nav="how">How it works</a>
       <a href="../evidence/" data-nav="evidence">Evidence</a>
       <a href="../get/" data-nav="get">Get it</a>
       <a href="../docs/" data-nav="docs">Docs</a>
-      <a href="https://github.com/glowstonesq1/claimtrace">GitHub</a>
     </nav>
+    <a class="btn nav__try" href="../try/" data-nav="try" aria-current="page">Try it</a>
   </div>
 </header>
 <!-- /nav -->
@@ -41,12 +55,15 @@
     <div class="container intro__grid">
       <div>
         <h1 id="try-title">Try it on your own documents</h1>
-        <p class="lead">The real engine, running in this browser tab. No account, nothing to install.</p>
+        <p class="lead">Add a contract and its amendments or reports. ClaimTrace lists who owes what, answers questions with quotes and checks one document against another.</p>
       </div>
       <div class="privacy" id="privacy">
-        <h2 class="privacy__head">Your files stay here</h2>
-        <p>Your files are read by code running in this tab. Nothing is uploaded.</p>
-        <p class="privacy__more">The page may only talk to this site, and only to download the engine. Close the tab and everything you added is gone.</p>
+        <svg class="icon privacy__icon" aria-hidden="true"><use href="#i-lock"/></svg>
+        <div>
+          <h2 class="privacy__head">Your files stay here</h2>
+          <p>Your files are read by code running in this tab. Nothing is uploaded.</p>
+          <p class="privacy__more">The page may only talk to this site, and only to download the engine. Close the tab and everything you added is gone.</p>
+        </div>
       </div>
     </div>
   </section>
@@ -61,64 +78,86 @@
   </noscript>
 
   <div class="app" id="app" hidden>
+    <div class="container bench">
 
-    <section class="panel engine" aria-labelledby="engine-title">
-      <div class="container engine__grid">
-        <h2 id="engine-title" class="panel__head">Engine</h2>
-        <div class="engine__body">
+      <div class="bench__side">
+        <section class="card engine" aria-labelledby="engine-title">
+          <div class="engine__top">
+            <h2 id="engine-title" class="card__title">Engine</h2>
+            <p class="engine__state" id="engine-state">
+              <svg class="icon engine__icon engine__icon--loading" aria-hidden="true"><use href="#i-load"/></svg>
+              <svg class="icon engine__icon engine__icon--ready" aria-hidden="true"><use href="#i-supports"/></svg>
+              <svg class="icon engine__icon engine__icon--busy" aria-hidden="true"><use href="#i-load"/></svg>
+              <svg class="icon engine__icon engine__icon--stopped" aria-hidden="true"><use href="#i-review"/></svg>
+              <svg class="icon engine__icon engine__icon--failed" aria-hidden="true"><use href="#i-contradicts"/></svg>
+              <span id="engine-state-text">Loading</span>
+            </p>
+          </div>
           <p class="engine__status" id="engine-status">Starting the engine.</p>
           <p class="visually-hidden" id="engine-live" role="status" aria-live="polite"></p>
           <progress id="engine-progress" max="100" value="0" aria-labelledby="engine-status"></progress>
           <p class="engine__note" id="engine-note">About 18 MB, downloaded from this site on your first visit only. Your browser keeps a copy for next time.</p>
-        </div>
-      </div>
-    </section>
+          <div class="engine__busy">
+            <p>Working on it, in this tab.</p>
+            <button class="btn btn--quiet btn--small" type="button" id="cancel" hidden>Cancel</button>
+          </div>
+        </section>
 
-    <section class="panel add" aria-labelledby="add-title">
-      <div class="container add__grid">
-        <div>
-          <h2 id="add-title" class="panel__head">1. Add documents</h2>
-          <p class="panel__lede">Start with four fictional samples: a contract, its amendment, an audit report and a delivery record.</p>
-        </div>
-        <div class="add__actions">
-          <button class="btn" type="button" id="load-samples" disabled>Load sample documents</button>
-          <button class="btn btn--quiet btn--small" type="button" id="cancel" hidden>Cancel</button>
+        <section class="card add" aria-labelledby="add-title">
+          <h2 id="add-title" class="card__title">Add documents</h2>
+          <p class="card__lede">Start with four fictional samples: a contract, its amendment, an audit report and a delivery record.</p>
+          <button class="btn add__samples" type="button" id="load-samples" disabled>Load sample documents</button>
           <div class="drop" id="drop">
             <input class="visually-hidden" type="file" id="file-input" multiple accept=".pdf,.docx,.txt,.md,.markdown,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown" disabled>
             <label class="drop__label" for="file-input">
+              <svg class="icon drop__icon" aria-hidden="true"><use href="#i-upload"/></svg>
               <span class="drop__title">Or choose your own files</span>
               <span class="drop__hint">Drop them here, or press to browse. PDF, Word (.docx), text or Markdown, up to 10 MB and about 400 pages of text each.</span>
             </label>
           </div>
           <p class="add__status" id="add-status" role="status" aria-live="polite"></p>
-        </div>
+          <ul class="docs" id="doc-list" aria-label="Documents added"></ul>
+          <div class="docs__tools" id="doc-tools" hidden>
+            <button class="btn btn--quiet btn--small" type="button" id="export-json">Download JSON</button>
+            <button class="btn btn--quiet btn--small" type="button" id="export-md">Download Markdown</button>
+            <button class="btn btn--quiet btn--small" type="button" id="reset">Remove all documents</button>
+          </div>
+        </section>
       </div>
-      <div class="container">
-        <ul class="docs" id="doc-list" aria-label="Documents added"></ul>
-        <div class="docs__tools" id="doc-tools" hidden>
-          <button class="btn btn--quiet btn--small" type="button" id="export-json">Download JSON</button>
-          <button class="btn btn--quiet btn--small" type="button" id="export-md">Download Markdown</button>
-          <button class="btn btn--quiet btn--small" type="button" id="reset">Remove all documents</button>
-        </div>
-      </div>
-    </section>
 
-    <section class="panel register" aria-labelledby="register-title" id="register" hidden>
-      <div class="container">
-        <h2 id="register-title" class="panel__head" tabindex="-1">2. Who owes what, by when</h2>
-        <p class="panel__lede" id="register-summary"></p>
-        <div class="deadlines" id="deadlines"></div>
-        <div id="parties"></div>
-      </div>
-    </section>
+      <div class="bench__main">
+        <section class="empty" id="results-empty" aria-labelledby="empty-title">
+          <h2 id="empty-title" class="empty__title">Results appear here</h2>
+          <p class="empty__lede">Load the samples or add your own files on the left. Then you get three things:</p>
+          <ol class="empty__list">
+            <li><span><strong>Who owes what, by when.</strong> Every commitment with its clause, and the ones an amendment replaced, struck through.</span></li>
+            <li><span><strong>Answers with quotes.</strong> Ask in plain words. If nothing in the documents supports an answer, it says so.</span></li>
+            <li><span><strong>A check of one document against another.</strong> Dates, amounts and places that disagree, each with both quotes.</span></li>
+          </ol>
+          <figure class="empty__eg">
+            <figcaption>On the samples, for example</figcaption>
+            <p class="row-eg"><span class="num row-eg__sec">2.1</span><span class="row-eg__what"><del>March 31, 2026</del> <ins>May 15, 2026</ins></span><span class="status status--replaced"><svg class="icon" aria-hidden="true"><use href="#i-replaced"/></svg>Replaced</span></p>
+            <p class="row-eg"><span class="num row-eg__sec">4.1</span><span class="row-eg__what">Measured 99.1% is below the committed 99.5%.</span><span class="status status--contradicted"><svg class="icon" aria-hidden="true"><use href="#i-contradicts"/></svg>Contradicted</span></p>
+          </figure>
+        </section>
 
-    <section class="panel ask" aria-labelledby="ask-title" id="ask" hidden>
-      <div class="container ask__grid">
-        <div>
-          <h2 id="ask-title" class="panel__head">3. Ask a question</h2>
+        <nav class="jump" id="results-nav" aria-label="Results" hidden>
+          <a href="#register">Who owes what</a>
+          <a href="#ask">Ask a question</a>
+          <a href="#check">Check two documents</a>
+        </nav>
+
+        <section class="panel register" aria-labelledby="register-title" id="register" hidden>
+          <h2 id="register-title" class="panel__head" tabindex="-1">Who owes what, by when</h2>
+          <p class="panel__lede" id="register-summary"></p>
+          <div id="changes"></div>
+          <div class="deadlines" id="deadlines"></div>
+          <div id="parties"></div>
+        </section>
+
+        <section class="panel ask" aria-labelledby="ask-title" id="ask" hidden>
+          <h2 id="ask-title" class="panel__head">Ask a question</h2>
           <p class="panel__lede">Answers quote the documents. If nothing supports an answer, it says so.</p>
-        </div>
-        <div>
           <form class="ask__form" id="ask-form">
             <label class="field__label" for="question">Your question</label>
             <div class="ask__row">
@@ -126,20 +165,14 @@
               <button class="btn" type="submit" id="ask-button">Ask</button>
             </div>
           </form>
-          <div class="chips" id="suggestions" aria-label="Example questions"></div>
+          <div class="chips" id="suggestions" role="group" aria-label="Example questions"></div>
           <p class="visually-hidden" id="answer-status" role="status" aria-live="polite"></p>
           <div class="answer" id="answer"></div>
-        </div>
-      </div>
-    </section>
+        </section>
 
-    <section class="panel check" aria-labelledby="check-title" id="check" hidden>
-      <div class="container ask__grid">
-        <div>
-          <h2 id="check-title" class="panel__head">4. Check one document against another</h2>
+        <section class="panel check" aria-labelledby="check-title" id="check" hidden>
+          <h2 id="check-title" class="panel__head">Check one document against another</h2>
           <p class="panel__lede">A contract against its amendment, an audit report or a delivery record.</p>
-        </div>
-        <div>
           <form class="check__form" id="check-form">
             <div class="check__field">
               <label class="field__label" for="base-doc">Check this document</label>
@@ -153,18 +186,18 @@
           </form>
           <p class="visually-hidden" id="check-status" role="status" aria-live="polite"></p>
           <div class="findings" id="findings"></div>
-        </div>
+        </section>
       </div>
-    </section>
 
+    </div>
   </div>
 
   <section class="limits-note" aria-labelledby="limits-title">
     <div class="container limits-note__grid">
-      <h2 id="limits-title" class="panel__head">Before you rely on it</h2>
+      <h2 id="limits-title" class="limits-note__head">Before you rely on it</h2>
       <div class="limits-note__body">
         <p>Not legal advice. ClaimTrace is a reading aid: check every quote before you act on it.</p>
-        <p>On amendment wording it had not seen before, its amendment check was wrong about 4 times in 10 (verdict accuracy 0.60 on 105 checks). It usually errs by saying &ldquo;needs review&rdquo; where a change was real. <a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md">How it was measured</a>.</p>
+        <p>On amendment wording it had not seen before, its amendment check was wrong about 4 times in 10 (verdict accuracy 0.60 on 105 checks). It usually errs by saying &ldquo;needs review&rdquo; where a change was real. <a href="../evidence/">The numbers, with every case</a>.</p>
         <p>This browser version uses the rules engine only: no language model, no OCR for scanned PDFs.</p>
       </div>
     </div>
@@ -184,10 +217,11 @@
 <!-- footer -->
 <footer class="foot">
   <div class="container">
-    <p class="foot__mark">ClaimTrace</p>
+    <p class="foot__mark"><svg class="icon wordmark__mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5"/><path d="M8.5 14.5l2.5 2.5 4.5-5"/></svg>ClaimTrace</p>
     <div class="foot__cols">
       <ul class="foot__links" aria-label="Site">
         <li><a href="../try/">Try it in your browser</a></li>
+        <li><a href="../#how">How it works</a></li>
         <li><a href="../evidence/">Evidence</a></li>
         <li><a href="../get/">Get it</a></li>
         <li><a href="../docs/">Docs</a></li>

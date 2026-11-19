@@ -12,13 +12,13 @@
 <meta property="og:title" content="ClaimTrace docs">
 <meta property="og:description" content="How it works, privacy, security, evaluation, roadmap and contributing, in plain files on GitHub.">
 <meta property="og:url" content="https://glowstonesq1.github.io/claimtrace/docs/">
-<meta property="og:image" content="https://glowstonesq1.github.io/claimtrace/media/claimtrace-promo.jpg">
+<meta property="og:image" content="https://glowstonesq1.github.io/claimtrace/media/claimtrace-film-poster.jpg">
 <meta property="og:image:alt" content="The ClaimTrace register beside the source contract.">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="preload" href="../fonts/bodoni-moda-latin-opsz-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="../fonts/geist-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../fonts/instrument-sans-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../fonts/figtree-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="../fonts.css">
-<link rel="stylesheet" href="../styles.css">
+<link rel="stylesheet" href="../pages.css">
 <script src="../head.js"></script>
 </head>
 <body>
@@ -26,34 +26,59 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav">
   <div class="container nav__inner">
-    <a class="wordmark" href="../" aria-label="ClaimTrace, home">ClaimTrace</a>
+    <a class="wordmark" href="../" aria-label="ClaimTrace, home"><svg class="icon wordmark__mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5"/><path d="M8.5 14.5l2.5 2.5 4.5-5"/></svg>ClaimTrace</a>
     <nav class="nav__links" aria-label="Primary">
-      <a href="../try/" data-nav="try">Try</a>
+      <a href="../#how" data-nav="how">How it works</a>
       <a href="../evidence/" data-nav="evidence">Evidence</a>
       <a href="../get/" data-nav="get">Get it</a>
       <a href="../docs/" data-nav="docs" aria-current="page">Docs</a>
-      <a href="https://github.com/glowstonesq1/claimtrace">GitHub</a>
     </nav>
+    <a class="btn nav__try" href="../try/" data-nav="try">Try it</a>
   </div>
 </header>
 <!-- /nav -->
 
 <main id="main">
   <section class="page-head" aria-labelledby="docs-title">
-    <div class="container page-head__grid">
-      <div>
-        <h1 id="docs-title">Docs</h1>
-        <p class="lead">The method, in plain files on GitHub. Start with the one that answers your question.</p>
+    <div class="container">
+      <h1 id="docs-title">Docs</h1>
+      <p class="lead">How ClaimTrace works, what it does with your data, and how it is tested. Each one is a plain file on GitHub.</p>
+    </div>
+  </section>
+
+  <section class="shelf" aria-label="Documents">
+    <div class="container shelf__grid">
+      <div class="prose">
+        <h2>In plain words</h2>
+        <p>ClaimTrace reads contracts, amendments and reports. It lists who owes what and by when, notices when an amendment replaces a clause, and checks one document against another.</p>
+        <p>It never answers from memory. Every result carries a quote from your documents, and the quote is checked against the source text character for character. When nothing supports an answer, it says so.</p>
+        <p>It is a reading aid, not legal advice. Its weakest spot is amendment wording it has not seen before, where it is wrong about 4 times in 10.</p>
+        <p class="way__more"><a href="../evidence/">Every number, with every case</a></p>
       </div>
-      <ul class="index">
-        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/architecture.md"><span class="index__label">How it works</span><span class="index__what">How a document becomes a register, an answer or a check.</span></a></li>
-        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/privacy.md"><span class="index__label">Privacy</span><span class="index__what">What is stored, what can leave your machine, and how to delete it.</span></a></li>
-        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/security.md"><span class="index__label">Security</span><span class="index__what">The threats it defends against, and the gaps it still has.</span></a></li>
-        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md"><span class="index__label">Evaluation</span><span class="index__what">How the sealed test sets were built, and every score.</span></a></li>
-        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/claude.md"><span class="index__label">Using it with Claude</span><span class="index__what">The Claude.ai skill and the Claude Code plugin.</span></a></li>
-        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/roadmap.md"><span class="index__label">Roadmap</span><span class="index__what">What comes next, and the evaluation gate each item must pass.</span></a></li>
-        <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/contributing.md"><span class="index__label">Contributing</span><span class="index__what">How to send a change: a test for every fix, an eval run for answers.</span></a></li>
-      </ul>
+      <div>
+        <div class="shelf__group">
+          <h2 class="shelf__title">Start here</h2>
+          <ul class="index">
+          <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/architecture.md"><span class="index__label">How it works</span><span class="index__what">How a document becomes a register, an answer or a check.</span></a></li>
+          <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/claude.md"><span class="index__label">Using it with Claude</span><span class="index__what">The Claude.ai skill and the Claude Code plugin.</span></a></li>
+          </ul>
+        </div>
+        <div class="shelf__group">
+          <h2 class="shelf__title">Your documents</h2>
+          <ul class="index">
+          <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/privacy.md"><span class="index__label">Privacy</span><span class="index__what">What is stored, what can leave your machine, and how to delete it.</span></a></li>
+          <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/security.md"><span class="index__label">Security</span><span class="index__what">The threats it defends against, and the gaps it still has.</span></a></li>
+          </ul>
+        </div>
+        <div class="shelf__group">
+          <h2 class="shelf__title">How good it is, and what comes next</h2>
+          <ul class="index">
+          <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/evaluation.md"><span class="index__label">Evaluation</span><span class="index__what">How the sealed test sets were built, and every score.</span></a></li>
+          <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/roadmap.md"><span class="index__label">Roadmap</span><span class="index__what">What comes next, and the evaluation gate each item must pass.</span></a></li>
+          <li><a href="https://github.com/glowstonesq1/claimtrace/blob/main/docs/contributing.md"><span class="index__label">Contributing</span><span class="index__what">How to send a change: a test for every fix, an eval run for answers.</span></a></li>
+          </ul>
+        </div>
+      </div>
     </div>
   </section>
 </main>
@@ -61,10 +86,11 @@
 <!-- footer -->
 <footer class="foot">
   <div class="container">
-    <p class="foot__mark">ClaimTrace</p>
+    <p class="foot__mark"><svg class="icon wordmark__mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5"/><path d="M8.5 14.5l2.5 2.5 4.5-5"/></svg>ClaimTrace</p>
     <div class="foot__cols">
       <ul class="foot__links" aria-label="Site">
         <li><a href="../try/">Try it in your browser</a></li>
+        <li><a href="../#how">How it works</a></li>
         <li><a href="../evidence/">Evidence</a></li>
         <li><a href="../get/">Get it</a></li>
         <li><a href="../docs/">Docs</a></li>

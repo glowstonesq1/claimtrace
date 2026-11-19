@@ -9,7 +9,7 @@
 <meta name="description" content="This page does not exist. Try ClaimTrace in your browser, get it, or read the docs.">
 <!-- GitHub Pages serves this file at any missing path, so every URL here is absolute from /claimtrace/. -->
 <link rel="stylesheet" href="/claimtrace/fonts.css">
-<link rel="stylesheet" href="/claimtrace/styles.css">
+<link rel="stylesheet" href="/claimtrace/pages.css">
 <script src="/claimtrace/head.js"></script>
 </head>
 <body>
@@ -17,30 +17,33 @@
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav">
   <div class="container nav__inner">
-    <a class="wordmark" href="/claimtrace/" aria-label="ClaimTrace, home">ClaimTrace</a>
+    <a class="wordmark" href="/claimtrace/" aria-label="ClaimTrace, home"><svg class="icon wordmark__mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5"/><path d="M8.5 14.5l2.5 2.5 4.5-5"/></svg>ClaimTrace</a>
     <nav class="nav__links" aria-label="Primary">
-      <a href="/claimtrace/try/" data-nav="try">Try</a>
+      <a href="/claimtrace/#how" data-nav="how">How it works</a>
       <a href="/claimtrace/evidence/" data-nav="evidence">Evidence</a>
       <a href="/claimtrace/get/" data-nav="get">Get it</a>
       <a href="/claimtrace/docs/" data-nav="docs">Docs</a>
-      <a href="https://github.com/glowstonesq1/claimtrace">GitHub</a>
     </nav>
+    <a class="btn nav__try" href="/claimtrace/try/" data-nav="try">Try it</a>
   </div>
 </header>
 <!-- /nav -->
 
 <main id="main">
-  <section class="page-head" aria-labelledby="nf-title">
+  <section class="lost" aria-labelledby="nf-title">
     <div class="container page-head__grid">
       <div>
+        <p class="lost__code">Error 404</p>
         <h1 id="nf-title">Page not found</h1>
         <p class="lead">Nothing lives at this address. One of these is probably what you wanted.</p>
+        <div class="actions"><a class="btn" href="/claimtrace/">Go to the home page</a></div>
       </div>
       <ul class="index">
-        <li><a href="/claimtrace/"><span class="index__label">Home</span><span class="index__what">What ClaimTrace does, and what it does not.</span></a></li>
-        <li><a href="/claimtrace/try/"><span class="index__label">Try it in your browser</span><span class="index__what">Nothing is uploaded.</span></a></li>
-        <li><a href="/claimtrace/get/"><span class="index__label">Get it</span><span class="index__what">Claude, Claude Code, a terminal or Docker.</span></a></li>
-        <li><a href="/claimtrace/docs/"><span class="index__label">Docs</span><span class="index__what">How it works, privacy, security, evaluation.</span></a></li>
+          <li><a href="/claimtrace/try/"><span class="index__label">Try it in your browser</span><span class="index__what">Nothing is uploaded.</span></a></li>
+          <li><a href="/claimtrace/#how"><span class="index__label">How it works</span><span class="index__what">Every finding points back to a clause.</span></a></li>
+          <li><a href="/claimtrace/evidence/"><span class="index__label">Evidence</span><span class="index__what">Every number, with every case.</span></a></li>
+          <li><a href="/claimtrace/get/"><span class="index__label">Get it</span><span class="index__what">In the browser, with Claude, or self-hosted.</span></a></li>
+          <li><a href="/claimtrace/docs/"><span class="index__label">Docs</span><span class="index__what">How it works, privacy, security, evaluation.</span></a></li>
       </ul>
     </div>
   </section>
@@ -49,10 +52,11 @@
 <!-- footer -->
 <footer class="foot">
   <div class="container">
-    <p class="foot__mark">ClaimTrace</p>
+    <p class="foot__mark"><svg class="icon wordmark__mark" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h9l5 5v11H5z"/><path d="M14 4v5h5"/><path d="M8.5 14.5l2.5 2.5 4.5-5"/></svg>ClaimTrace</p>
     <div class="foot__cols">
       <ul class="foot__links" aria-label="Site">
         <li><a href="/claimtrace/try/">Try it in your browser</a></li>
+        <li><a href="/claimtrace/#how">How it works</a></li>
         <li><a href="/claimtrace/evidence/">Evidence</a></li>
         <li><a href="/claimtrace/get/">Get it</a></li>
         <li><a href="/claimtrace/docs/">Docs</a></li>

@@ -31,3 +31,11 @@ apps/promo/public/audio/
 dist/
 plugins/claimtrace/skills/claimtrace/vendor/
 !apps/site/data/
+
+# film (apps/film): generated audio, renders, review output, caches
+apps/film/audio/*.wav
+apps/film/out/
+apps/film/review/
+apps/film/snapshots/
+apps/film/.gm-parts/
+docs/img/frames/raw/

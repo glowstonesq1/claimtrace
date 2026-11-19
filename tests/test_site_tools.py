@@ -112,7 +112,7 @@ def test_the_real_site_links_resolve_after_injection(tmp_path: Path) -> None:
     """What the Pages workflow does: inject the partials, then check every internal link."""
     site = tmp_path / "site"
     shutil.copytree(ROOT / "apps" / "site", site, ignore=shutil.ignore_patterns("*.mp4", ".hallmark"))
-    (site / "media" / "claimtrace-promo.mp4").write_bytes(b"")
+    (site / "media" / "claimtrace-film.mp4").write_bytes(b"")
     assert inject_partials.main(["--site", str(site)]) == 0
     assert inject_partials.main(["--site", str(site), "--check"]) == 0
     assert check_links.check(site, {"try", "evidence"}) == []

@@ -1,22 +1,66 @@
+/* Dusk ledger tokens (v0.4). Every colour and font on the site goes through these.
+   Reading pages: cool near-white paper, blue-grey ink, hairline rules (from Cobalt).
+   The hero band: a CSS evening sky over slate, the product in smoked glass with a lit top edge (from Dusk).
+   Signals: periwinkle/cobalt = supported or current, apricot = replaced or needs review, one muted red =
+   contradiction. Status is never colour alone: every signal ships with a label and an icon. */
 :root {
   color-scheme: light;
-  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
-  --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.25rem; --text-xl: 1.5625rem; --text-2xl: 1.953rem; --text-3xl: 2.441rem;
-  --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem); --text-display: clamp(2.75rem, 5vw + 1rem, 5.25rem);
-  --text-section: clamp(2rem, 2.5vw + 1rem, 3.5rem); --text-title: clamp(1.25rem, 0.75vw + 0.875rem, 1.625rem); --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
+
+  /* scale */
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px;
+  --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --text-xs: 0.875rem; --text-sm: 1rem; --text-md: 1.125rem; --text-lg: 1.25rem; --text-xl: 1.5rem;
+  --text-2xl: 1.875rem; --text-3xl: 2.375rem;
+  --text-display: clamp(2.5rem, 3.4vw + 1rem, 4.25rem); --text-display-s: clamp(2.125rem, 2.6vw + 1rem, 3.25rem);
+  --text-section: clamp(1.875rem, 1.9vw + 1rem, 2.875rem); --text-title: clamp(1.25rem, 0.5vw + 1rem, 1.5rem);
+  --text-lead: clamp(1.1875rem, 0.4vw + 1.05rem, 1.375rem);
+  --leading-body: 1.6; --measure: 66ch;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
-  --color-error: oklch(52% 0.19 27); --color-success: oklch(50% 0.12 150);
-  --container: 1440px; --gutter: 64px; --gap-columns: 32px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
+  --container: 1360px; --gutter: 64px; --gap-columns: 32px;
+  --section-gap-s: 104px; --section-gap: 136px; --section-gap-l: 168px;
   --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
-  --color-paper: oklch(96.5% 0.016 82); --color-paper-2: oklch(93.5% 0.02 80); --color-paper-3: oklch(89% 0.024 78);
-  --color-ink: oklch(17% 0.012 60); --color-ink-2: oklch(28% 0.014 60); --color-muted: oklch(49% 0.014 65);
-  --color-rule: oklch(80% 0.018 75); --color-rule-2: oklch(66% 0.02 72);
-  --color-accent: oklch(45% 0.18 262); --color-accent-ink: oklch(97% 0.012 82); --color-focus: oklch(50% 0.18 262);
-  --color-guide: oklch(55% 0.16 262 / 0.5);
-  --font-display: "Bodoni Moda", ui-serif, Georgia, serif; --font-body: "Geist", ui-sans-serif, system-ui, sans-serif;
-  --font-outlier: "Geist Mono", ui-monospace, monospace;
-  --radius-card: 0; --radius-pill: 0; --rule-hair: 1px;
-  --shadow-card: none;
-  --tracking-display: -0.02em; --display-weight: 400; --display-optical: 96;
+
+  /* paper (reading pages) */
+  --color-paper: oklch(98.6% 0.005 250); --color-paper-2: oklch(96.4% 0.008 252); --color-paper-3: oklch(93.2% 0.011 252);
+  --color-sheet: oklch(99.6% 0.002 250);
+  --color-ink: oklch(22% 0.03 262); --color-ink-2: oklch(34% 0.026 262); --color-muted: oklch(46% 0.02 260);
+  --color-rule: oklch(89.5% 0.01 252); --color-rule-2: oklch(80% 0.014 254);
+  --color-accent: oklch(47% 0.17 264); --color-accent-hi: oklch(41% 0.18 264); --color-accent-ink: oklch(98.6% 0.005 250);
+  --color-accent-edge: oklch(36% 0.15 264); --color-focus: oklch(50% 0.18 264);
+  --color-error: oklch(49% 0.16 25); --color-success: oklch(47% 0.13 264);
+
+  /* signals on paper: text-safe tone, a wash, and a mark for fills and wires */
+  --sig-current: oklch(46% 0.15 268); --sig-current-wash: oklch(94.5% 0.028 272); --sig-current-mark: oklch(66% 0.12 272);
+  --sig-replaced: oklch(48% 0.12 52); --sig-replaced-wash: oklch(94.5% 0.04 66); --sig-replaced-mark: oklch(76% 0.12 60);
+  --sig-contra: oklch(49% 0.16 25); --sig-contra-wash: oklch(95% 0.026 25); --sig-contra-mark: oklch(60% 0.16 25);
+
+  /* the dusk band */
+  --color-night: oklch(18% 0.022 266); --color-night-2: oklch(22.5% 0.024 266); --color-night-3: oklch(27% 0.026 266);
+  --color-night-ink: oklch(96.5% 0.006 75); --color-night-ink-2: oklch(86% 0.014 262); --color-night-muted: oklch(75% 0.02 262);
+  --color-night-rule: oklch(100% 0 0 / 0.1);
+  --color-sky-top: oklch(20% 0.03 262); --color-sky-mid: oklch(28% 0.035 262); --color-sky-low: oklch(42% 0.05 24);
+  --color-horizon: oklch(74% 0.1 58); --color-horizon-soft: oklch(80% 0.07 70);
+  --color-periwinkle: oklch(80% 0.09 274); --color-periwinkle-hi: oklch(86% 0.075 274); --color-periwinkle-ink: oklch(20% 0.04 274);
+  --color-apricot: oklch(84% 0.095 62); --color-rose: oklch(76% 0.11 22);
+  --color-field: oklch(96% 0.01 262 / 0.075); --color-field-hi: oklch(84% 0.095 62 / 0.55); --color-field-lo: oklch(80% 0.09 274 / 0.5);
+  --glass: oklch(21% 0.022 268 / 0.62); --glass-blur: 20px;
+  --glass-hi: inset 0 1px 0 oklch(100% 0 0 / 0.16), inset 0 0 0 1px oklch(100% 0 0 / 0.07);
+  --glass-row: oklch(100% 0 0 / 0.05);
+  --shadow-glass: 0 40px 80px -32px oklch(8% 0.02 268 / 0.75);
+
+  /* type: Instrument Sans heads, Figtree for all reading, JetBrains Mono only for clause numbers, ids, figures */
+  --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "Figtree", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-outlier: var(--font-mono);
+  --display-weight: 500; --tracking-display: -0.022em; --display-optical: auto;
+
+  /* surfaces */
+  --radius-card: 14px; --radius-inner: 8px; --radius-clip: 6px; --radius-pill: 999px; --rule-hair: 1px;
+  --shadow-card: 0 1px 2px oklch(22% 0.03 262 / 0.06), 0 18px 36px -20px oklch(22% 0.03 262 / 0.22);
+  --shadow-lift: 0 2px 4px oklch(22% 0.03 262 / 0.08), 0 24px 48px -24px oklch(30% 0.08 264 / 0.35);
+  --edge-light: inset 0 1px 0 oklch(100% 0 0 / 0.55);
+  --mask-on: oklch(0% 0 0); --mask-half: oklch(0% 0 0 / 0.6);
+  --shadow-btn: inset 0 1px 0 oklch(100% 0 0 / 0.22), 0 1px 2px oklch(22% 0.03 262 / 0.18);
 }
