@@ -64,6 +64,18 @@ jobs:
           CLAIMTRACE_DB=/tmp/e2e.db claimtrace serve --port 8765 &
           for i in $(seq 1 30); do curl -sf http://127.0.0.1:8765/health && break; sleep 1; done
           cd apps/web && npm i --no-save playwright@1.49.1 && BASE=http://127.0.0.1:8765 node e2e/smoke.mjs
+      - name: Cache the try page's pinned engine downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/claimtrace-try-bundle
+          key: try-bundle-${{ hashFiles('apps/site/try/bundle.lock.json') }}
+      - name: Build the try page engine bundle (Pyodide + wheels, every file sha256-checked against the lockfile)
+        run: python scripts/build_try_bundle.py
+      - name: Try page end-to-end (engine in the browser, no egress, axe)
+        run: |
+          pip install 'reportlab>=4'
+          npm i --no-save --no-audit --no-fund --prefix /tmp/try-e2e playwright@1.49.1 axe-core@4.10.2
+          NODE_PATH=/tmp/try-e2e/node_modules PYTHON=python node apps/site/try/e2e.mjs
 
   docker:
     runs-on: ubuntu-latest

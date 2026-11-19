@@ -212,8 +212,9 @@ class Session:
             fj["subject_span"] = _span(self.store, f.subject_span)
             fj["supporting"] = [_span(self.store, s) for s in f.supporting]
             fj["conflicting"] = [_span(self.store, s) for s in f.conflicting]
-            # an amendment run lists every base clause; the ones the amendment does not touch are noise here
-            fj["routine"] = run.mode == "amendment" and f.verdict.value == "not_addressed"
+            # "not addressed" rows (a clause the amendment leaves alone, a commitment the evidence never
+            # mentions) are listed after the findings, so the page can fold them away
+            fj["routine"] = f.verdict.value == "not_addressed"
             findings.append(fj)
         findings.sort(key=lambda fj: (fj["routine"], SEVERITY_ORDER.get(fj["severity"], 9)))
         out["findings"] = findings

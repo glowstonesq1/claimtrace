@@ -1,0 +1,159 @@
+{
+  "comment": "Every third-party file in the try page's engine bundle, pinned by sha256. Rebuild with `make try-bundle`; re-pin with `python scripts/build_try_bundle.py --write-lock`. The ClaimTrace wheel is built from the checkout and its hash is recorded in pyodide/manifest.json.",
+  "pyodide": {
+    "version": "314.0.8",
+    "npm_integrity": "sha512-74Wq1kXOC+CCEzAfxuRAO701nAcCMLjf8NrwvWpu8S41dVMXwXmLQ05dYB+F4e46AdnGo0oq7YHSVUpHsoarLQ==",
+    "python": "3.14.2",
+    "abi_version": "2026_0",
+    "lock_info": {
+      "abi_version": "2026_0",
+      "arch": "wasm32",
+      "platform": "emscripten_5_0_3",
+      "python": "3.14.2"
+    }
+  },
+  "files": [
+    {
+      "file": "pyodide.mjs",
+      "source": "npm",
+      "sha256": "1bb8cc14f9405aaa7cd4e00c12edd0a8539de9cc026618d6ee5a9663f367dc70",
+      "size": 17758
+    },
+    {
+      "file": "pyodide.asm.mjs",
+      "source": "npm",
+      "sha256": "22514b8be6980e28a02c8b1d6387ce8dfe666fc4edf8d547cff5dce29ff4d972",
+      "size": 1250259
+    },
+    {
+      "file": "pyodide.asm.wasm",
+      "source": "npm",
+      "sha256": "e14d49ceca9b4a0e274ea918f3a898de2d3880b6e5573a6cfe1a2267ecc70329",
+      "size": 9597892
+    },
+    {
+      "file": "python_stdlib.zip",
+      "source": "npm",
+      "sha256": "2bd3394a145bfbbe5bbc9d9d6ab9136abbb986c6fef6c142b3a2962227aa5c28",
+      "size": 2545550
+    },
+    {
+      "file": "pydantic-2.12.5-py3-none-any.whl",
+      "source": "pyodide",
+      "package": "pydantic",
+      "version": "2.12.5",
+      "imports": [
+        "pydantic"
+      ],
+      "depends": [
+        "typing-extensions",
+        "pydantic_core",
+        "annotated-types",
+        "typing-inspection"
+      ],
+      "sha256": "04854875001e07a8a74d87b7c80296cba168773d8c9804e232d695f82484d7d7",
+      "size": 463578
+    },
+    {
+      "file": "pydantic_core-2.41.5-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+      "source": "pyodide",
+      "package": "pydantic_core",
+      "version": "2.41.5",
+      "imports": [
+        "pydantic_core"
+      ],
+      "depends": [
+        "typing-extensions"
+      ],
+      "sha256": "54703fa42a0d4d574283cfb8f08050ba7820c9a42b0a21bc1286407d9a9e54da",
+      "size": 1310164
+    },
+    {
+      "file": "typing_extensions-4.15.0-py3-none-any.whl",
+      "source": "pyodide",
+      "package": "typing-extensions",
+      "version": "4.15.0",
+      "imports": [
+        "typing_extensions"
+      ],
+      "depends": [],
+      "sha256": "4fec68770a05408e668a4fa53d6bf4f0f684b9dacf820c7c5d6e97d3ad225e29",
+      "size": 44613
+    },
+    {
+      "file": "annotated_types-0.7.0-py3-none-any.whl",
+      "source": "pyodide",
+      "package": "annotated-types",
+      "version": "0.7.0",
+      "imports": [
+        "annotated_types"
+      ],
+      "depends": [],
+      "sha256": "6541523b4b16c1953d2fc9b82fb86c540eea9f78fca329ab371ed13a8b0faa51",
+      "size": 11963
+    },
+    {
+      "file": "typing_inspection-0.4.2-py3-none-any.whl",
+      "source": "pyodide",
+      "package": "typing-inspection",
+      "version": "0.4.2",
+      "imports": [
+        "typing_inspection"
+      ],
+      "depends": [],
+      "sha256": "deb989630985f7a7296b90357a947a804a7612cecbb6439d6e71128e01f61051",
+      "size": 14610
+    },
+    {
+      "file": "lxml-6.1.3-cp314-cp314-pyemscripten_2026_0_wasm32.whl",
+      "source": "pyodide",
+      "package": "lxml",
+      "version": "6.1.3",
+      "imports": [
+        "lxml"
+      ],
+      "depends": [],
+      "sha256": "6a0b98f57a538cb6af4868c3499efec2bb52f7ed59fed94b7fbf195d6e40281f",
+      "size": 2145850
+    },
+    {
+      "file": "pypdf-7.1.1-py3-none-any.whl",
+      "source": "pypi",
+      "package": "pypdf",
+      "version": "7.1.1",
+      "imports": [
+        "pypdf"
+      ],
+      "depends": [],
+      "sha256": "04c5680d4b4cfa04ab505b09393fc949860c34a4dad6565284d11a2f5c3ce8b1",
+      "size": 421026
+    },
+    {
+      "file": "python_docx-1.2.0-py3-none-any.whl",
+      "source": "pypi",
+      "package": "python-docx",
+      "version": "1.2.0",
+      "imports": [
+        "docx"
+      ],
+      "depends": [
+        "lxml",
+        "typing-extensions"
+      ],
+      "sha256": "3fd478f3250fbbbfd3b94fe1e985955737c145627498896a8a6bf81f4baf66c7",
+      "size": 252987
+    },
+    {
+      "file": "defusedxml-0.7.1-py2.py3-none-any.whl",
+      "source": "pypi",
+      "package": "defusedxml",
+      "version": "0.7.1",
+      "imports": [
+        "defusedxml"
+      ],
+      "depends": [],
+      "sha256": "a352e7e428770286cc899e2542b6cdaedb2b4953ff269a210103ec58f6198a61",
+      "size": 25604
+    }
+  ]
+}
